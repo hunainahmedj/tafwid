@@ -1,4 +1,6 @@
-# Tafwid · تفويض
+# Tafwid
+
+![Tafwid — Delegate work. Keep control.](plugins/tafwid/assets/cover.png)
 
 **Delegate work. Keep control.**
 

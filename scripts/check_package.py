@@ -16,6 +16,13 @@ def check():
     assert manifest["name"] == plugin.name == "tafwid"
     assert manifest["version"] == version, "Manifest/version mismatch"
     assert manifest["license"] == "MIT"
+    visual = manifest["interface"]
+    image_paths = [visual[key] for key in ("composerIcon", "logo", "logoDark") if key in visual]
+    image_paths += visual.get("screenshots", [])
+    for name in image_paths:
+        asset = plugin / name
+        assert asset.resolve().is_relative_to(plugin.resolve()), f"Image outside plugin: {name}"
+        assert asset.is_file() and asset.suffix == ".png", f"Missing PNG asset: {name}"
     assert marketplace["name"] == "tafwid"
     entries = marketplace["plugins"]
     assert len(entries) == 1 and entries[0]["name"] == "tafwid"
@@ -41,6 +48,10 @@ def check():
             continue
         assert path.suffix not in {".jsonl", ".sqlite", ".db", ".log"}, f"Runtime data: {relative}"
         assert path.name != ".env", f"Environment secrets: {relative}"
+        if path.suffix == ".png":
+            assert path.read_bytes().startswith(b"\x89PNG\r\n\x1a\n"), f"Invalid PNG: {relative}"
+            count += 1
+            continue
         content = path.read_text()
         assert not private_path.search(content), f"Machine-specific path: {relative}"
         assert not secret.search(content), f"Possible credential: {relative}"

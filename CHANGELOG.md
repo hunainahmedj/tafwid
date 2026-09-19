@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.1
+
+- Simplify the title to Tafwid.
+- Add a coordinated icon and cover image to the plugin listing and README.
+- Validate bundled image paths and PNG signatures during package checks.
+
 ## 0.1.0
 
 - Package the existing delegation skill and local dashboard as Tafwid.

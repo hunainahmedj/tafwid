@@ -1,6 +1,6 @@
 {
   "name": "tafwid",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Delegate bounded work to coding agents while Codex orchestrates and reviews.",
   "author": {
     "name": "hunainahmedj",
@@ -18,6 +18,13 @@
       "Turn delegation on for this task.",
       "Show the Tafwid workers dashboard.",
       "Delegate this task and review the result."
+    ],
+    "brandColor": "#D7E4B7",
+    "composerIcon": "./assets/icon.png",
+    "logo": "./assets/icon.png",
+    "logoDark": "./assets/icon.png",
+    "screenshots": [
+      "./assets/cover.png"
     ]
   },
   "repository": "https://github.com/hunainahmedj/tafwid",
