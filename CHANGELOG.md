@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.0
+
+- Replace the all-purpose skill with delegate, dashboard, and settings entry points.
+- Load the worker workflow only for delegation work, preserving review and handoff rules.
+- Share one runtime across the three skills; preserve task state and worker history.
+- Check entry-point names and packaged Markdown links in release validation.
+
 ## 0.1.1
 
 - Simplify the title to Tafwid.

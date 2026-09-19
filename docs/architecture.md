@@ -5,16 +5,21 @@ The repository is a distributable Codex marketplace containing one plugin:
 ```text
 .agents/plugins/marketplace.json
 plugins/tafwid/.codex-plugin/plugin.json
-plugins/tafwid/skills/tafwid/
-  SKILL.md             controller guidance
+plugins/tafwid/skills/delegate/
+  SKILL.md             switch and delegation entry point
   scripts/             Python runtime
   assets/dashboard/    static dashboard
-  references/          optional detailed guidance
+  references/          on-demand workflow and detailed guidance
   tests/               isolated Python and JavaScript checks
+plugins/tafwid/skills/dashboard/SKILL.md
+plugins/tafwid/skills/settings/SKILL.md
 ```
 
-The installed skill resolves its own directory. Runtime asset paths are relative
-to source files; installation does not require a specific username or checkout.
+The delegate entry point resolves its own directory. Dashboard and settings
+resolve the sibling delegate directory and call its shared runtime without
+reading its workflow. The full workflow lives in `delegate/references/workflow.md`
+and is read only for delegation work. Runtime asset paths are relative to source
+files; installation does not require a specific username or checkout.
 
 `session.py` owns the task-local switch. `paths.py` selects state storage.
 `settings.py` and `routing.py` own permission and model preferences.

@@ -27,8 +27,20 @@ def check():
     entries = marketplace["plugins"]
     assert len(entries) == 1 and entries[0]["name"] == "tafwid"
     assert entries[0]["source"] == {"source": "local", "path": "./plugins/tafwid"}
-    skill = plugin / "skills/tafwid"
-    assert "\nname: tafwid\n" in (skill / "SKILL.md").read_text()
+    entries = {p.parent.name: p for p in (plugin / "skills").glob("*/SKILL.md")}
+    assert set(entries) == {"delegate", "dashboard", "settings"}, "Missing or unexpected skill entry points"
+    for name, path in entries.items():
+        assert f"\nname: {name}\n" in path.read_text(), f"Skill name mismatch: {name}"
+        assert (path.parent / "agents/openai.yaml").is_file(), f"Missing skill metadata: {name}"
+    skill = plugin / "skills/delegate"
+    assert (skill / "references/workflow.md").is_file(), "Missing delegation workflow"
+    for document in (plugin / "skills").rglob("*.md"):
+        for target in re.findall(r"\[[^\]]*\]\(([^)]+)\)", document.read_text()):
+            if "://" in target or target.startswith("#"):
+                continue
+            resource = (document.parent / target.split("#", 1)[0]).resolve()
+            assert resource.is_relative_to(plugin.resolve()), f"Reference outside plugin: {document.name}: {target}"
+            assert resource.exists(), f"Broken reference: {document.name}: {target}"
     for name in ("README.md", "LICENSE", "CONTRIBUTING.md", "SECURITY.md",
                  "CHANGELOG.md", "docs/migration.md", "docs/architecture.md"):
         assert (ROOT / name).is_file(), f"Missing {name}"

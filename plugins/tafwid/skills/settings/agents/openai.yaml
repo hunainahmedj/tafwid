@@ -1,0 +1,4 @@
+interface:
+  display_name: "Tafwid Settings"
+  short_description: "Choose task models and worker permissions"
+  default_prompt: "Use $tafwid:settings to open model routing and worker preferences."

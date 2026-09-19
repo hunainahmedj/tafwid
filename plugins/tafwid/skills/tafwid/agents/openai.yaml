@@ -1,4 +1,0 @@
-interface:
-  display_name: "Tafwid"
-  short_description: "Delegate work; keep Codex in control"
-  default_prompt: "Use $tafwid to delegate a bounded task, then review its results."

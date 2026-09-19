@@ -8,7 +8,7 @@ Tafwid lets Codex delegate bounded work to coding agents while retaining task
 ownership, independent review and user communication. A local dashboard shows
 workers, resumed runs, instructions, results and recorded orchestrator activity.
 
-**Version 0.1 supports Claude Code as the worker backend.** Cursor, OpenCode and
+**The current release supports Claude Code as the worker backend.** Cursor, OpenCode and
 OpenRouter integrations are planned, not implemented. Superpowers and other
 workflow plugins are optional; Tafwid can forward relevant worker instructions
 without copying the entire parent conversation.
@@ -50,20 +50,25 @@ codex plugin marketplace add hunainahmedj/tafwid
 codex plugin add tafwid@tafwid
 ```
 
-Start a new Codex task so it discovers the installed skill. Invoke `$tafwid`, or
-select the Tafwid skill in the composer, then say:
+Start a new Codex task so it discovers the three skill entry points. Select one
+from the `$` menu, or use its qualified name:
 
-```text
-Turn delegation on for this task.
-```
+| Skill | Purpose | Example |
+| --- | --- | --- |
+| `$tafwid:delegate` | Assign work or manage this task's delegation switch | `$tafwid:delegate on` |
+| `$tafwid:dashboard` | Open workers, runs and recorded activity | `$tafwid:dashboard` |
+| `$tafwid:settings` | View or change model routing and permissions | `$tafwid:settings` |
 
-Other useful requests:
+`$tafwid:delegate off` disables automatic delegation for this task;
+`$tafwid:delegate status` reports its switch. A bare delegate invocation also
+shows status. To assign work, include the task after `$tafwid:delegate`.
+Plain-language requests still work through normal skill discovery.
 
-```text
-Show delegation status.
-Open the Tafwid workers dashboard.
-Turn delegation off for this task.
-```
+Dashboard and settings entry points share the existing runtime without loading
+the worker workflow. Delegation loads that workflow only when assigning,
+resuming or reviewing work. There is a small discovery-metadata cost for three
+skills; this split reduces instruction loading for narrow requests rather than
+guaranteeing zero context overhead.
 
 Delegation starts **off**, and permissions default to **Scoped**. Turning it off
 prevents new dispatches; it does not cancel an already-running worker. Explicit
@@ -73,6 +78,17 @@ In Dashboard → Settings, choose model routing and permissions. Current presets
 are Sonnet, Opus and Fable; choose aliases available to your Claude account.
 An explicit `--model` can select a different alias or exact ID. Tafwid does not
 silently substitute another billing provider when a model or quota is unavailable.
+
+### Updating Tafwid
+
+```sh
+codex plugin marketplace upgrade tafwid
+codex plugin add tafwid@tafwid
+```
+
+Start a new Codex task after updating. Version 0.2 replaces `$tafwid:tafwid`
+with the three entry points above; choose `$tafwid:delegate` for the former
+all-purpose entry. Task switches, worker history and settings stay in place.
 
 ### Existing claude-delegate users
 

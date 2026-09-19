@@ -1,0 +1,4 @@
+interface:
+  display_name: "Tafwid Dashboard"
+  short_description: "View workers, runs, and orchestrator activity"
+  default_prompt: "Use $tafwid:dashboard to open the workers dashboard."

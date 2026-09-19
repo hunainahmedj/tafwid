@@ -1,0 +1,4 @@
+interface:
+  display_name: "Tafwid Delegate"
+  short_description: "Delegate work or manage this task's switch"
+  default_prompt: "Use $tafwid:delegate to delegate a bounded task and review the result."

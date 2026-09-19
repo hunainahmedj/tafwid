@@ -1,5 +1,5 @@
 PYTHON ?= python3
-SKILL = plugins/tafwid/skills/tafwid
+SKILL = plugins/tafwid/skills/delegate
 
 .PHONY: test
 test:

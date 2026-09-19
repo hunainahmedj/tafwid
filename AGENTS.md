@@ -2,7 +2,8 @@
 
 Tafwid is a Codex plugin. The distributable plugin is under `plugins/tafwid`;
 its skill, Python runtime, dashboard, references and offline tests are under
-`plugins/tafwid/skills/tafwid`. Read README.md before changing behavior.
+`plugins/tafwid/skills/delegate`. The thin dashboard and settings entry points
+are sibling skills sharing that runtime. Read README.md before changing behavior.
 
 - Keep provider-specific authentication, commands and permissions explicit.
 - Only Claude Code is implemented. Do not advertise planned adapters as supported.

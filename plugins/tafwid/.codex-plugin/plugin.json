@@ -1,6 +1,6 @@
 {
   "name": "tafwid",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Delegate bounded work to coding agents while Codex orchestrates and reviews.",
   "author": {
     "name": "hunainahmedj",
@@ -15,9 +15,9 @@
     "category": "Productivity",
     "capabilities": [],
     "defaultPrompt": [
-      "Turn delegation on for this task.",
-      "Show the Tafwid workers dashboard.",
-      "Delegate this task and review the result."
+      "Use $tafwid:delegate to turn delegation on.",
+      "Use $tafwid:dashboard to view workers.",
+      "Use $tafwid:settings to choose task models."
     ],
     "brandColor": "#D7E4B7",
     "composerIcon": "./assets/icon.png",
