@@ -1,0 +1,32 @@
+{
+  "name": "tafwid",
+  "version": "0.1.0",
+  "description": "Delegate bounded work to coding agents while Codex orchestrates and reviews.",
+  "author": {
+    "name": "hunainahmedj",
+    "url": "https://github.com/hunainahmedj"
+  },
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Tafwid",
+    "shortDescription": "Delegate work. Keep control.",
+    "longDescription": "A local delegation plugin with task-local switches, model routing, worker history and reviewed handoffs. Claude Code is the first supported backend.",
+    "developerName": "hunainahmedj",
+    "category": "Productivity",
+    "capabilities": [],
+    "defaultPrompt": [
+      "Turn delegation on for this task.",
+      "Show the Tafwid workers dashboard.",
+      "Delegate this task and review the result."
+    ]
+  },
+  "repository": "https://github.com/hunainahmedj/tafwid",
+  "homepage": "https://github.com/hunainahmedj/tafwid",
+  "license": "MIT",
+  "keywords": [
+    "delegation",
+    "coding-agents",
+    "codex",
+    "local-dashboard"
+  ]
+}

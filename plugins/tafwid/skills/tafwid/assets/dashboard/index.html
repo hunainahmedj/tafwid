@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>Tafwid workers</title>
+  <link rel="stylesheet" href="/style.css">
+  <script type="module" src="/app.js"></script>
+</head>
+<body>
+  <div class="shell">
+    <header>
+      <div class="brand"><span class="brand-icon" aria-hidden="true">✳</span><span>TAFWID</span></div>
+      <div id="connection" class="connection"><span class="dot"></span><span id="connection-text">Connecting</span></div>
+    </header>
+    <main>
+      <div class="heading-row"><div><p class="eyebrow">YOUR LOCAL WORKFORCE</p><h1>Tafwid workers<span class="title-dot">.</span></h1><p class="subtitle">Codex coordinates. Your workers get to work.</p></div><div class="heading-actions"><span class="local-badge">↳ On this device</span><a id="settings-link" class="activity-button" href="/settings">Settings</a></div></div>
+      <div class="toolbar">
+        <div class="scope" role="group" aria-label="Conversation scope"><button id="this-task" class="selected" aria-pressed="true">This conversation</button><button id="all-tasks" aria-pressed="false">All conversations</button></div>
+        <label class="search"><span aria-hidden="true">⌕</span><input id="search" type="search" placeholder="Find a worker…" aria-label="Find a worker"></label>
+      </div>
+      <p id="scope-context" class="scope-context"></p>
+      <div class="filters" role="group" aria-label="Worker filters">
+        <label class="filter conversation-filter">Conversation<select id="conversation" aria-label="Conversation"><option value="">All conversations</option></select></label>
+        <label class="filter">Model<select id="model" aria-label="Model"><option value="">All models</option></select></label>
+        <label class="filter">Role<select id="role" aria-label="Role"><option value="">All roles</option></select></label>
+        <label class="filter">Status<select id="status" aria-label="Status"><option value="">All statuses</option><option value="attention">Needs attention</option></select></label>
+        <label class="filter period-filter">Started<select id="period" aria-label="Started"><option value="">Any time</option><option value="latest">Since latest user message</option><option value="message">Since a chosen message</option><option value="15m">Last 15 minutes</option><option value="30m">Last 30 minutes</option><option value="1h">Last hour</option><option value="3h">Last 3 hours</option><option value="6h">Last 6 hours</option><option value="12h">Last 12 hours</option><option value="24h">Last 24 hours</option><option value="7d">Last 7 days</option><option value="30d">Last 30 days</option></select></label>
+        <label class="filter">Sort by<select id="sort" aria-label="Sort by"><option value="newest">Newest started</option><option value="oldest">Oldest started</option><option value="updated">Recently updated</option><option value="longest">Longest duration</option><option value="shortest">Shortest duration</option><option value="title">Title A–Z</option></select></label>
+      </div>
+      <label id="message-filter" class="filter message-filter" hidden>Starting message<select id="message" aria-label="Starting message"><option value="">Choose a message…</option></select></label>
+      <p id="time-context" class="scope-context" role="status" hidden></p>
+      <div class="results-bar"><span id="result-count" role="status" aria-live="polite"></span><button id="reset-filters" type="button">Reset filters</button></div>
+      <p class="grouping-note">One worker = one Claude session. Resuming adds a run to that worker. Filters match any recorded run; each card shows the latest outcome. Duration is the sum of its runs.</p>
+      <div id="notice" class="notice" hidden></div>
+      <section class="orchestration" aria-labelledby="orchestrator-heading"><h2 id="orchestrator-heading">Codex orchestrator</h2><div id="orchestrators"></div><p>Open activity for Codex’s recorded model, public updates, and tool actions—including work outside worker exchanges. Open a worker for its instructions and replies.</p></section>
+      <section aria-labelledby="active-heading"><div class="section-heading"><h2 id="active-heading"><span class="live-dot"></span>Active <span id="active-count" class="count">0</span></h2><span class="section-hint">Updates every 2 seconds</span></div><div id="active-list" class="worker-list"></div></section>
+      <section aria-labelledby="done-heading"><div class="section-heading"><h2 id="done-heading">Done <span id="done-count" class="count">0</span></h2><span id="done-caption" class="section-hint">Most recent first</span></div><div id="done-list" class="worker-list"></div></section>
+      <p class="count-note">Active and Done count unique workers, grouped by conversation and Claude session. Done includes failed and blocked workers; “Completed” is a run outcome, not proof of Codex acceptance. Roles are assigned by Codex; some follow Superpowers stages and others describe the task.</p>
+      <footer><span>Private to this device · No supervisor agents</span><span id="last-updated">Waiting for worker records</span></footer>
+    </main>
+  </div>
+  <dialog id="details" aria-labelledby="detail-title">
+    <div class="detail-top"><span id="detail-role" class="eyebrow">WORKER DETAILS</span><button id="close-details" class="icon-button" aria-label="Close worker details">×</button></div>
+    <h2 id="detail-title"></h2><div id="detail-meta" class="detail-meta"></div>
+    <div class="detail-tabs" role="tablist" aria-label="Worker information"><button role="tab" aria-selected="true" data-tab="exchanges" id="tab-exchanges" aria-controls="exchange-content">Exchanges</button><button role="tab" aria-selected="false" data-tab="report" id="tab-report" aria-controls="detail-content">Report</button><button role="tab" aria-selected="false" data-tab="brief" id="tab-brief" aria-controls="detail-content">Task brief</button><button role="tab" aria-selected="false" data-tab="stderr" id="tab-stderr" aria-controls="detail-content">Logs</button><button role="tab" aria-selected="false" data-tab="info" id="tab-info" aria-controls="detail-content">Run info</button></div>
+    <div id="exchange-content" role="tabpanel" aria-labelledby="tab-exchanges" tabindex="0"></div>
+    <label id="run-picker" class="filter run-picker" hidden>Recorded run<select id="selected-run" aria-label="Recorded run"></select></label>
+    <pre id="detail-content" role="tabpanel" aria-labelledby="tab-report" tabindex="0" hidden></pre>
+    <p id="detail-footnote" class="detail-footnote"></p>
+  </dialog>
+  <dialog id="activity-dialog" aria-labelledby="activity-title">
+    <div class="detail-top"><span class="eyebrow">CODEX ORCHESTRATOR</span><button id="close-activity" class="icon-button" aria-label="Close orchestrator activity">×</button></div>
+    <h2 id="activity-title"></h2><p id="activity-meta" class="exchange-meta"></p>
+    <p class="exchange-note">Observed from this conversation’s local Codex log. Public updates and tool calls reveal inspection, tests, documentation, and review work. A returned tool call does not prove success or acceptance. Internal reasoning, user messages, and raw tool output are excluded.</p>
+    <div class="activity-controls"><label class="filter">Activity type<select id="activity-kind"><option value="">All activity</option><option value="message">Public updates</option><option value="tool">Tool calls</option><option value="turn">Turn status</option></select></label><label class="filter">Search activity<input id="activity-search" type="search" placeholder="archivist, git diff, pytest…"></label></div>
+    <p id="activity-status" class="exchange-meta" role="status"></p><div id="activity-events"></div>
+    <div class="activity-pagination"><button id="activity-newest" type="button">Latest activity</button><button id="activity-older" type="button">Older activity</button></div>
+    <p class="detail-footnote">Updates every 2 seconds while viewing the latest activity. History depends on the local log format and availability. Tool results are represented by completion markers; read the original task for their contents.</p>
+  </dialog>
+</body>
+</html>

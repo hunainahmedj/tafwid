@@ -1,0 +1,30 @@
+name: Release
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    uses: ./.github/workflows/ci.yml
+  release:
+    needs: checks
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Build source archive
+        shell: bash
+        run: |
+          test "$GITHUB_REF_NAME" = "v$(cat VERSION)"
+          mkdir -p dist
+          git archive --format=tar.gz --prefix="tafwid-${GITHUB_REF_NAME}/" --output="dist/tafwid-${GITHUB_REF_NAME}.tar.gz" HEAD
+          cd dist
+          sha256sum "tafwid-${GITHUB_REF_NAME}.tar.gz" > SHA256SUMS
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" dist/*.tar.gz dist/SHA256SUMS --verify-tag --generate-notes

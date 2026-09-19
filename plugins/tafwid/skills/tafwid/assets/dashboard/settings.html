@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>Delegation settings · Tafwid workers</title>
+  <link rel="stylesheet" href="/style.css">
+  <script type="module" src="/settings-ui.mjs"></script>
+</head>
+<body>
+  <div class="shell settings-shell">
+    <header><div class="brand"><span class="brand-icon" aria-hidden="true">✳</span><span>TAFWID</span></div><nav aria-label="Dashboard"><a id="back-workers" href="/">Workers</a><span aria-current="page">Settings</span></nav></header>
+    <main>
+      <div class="heading-row"><div><p class="eyebrow">YOUR DELEGATION PREFERENCES</p><h1>Settings<span class="title-dot">.</span></h1><p class="subtitle">Choose the model for the job.</p></div><span class="local-badge">All conversations · On this device</span></div>
+      <p class="settings-intro">These defaults apply across conversations in this Codex home. Changes take effect when you save; running workers keep their current configuration.</p>
+      <p id="settings-error" class="notice" role="alert" hidden></p>
+      <button id="retry-settings" class="activity-button" type="button" hidden>Retry loading</button>
+      <form id="settings-form">
+        <fieldset id="settings-fields" disabled>
+          <section class="settings-section" aria-labelledby="models-title">
+            <div class="settings-section-heading"><span class="section-number">01</span><div><h2 id="models-title">Model routing</h2><p>Set your tier defaults, then choose exceptions for specific kinds of work.</p></div></div>
+            <h3>Tier defaults</h3><div id="profile-settings" class="profile-settings"></div>
+            <div class="task-settings-heading"><h3>Models by task type</h3><p>Use a tier default or choose Sonnet, Opus, or Fable for that task alone.</p></div>
+            <div id="task-settings" class="task-settings"></div>
+            <p class="settings-note">Codex classifies the task and supplies its role instructions. Your saved choice selects the requested model; it does not select a named Claude plugin agent. Claude account availability still applies.</p>
+          </section>
+          <section class="settings-section" aria-labelledby="permissions-title">
+            <div class="settings-section-heading"><span class="section-number">02</span><div><h2 id="permissions-title">Worker permissions</h2><p>Choose how commands are approved when workers launch or resume.</p></div></div>
+            <label class="filter permissions-select">Permission policy<select id="permission-policy"><option value="scoped">Scoped</option><option value="full">Full access</option><option value="inherit">Follow Codex</option></select></label>
+            <p id="permission-description" class="settings-copy"></p>
+            <p class="settings-note">Read workers keep inspection tools. Full access adds unrestricted shell commands to edit workers. Task scope and host restrictions still apply. Delegation on/off stays separate for each conversation.</p>
+          </section>
+          <div class="settings-save-bar"><p id="settings-status" role="status" aria-live="polite">Loading settings…</p><div><button id="discard-settings" type="button">Discard changes</button><button id="save-settings" type="submit">Save settings</button></div></div>
+        </fieldset>
+      </form>
+      <p class="settings-note resume-note">Model changes apply to new workers. A resumed worker keeps its recorded model unless Codex explicitly selects a new task type, tier, or model. Its permission policy is rechecked on every launch.</p>
+    </main>
+  </div>
+</body>
+</html>

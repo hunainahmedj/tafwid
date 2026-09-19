@@ -1,0 +1,20 @@
+{
+  "name": "tafwid",
+  "interface": {
+    "displayName": "Tafwid"
+  },
+  "plugins": [
+    {
+      "name": "tafwid",
+      "source": {
+        "source": "local",
+        "path": "./plugins/tafwid"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}
