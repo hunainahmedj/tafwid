@@ -1,7 +1,7 @@
 # Provider-aware delegation and dashboard redesign
 
 Date: 2026-09-21
-Status: Proposed specification; conversational design approved, written review pending.
+Status: Approved for implementation planning on 2026-09-21; execution plan review pending.
 Baseline: `1c0cb4e` on `feature/account-usage-snapshots`.
 
 ## What and why
