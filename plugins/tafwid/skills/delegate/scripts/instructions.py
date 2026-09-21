@@ -156,13 +156,14 @@ def discover(claude, cwd, names):
 def prior_manifest(out, summary):
     # Failed/auth-rejected/time-limited calls do not prove that instructions were
     # received. Legacy or missing manifests simply cause explicit redelivery.
-    if (summary.get("claude_exit_code") != 0 or summary.get("status") not in
+    if (summary.get("worker_exit_code", summary.get("claude_exit_code")) != 0 or summary.get("status") not in
             {"completed", "native_required", "blocked", "needs_review"}):
         return None
     # --resume selects the Claude session's latest history, even if the caller
     # supplied an older run directory. Never deduplicate against that old state.
     history = [row for row in worker_registry.list_runs(summary.get("codex_thread_id"))
                if row.get("session_id") == summary.get("session_id")
+               and row.get("backend", "claude") == summary.get("backend", "claude")
                and row.get("codex_thread_id") == summary.get("codex_thread_id")]
     if not history or Path(history[0]["output_dir"]).resolve() != Path(out).expanduser().resolve():
         return None

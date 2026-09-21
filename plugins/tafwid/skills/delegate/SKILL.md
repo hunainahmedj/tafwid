@@ -1,6 +1,6 @@
 ---
 name: delegate
-description: Use when the user requests Tafwid delegation on/off/status, assigns work to a Claude Code worker, or continues substantial work with this task's delegation enabled.
+description: Use when the user requests Tafwid delegation on/off/status, assigns work to a Claude Code or OpenCode worker, or continues work with this task's delegation enabled.
 ---
 
 # Tafwid delegation
@@ -25,7 +25,8 @@ discarding settings/history.
 For assigning, resuming, or reviewing delegated work, read
 [the worker workflow](references/workflow.md) once and follow it. Check status
 before choosing an execution approach. Codex retains acceptance review; the
-implemented worker backend is Claude Code. An explicit one-shot request does
+default backend is Claude Code. For an explicitly requested OpenCode with OpenRouter, Zen, LM Studio or vLLM
+worker, read [the OpenCode adapter](references/opencode.md). An explicit one-shot request does
 not enable persistent delegation. If a switch request also includes work,
 complete the switch first, then follow the workflow for that work.
 

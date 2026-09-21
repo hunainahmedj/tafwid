@@ -8,8 +8,11 @@ Tafwid lets Codex delegate bounded work to coding agents while retaining task
 ownership, independent review and user communication. A local dashboard shows
 workers, resumed runs, instructions, results and recorded orchestrator activity.
 
-**The current release supports Claude Code as the worker backend.** Cursor, OpenCode and
-OpenRouter integrations are planned, not implemented. Superpowers and other
+**Claude Code is the default worker backend.** This checkout also includes an
+experimental OpenCode adapter for explicitly selected OpenRouter and OpenCode Zen free models.
+It also supports named self-hosted LM Studio and vLLM connections, using local
+or private-network inference while OpenCode edits/tests in the current workspace.
+Cursor and other backends remain planned. Superpowers and other
 workflow plugins are optional; Tafwid can forward relevant worker instructions
 without copying the entire parent conversation.
 
@@ -25,6 +28,10 @@ without copying the entire parent conversation.
 - Keep permission choices explicit: Scoped, Full access, or Follow Codex.
 - Track workers and their individual runs, with filters, conversation names,
   settings and public Codex activity in a local dashboard.
+- Scout free models on OpenRouter and OpenCode Zen, with cached capability-based
+  task candidates. Scouting does not launch workers or replace saved routing.
+- Inspect input/output, cache and reasoning tokens, cost evidence and effective
+  output throughput per worker and run, including available historical results.
 
 Tafwid offloads work; it does not guarantee a percentage reduction in Codex usage.
 The orchestrator still spends tokens on briefs, acceptance checks and corrections.
@@ -41,6 +48,23 @@ The orchestrator still spends tokens on briefs, acceptance checks and correction
 
 Node.js is needed only for contributor dashboard tests, not normal use.
 
+For the experimental OpenCode adapter, install OpenCode. Configure an
+OpenRouter API key with `opencode auth login`, or choose a free Zen model.
+Zen can use public access without a key; configured Zen accounts are also supported.
+Claude authentication is not needed
+for OpenCode runs. See [OpenCode worker setup](plugins/tafwid/skills/delegate/references/opencode.md).
+This adapter requires an explicit `openrouter/provider/model:free` or `opencode/model` ID with tool
+calling and verified zero input/output pricing; it checks current pricing and capabilities before dispatch. It does not
+fall back to a paid model. Dashboard model presets still configure Claude only.
+
+Self-hosted models use `local-NAME/model` with a user-configured server URL,
+served model ID, context/output limits and optional credential reference. These
+connections skip hosted free-price catalogues and check the selected server.
+They never fall back to cloud inference. See [LM Studio and vLLM setup](plugins/tafwid/skills/delegate/references/local-models.md).
+Connection names appear in worker model labels and filters; reported tokens/rate
+remain available. Hardware/electricity costs are not estimated. The initial setup
+uses a CLI; the dashboard's saved task-tier routes still select Claude models.
+
 ## Install
 
 Add this repository as a Codex marketplace and install its plugin:
@@ -50,7 +74,7 @@ codex plugin marketplace add hunainahmedj/tafwid
 codex plugin add tafwid@tafwid
 ```
 
-Start a new Codex task so it discovers the three skill entry points. Select one
+Start a new Codex task so it discovers the skill entry points. Select one
 from the `$` menu, or use its qualified name:
 
 | Skill | Purpose | Example |
@@ -58,6 +82,7 @@ from the `$` menu, or use its qualified name:
 | `$tafwid:delegate` | Assign work or manage this task's delegation switch | `$tafwid:delegate on` |
 | `$tafwid:dashboard` | Open workers, runs and recorded activity | `$tafwid:dashboard` |
 | `$tafwid:settings` | View or change model routing and permissions | `$tafwid:settings` |
+| `$tafwid:scout` | Find free model candidates for a task | `$tafwid:scout for debugging` |
 
 `$tafwid:delegate off` disables automatic delegation for this task;
 `$tafwid:delegate status` reports its switch. A bare delegate invocation also
@@ -66,9 +91,25 @@ Plain-language requests still work through normal skill discovery.
 
 Dashboard and settings entry points share the existing runtime without loading
 the worker workflow. Delegation loads that workflow only when assigning,
-resuming or reviewing work. There is a small discovery-metadata cost for three
+resuming or reviewing work. There is a small discovery-metadata cost for the entry-point
 skills; this split reduces instruction loading for narrow requests rather than
-guaranteeing zero context overhead.
+guaranteeing zero context overhead. The separate scout entry point adds discovery
+metadata, but its catalogues and instructions are not loaded for ordinary delegation.
+
+Scouting uses OpenRouter's live model catalogue and cross-checks OpenCode Zen's
+live IDs with models.dev. Results are cached locally for six hours; `--refresh`
+forces a check. Stale data is explicitly marked after a failed refresh. Suggested
+task types are metadata-based candidates, not benchmark scores. Local run outcomes
+are shown separately and do not prove acceptance. Worker dispatch checks live
+metadata again, including on resumes. Switching providers requires a fresh worker
+so an existing conversation is not carried to another provider.
+
+Dashboard usage totals follow the run filters; worker cards include all recorded
+runs in that session. Missing usage stays unknown. Claude dollars are API-equivalent
+estimates, **not Max subscription charges**; OpenCode dollars are harness-reported,
+not verified invoices. Effective throughput divides output by elapsed run time,
+including tools and waits, and does not measure model decode speed. Usage normally
+appears on completion; interrupted runs and helper calls can be incomplete.
 
 Delegation starts **off**, and permissions default to **Scoped**. Turning it off
 prevents new dispatches; it does not cancel an already-running worker. Explicit
@@ -87,7 +128,7 @@ codex plugin add tafwid@tafwid
 ```
 
 Start a new Codex task after updating. Version 0.2 replaces `$tafwid:tafwid`
-with the three entry points above; choose `$tafwid:delegate` for the former
+with delegate, dashboard and settings; choose `$tafwid:delegate` for the former
 all-purpose entry. Task switches, worker history and settings stay in place.
 
 ### Existing claude-delegate users
@@ -101,7 +142,7 @@ running workers.
 ## How delegation works
 
 Codex prepares the task brief and selects relevant role/skill files. The launcher
-starts Claude, records the run, and returns a compact result. Codex reviews the
+starts the selected harness, records the run, and returns a compact result. Codex reviews the
 actual work before accepting it. Corrections resume the same implementer;
 independent reviews use a separate session.
 
@@ -122,9 +163,13 @@ cd tafwid
 make test
 ```
 
-Tests use temporary homes and a fake Claude executable. They do not need a Claude
-account or make model requests. See [CONTRIBUTING.md](CONTRIBUTING.md),
+Tests use temporary homes and fake worker executables. They do not need provider
+accounts or make model requests. See [CONTRIBUTING.md](CONTRIBUTING.md),
 [architecture](docs/architecture.md), and [the roadmap](docs/roadmap.md).
+
+Recorded integration results: [OpenRouter](docs/opencode-trial.md),
+[OpenCode Zen](docs/zen-trial.md), and [LM Studio/vLLM](docs/local-inference-trial.md).
+The [documentation audit](docs/audits/2026-09-21.md) records coverage and limits.
 
 ## License
 

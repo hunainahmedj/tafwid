@@ -4,8 +4,8 @@ const token = params.get("token");
 const title = value => value[0].toUpperCase() + value.slice(1);
 const descriptions = {
   scoped: "Uses scoped command allowances. Commands that need approval are denied without prompting.",
-  full: "Uses Claude’s full-access permission mode. Edit workers can run shell commands without a scoped allowlist. Host and organization restrictions still apply.",
-  inherit: "Checks Codex access at each launch or resume. Confirmed full access enables Claude’s full-access mode; missing or restricted access uses scoped allowances."
+  full: "Uses the selected harness’s full-access tool policy. Edit workers can run shell commands without a scoped allowlist. Host and organization restrictions still apply.",
+  inherit: "Checks Codex access at each launch or resume. Confirmed full access enables the selected harness’s full-access tool policy; missing or restricted access uses scoped allowances."
 };
 let saved, catalog, dirty = false;
 $("back-workers").href = "/" + location.hash;

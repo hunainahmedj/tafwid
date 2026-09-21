@@ -28,7 +28,7 @@ def check():
     assert len(entries) == 1 and entries[0]["name"] == "tafwid"
     assert entries[0]["source"] == {"source": "local", "path": "./plugins/tafwid"}
     entries = {p.parent.name: p for p in (plugin / "skills").glob("*/SKILL.md")}
-    assert set(entries) == {"delegate", "dashboard", "settings"}, "Missing or unexpected skill entry points"
+    assert set(entries) == {"delegate", "dashboard", "settings", "scout"}, "Missing or unexpected skill entry points"
     for name, path in entries.items():
         assert f"\nname: {name}\n" in path.read_text(), f"Skill name mismatch: {name}"
         assert (path.parent / "agents/openai.yaml").is_file(), f"Missing skill metadata: {name}"

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Wait quietly for any selected Claude run in the current Codex task."""
+"""Wait quietly for any selected worker run in the current Codex task."""
 import argparse
 import json
 import math
@@ -18,6 +18,7 @@ def completion(record):
     return {
         "run_id": record["id"], "output_dir": str(out),
         "title": record.get("title"), "status": record["status"],
+        "backend": record.get("backend", "claude"),
         "session_id": record.get("session_id"), "model_selection": record.get("model_selection"),
         "status_note": record.get("status_note"),
         "permission_denials": record.get("permission_denials"),

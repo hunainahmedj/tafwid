@@ -1,0 +1,4 @@
+interface:
+  display_name: "Tafwid Scout"
+  short_description: "Find free models and suitable task candidates"
+  default_prompt: "Use $tafwid:scout to find free models for a bounded coding task."

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run a bounded Claude Code task and emit a compact result for Codex."""
+"""Run a bounded coding worker and emit a compact result for Codex."""
 import argparse
 import json
 import math
@@ -144,6 +144,10 @@ def resolve_selection(args, prior, config):
 
 def parse_args():
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--backend", choices=("claude", "opencode"),
+                        help="Worker harness; defaults to Claude, or the resumed run's backend")
+    parser.add_argument("--allow-command", action="append", default=[],
+                        help="OpenCode scoped shell command pattern (edit mode); repeatable")
     parser.add_argument("--cwd", type=Path, required=True, help="Workspace or isolated worktree")
     parser.add_argument("--prompt-file", type=Path, required=True, help="UTF-8 task brief; never shell-expanded")
     parser.add_argument("--output-dir", type=Path, required=True, help="New directory for private run artifacts")
@@ -213,6 +217,20 @@ def check_auth(claude, cwd):
 
 
 def run(args):
+    backend = getattr(args, "backend", None)
+    if args.resume_from:
+        previous = json.loads((args.resume_from.expanduser() / "summary.json").read_text())
+        prior_backend = previous.get("backend", "claude")
+        if backend and backend != prior_backend:
+            raise ValueError("Resume backend differs from the original run")
+        backend = prior_backend
+    if backend == "opencode":
+        import opencode_worker
+        return opencode_worker.run(args)
+    if backend not in (None, "claude"):
+        raise ValueError("Unknown worker backend")
+    if getattr(args, "allow_command", []):
+        raise ValueError("--allow-command requires --backend opencode; Claude uses --allow-tool")
     task_id = delegation_session.current_task_id()
     if not args.once and not delegation_session.status()["enabled"]:
         raise ValueError("Delegation is off for this Codex task. Enable it with session.py on, or use --once for an explicit one-shot request.")
@@ -283,6 +301,7 @@ def run(args):
                                  instruction_manifest=instruction_manifest) as tracker:
         status, report, code, denials = "error", "", None, 0
         handoff, models_used = None, []
+        run_usage = {}
         with (out / "input.txt").open("rb") as stdin, (out / "result.json").open("wb") as stdout, (out / "stderr.log").open("wb") as stderr:
             if not args.once and not delegation_session.status()["enabled"]:
                 raise ValueError("Delegation was turned off before launch; no worker started")
@@ -307,6 +326,8 @@ def run(args):
                 # Every model the run billed, helpers included: usage evidence, not the worker's identity.
                 usage = data.get("modelUsage")
                 models_used = sorted(usage) if isinstance(usage, dict) else []
+                import metrics
+                run_usage = metrics.claude_usage(data)
                 report = data.get("result") or "Claude returned no report; inspect result.json."
                 if not isinstance(report, str):
                     report = json.dumps(report)
@@ -327,7 +348,7 @@ def run(args):
             (out / "handoff.json").write_text(json.dumps(handoff, indent=2), encoding="utf-8")
         summary = {"status": status, "session_id": session, "cwd": str(cwd),
                    "codex_thread_id": task_id, "model_selection": selection, "dashboard_run_id": tracker.id,
-                   "models_used": models_used, "permissions": permissions,
+                   "models_used": models_used, "permissions": permissions, "usage": run_usage,
                    "subscription_type": subscription, "claude_exit_code": code,
                    "permission_denials": denials, "report_file": str(out / "report.md"),
                    "result_file": str(out / "result.json"), "stderr_file": str(out / "stderr.log"),
@@ -335,7 +356,8 @@ def run(args):
                    "report_excerpt": report[:3000], "report_truncated": len(report) > 3000}
         (out / "summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
         tracker.finish(summary)
-        print(json.dumps(summary, ensure_ascii=False))
+        # Dashboard telemetry stays on disk; normal completion messages stay compact.
+        print(json.dumps({key: value for key, value in summary.items() if key != 'usage'}, ensure_ascii=False))
         if status == "completed":
             return 0
         if status == "native_required":

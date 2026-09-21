@@ -8,6 +8,9 @@ export function modelName(run) {
   const model=run.model_selection?.requested_model;
   return model ? model.charAt(0).toUpperCase()+model.slice(1) : "Claude default";
 }
+export function backendName(run) {
+  return run.backend === "opencode" ? "OpenCode" : "Claude Code";
+}
 export function roleName(role) {
   return String(role||"worker").replaceAll("-"," ").trim().replace(/\s+/g," ").toLowerCase();
 }
@@ -16,7 +19,7 @@ export function elapsed(run, now=Date.now()/1000) {
   return Math.max(0,(run.ended_at ?? (activeStates.has(run.status)?now:run.updated_at) ?? now)-(run.started_at ?? now));
 }
 export function workerKey(run) {
-  return JSON.stringify([run.codex_thread_id||null,run.session_id||`run:${run.id}`]);
+  return JSON.stringify([run.codex_thread_id||null,run.backend||"claude",run.session_id||`run:${run.id}`]);
 }
 export function groupWorkers(runs, filters={}, now=Date.now()/1000) {
   const matching=new Set(filterRuns(runs,filters,now).map(run=>run.id));

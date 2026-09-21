@@ -1,7 +1,38 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as view from '../assets/dashboard/view.mjs';
+import { usageTotals } from '../assets/dashboard/stats.mjs';
 const {filterRuns, sortRuns, conversationName}=view;
+
+test('usage sums runs once and keeps subscription equivalent separate from reported cost',()=>{
+ const runs=[{id:'one',started_at:0,ended_at:10,usage:{input:100,output:20,cache_read:500,cost_usd:.2,cost_kind:'api_equivalent'}},
+ {id:'two',started_at:20,ended_at:40,usage:{input:50,output:40,cost_usd:0,cost_kind:'reported'}},
+ {id:'unknown',started_at:50,ended_at:60}];
+ const stats=usageTotals([...runs,runs[0]]);
+ assert.equal(stats.runs,3);
+ assert.equal(stats.input.value,150);
+ assert.equal(stats.input.known,2);
+ assert.equal(stats.output.value,60);
+ assert.equal(stats.cache_read.value,500);
+ assert.equal(stats.api_equivalent.value,.2);
+ assert.equal(stats.reported.value,0);
+ assert.equal(stats.throughput,2);
+ assert.equal(stats.timed,2);
+});
+test('unknown tokens and unfinished time do not become zero or false throughput',()=>{
+ const stats=usageTotals([{id:'one',status:'running',started_at:0,usage:{output:10}},
+   {id:'two',started_at:0,ended_at:0,usage:{input:NaN,output:-1,cost_usd:null}}]);
+ assert.equal(stats.input.value,null);
+ assert.equal(stats.reported.value,null);
+ assert.equal(stats.throughput,null);
+});
+test('filtered usage excludes nonmatching resumes even when worker card retains full history',()=>{
+ const runs=[{id:'old',session_id:'same',started_at:1,usage:{input:100}},
+   {id:'new',session_id:'same',started_at:199900,usage:{input:20}}];
+ const matching=view.filterRuns(runs,{period:'15m'},200000);
+ assert.equal(usageTotals(matching).input.value,20);
+ assert.equal(usageTotals(view.groupWorkers(runs)[0].runs).input.value,120);
+});
 const now=200000;
 const rows=[
  {id:'a', title:'Review PDF', codex_thread_id:'one', conversation_title:'Learning Hub', status:'needs_review', started_at:190000, ended_at:190100, model_selection:{requested_model:'fable',role:'reviewer'}},
@@ -63,6 +94,17 @@ test('missing session IDs never merge and an active run keeps its worker active'
    {...rows[1],session_id:'same',started_at:199999}]);
  assert.equal(grouped.length,1);
  assert.equal(grouped[0].status,'running');
+});
+
+test('worker identity includes harness and preserves legacy Claude groups',()=>{
+ const history=[{...rows[0],session_id:'same'},
+   {...rows[1],session_id:'same',backend:'claude'},
+   {...rows[2],codex_thread_id:'one',session_id:'same',backend:'opencode'}];
+ const groups=view.groupWorkers(history);
+ assert.equal(groups.length,2);
+ assert.equal(groups.find(g=>(g.backend||'claude')==='claude').runs.length,2);
+ assert.equal(view.backendName({backend:'opencode'}),'OpenCode');
+ assert.equal(view.backendName({}),'Claude Code');
 });
 
 test('short time windows include the exact start boundary',()=>{

@@ -52,6 +52,8 @@ payload = {"type": "result", "subtype": "success", "is_error": case == "expired"
  "session_id": sys.argv[sys.argv.index("--resume") + 1] if "--resume" in sys.argv else sys.argv[sys.argv.index("--session-id") + 1],
  "permission_denials": [{"tool_name": "Bash", "tool_input": {"command": "pytest"}}] if case in ("denied", "native_denied") else []}
 if case == "usage":
+    payload["usage"] = {"input_tokens": 400, "output_tokens": 150}
+    payload["total_cost_usd"] = 0.41
     payload["modelUsage"] = {"claude-sonnet-5": {"outputTokens": 120, "costUSD": 0.4},
                              "claude-haiku-4-5": {"outputTokens": 30, "costUSD": 0.01}}
 if case == "bad_usage":
@@ -91,6 +93,14 @@ class DelegationTests(unittest.TestCase):
             "--prompt-file", str(self.prompt), "--output-dir", str(self.out),
             *(["--once"] if once else []), *extra],
             env={**self.env, "FIXTURE_CASE": case}, text=True, capture_output=True, timeout=15)
+
+    def test_usage_is_saved_for_dashboard_without_increasing_completion_context(self):
+        result = self.run_cli(case="usage")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        summary = json.loads((self.out / "summary.json").read_text())
+        self.assertEqual(summary["usage"]["output"], 150)
+        self.assertEqual(summary["usage"]["cost_usd"], .41)
+        self.assertNotIn("usage", json.loads(result.stdout))
 
     def test_wait_observes_real_launcher_results_without_relaunching(self):
         for case, expected in (("success", "completed"), ("native", "native_required"),

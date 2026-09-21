@@ -1,8 +1,8 @@
 # Delegation workflow
 
-Codex owns task selection, acceptance, review and communication. Delegate substantial bounded work to Claude Code; small tasks may cost less natively. Work explicitly delegated to Claude uses Claude workers, not GPT subagents.
+Codex owns task selection, acceptance, review and communication. Delegate substantial bounded work to the selected harness; small tasks may cost less natively. Honor explicitly requested backends.
 
-The implemented backend is Claude Code. `TAFWID_SKILL_DIR` is the directory of the delegate entry point, one level above this reference. Before dispatch, run `python3 "${TAFWID_SKILL_DIR}/scripts/session.py" status` with the current process task identity. An explicit one-shot request permits `--once`; automatic delegation requires an enabled switch.
+Claude Code is the default backend. For explicitly requested OpenCode with OpenRouter, Zen, LM Studio or vLLM work, use [the OpenCode adapter](opencode.md) instead of the Claude selection/launch sections; the common task, waiting and acceptance rules still apply. `TAFWID_SKILL_DIR` is the directory of the delegate entry point, one level above this reference. Before dispatch, run `python3 "${TAFWID_SKILL_DIR}/scripts/session.py" status` with the current process task identity. An explicit one-shot request permits `--once`; automatic delegation requires an enabled switch.
 
 ## Workflow and instruction handoff
 
@@ -16,13 +16,13 @@ Preserve the user's workflow; no plugin is required. Select worker-relevant skil
 - Record existing changes before editing. Use a separate worktree when workers or people could touch the same files. A worktree starts from a commit; explicitly provide relevant uncommitted context. Serial work in the current checkout is suitable when ownership is clear.
 - Keep briefs and run artifacts outside the repository in a private temporary directory or local cache. Every invocation needs a new output directory.
 
-## Select the worker
+## Select a Claude worker
 
 Codex chooses the task type and role for each worker. Read [model selection](model-selection.md) and inspect `python3 "${TAFWID_SKILL_DIR}/scripts/settings.py" show` to learn the current user choices. Prefer `--task-type` so the launcher applies the saved model for that kind of work. Pass `--role` and a brief `--selection-reason`, and announce the resolved model before dispatch. Role labels describe the assignment; they do not select a named Claude plugin agent. Supply a role template when the selected workflow requires one.
 
 The Settings page has editable Fast / Standard / Deep defaults and per-task model overrides. Initial defaults are Sonnet / Opus / Fable; never treat these names as fixed once the user changes settings. Task overrides take precedence over their tier default. Use `--profile` for a deliberate tier choice or escalation, and `--model` for an explicitly requested alias or exact model ID. Explain intentional departures from the saved task route; do not silently discard the user's override. Keep Codex as controller and use fresh Claude sessions for independent reviews.
 
-## Launch
+## Launch Claude
 
 Use the bundled [launcher](../scripts/delegate.py) (Python 3, macOS/Linux). For example, after writing the brief:
 

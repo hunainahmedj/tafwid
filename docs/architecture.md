@@ -13,6 +13,7 @@ plugins/tafwid/skills/delegate/
   tests/               isolated Python and JavaScript checks
 plugins/tafwid/skills/dashboard/SKILL.md
 plugins/tafwid/skills/settings/SKILL.md
+plugins/tafwid/skills/scout/SKILL.md
 ```
 
 The delegate entry point resolves its own directory. Dashboard and settings
@@ -23,18 +24,56 @@ files; installation does not require a specific username or checkout.
 
 `session.py` owns the task-local switch. `paths.py` selects state storage.
 `settings.py` and `routing.py` own permission and model preferences.
-`delegate.py` implements the **Claude Code** invocation, subscription check,
+`delegate.py` dispatches backends and implements the **Claude Code** invocation, subscription check,
 process lifetime and structured completion contract. `instructions.py` matches
 selected files to Claude skills or supplies their contents and records a private
 manifest. `worker_registry.py`, `wait.py`, `activity.py` and `dashboard.py` provide
-run recording, bounded waits and the local dashboard.
+run recording, bounded waits and the local dashboard. `opencode_worker.py` contains
+the experimental OpenCode subprocess adapter, OpenRouter/Zen capability/price gates,
+tool policy, event interpretation and native session export.
+
+`scout.py` fetches public OpenRouter and Zen metadata, caching normalized free
+model candidates for six hours in local state. Zen pricing and capability data
+come from models.dev, intersected with Zen's live IDs. Discovery never calls
+inference, installs providers or edits routing. Candidate task mappings are
+metadata heuristics, not quality evaluations; recorded outcomes are separate.
+`opencode_providers.py` keeps provider authentication, live preflight and SDK
+configuration separate from the shared OpenCode process/session lifecycle. Zen
+uses native public access when no account key is configured, with only the chosen
+free model enabled; supported model transports are explicitly allowlisted.
+
+`local_models.py` stores named LM Studio/vLLM connections in private
+`local-models.json`. `local-NAME/model` routes the existing OpenCode lifecycle
+to that server's OpenAI-compatible API; tools still execute in the local
+workspace. Local discovery uses `/v1/models`, user-declared context/tools and
+credential references instead of cloud catalogues. It rejects public URLs and
+redirects. These checks are not a network sandbox. Resumes reject any changed
+connection configuration. Token/rate evidence uses the shared metrics path;
+hardware and electricity costs are unmeasured.
+
+`metrics.py` normalizes per-invocation usage and hydrates historical records from
+their registered artifacts. File-signature caching avoids reparsing those files
+on each refresh. Missing data stays null. `stats.mjs` aggregates only matching
+runs for the page totals, all recorded runs for a worker, and separates Claude
+API-equivalent costs from OpenCode reported costs. Resumes are never aggregated
+from cumulative session exports. Effective throughput is output divided by
+elapsed run time, weighted across runs, not wall-clock concurrency throughput
+or model decode speed. Neither catalogue nor metrics processing invokes a model.
 
 ## Backend boundary
 
-The product name is neutral; the current invocation, instruction discovery,
-permission modes and model catalog are still Claude-specific. There is no generic
-adapter interface yet. Extract that interface alongside the second working
-backend, rather than inventing untested abstractions now.
+The choice to reuse OpenCode is recorded in
+[ADR-0001](decisions/0001-opencode-worker-harness.md).
+
+Backend dispatch is explicit (`--backend claude|opencode`), with Claude as the
+default and the original backend retained on resume. Backends share task state,
+instruction manifests, permission-policy resolution, worker report validation,
+registry and wait tools. Invocation, authentication, tool syntax, session IDs and
+event parsing remain backend-specific. OpenCode accepts explicit
+OpenRouter free IDs, free Zen IDs, or configured self-hosted IDs; saved model tiers remain
+Claude-specific. Provider changes require a new worker; same-provider resumes
+retain their selected model and always recheck current provider metadata or the
+selected local server. Local capabilities are declared, not inferred from benchmark scores.
 
 An additional backend must define executable/API availability, authentication,
 model selection, tool permissions, resume identity, cancellation, outcomes and
