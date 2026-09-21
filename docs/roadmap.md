@@ -9,6 +9,10 @@ and acceptance-review guidance.
 
 ## Next
 
+The proposed [provider-aware dashboard and delegation redesign](superpowers/specs/2026-09-21-provider-aware-dashboard-design.md)
+captures the agreed UX direction and command syntax. It is awaiting written-spec
+review and is not implemented; the shipped limitations below still apply.
+
 The current checkout includes an experimental OpenCode/OpenRouter/Zen free-model
 adapter. It uses explicit model IDs; shared task-type routing across harnesses
 and a provider selector in Settings remain future work.
