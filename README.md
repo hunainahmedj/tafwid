@@ -32,6 +32,8 @@ without copying the entire parent conversation.
   task candidates. Scouting does not launch workers or replace saved routing.
 - Inspect input/output, cache and reasoning tokens, cost evidence and effective
   output throughput per worker and run, including available historical results.
+- View Claude account allowances and resets separately from filters, plus timed
+  token snapshots and each worker's observed context occupancy since a message.
 
 Tafwid offloads work; it does not guarantee a percentage reduction in Codex usage.
 The orchestrator still spends tokens on briefs, acceptance checks and corrections.

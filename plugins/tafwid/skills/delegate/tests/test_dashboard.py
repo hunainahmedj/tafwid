@@ -176,6 +176,26 @@ class DashboardTests(unittest.TestCase):
             self.assertIn("Content-Security-Policy", page.headers)
             self.assertNotIn(b"test-token", page.read())
 
+    def test_account_endpoint_is_authenticated_and_returns_account_scope(self):
+        class AccountFixture:
+            def read(self):
+                return {'status':'available','windows':[{'key':'five_hour','used_percent':5}],
+                        'history':[], 'observed_at':1000}
+        server=dashboard.make_server('test-token', account_reader=AccountFixture())
+        threading.Thread(target=server.serve_forever,daemon=True).start()
+        self.addCleanup(server.server_close);self.addCleanup(server.shutdown)
+        base='http://127.0.0.1:'+str(server.server_port)
+        with self.assertRaises(HTTPError) as missing:
+            urlopen(base+'/api/account-usage')
+        self.assertEqual(missing.exception.code,401);missing.exception.close()
+        with urlopen(Request(base+'/api/account-usage?thread=not-a-worker',
+                headers={'Authorization':'Bearer test-token'})) as response:
+            data=json.load(response)
+        self.assertEqual(data['windows'][0]['used_percent'],5)
+        self.assertNotIn('thread',data)
+        with urlopen(base+'/snapshots.mjs') as response:
+            self.assertIn('javascript',response.headers['Content-Type'])
+
     def test_message_endpoint_returns_only_registered_task_request_previews(self):
         task='12345678-1234-4234-8234-123456789abc'
         with registry.Tracker(self.out, task, 'session-one', 'Fixture', {}, str(self.home)) as tracker:

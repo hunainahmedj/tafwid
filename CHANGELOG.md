@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Show native Claude account allowances, named model limits and reset windows,
+  with cached observations, account isolation and explicit stale/unavailable states.
+- Add filtered per-response token snapshots and per-worker observed context
+  occupancy, including already-running workers, resume deduplication, compaction
+  drops and conservative account-window comparisons. Collection adds no model
+  prompts or worker context instructions.
+
 - Document the OpenCode harness decision, provider trial evidence and scoped
   documentation audit, including the limits of live Zen verification.
 

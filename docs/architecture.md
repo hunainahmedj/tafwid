@@ -88,6 +88,15 @@ each adapter.
 
 ## Local state and limitations
 
+`account_usage.py` queries Claude's native subscription control protocol without
+model messages, caches normalized account observations, and supplies a separate
+authenticated dashboard endpoint. `telemetry.py` reads bounded usage-only data
+from registered worker artifacts; `snapshots.mjs` filters/deduplicates those
+timestamped observations and compares compatible quota snapshots. The
+[passive-observation decision](decisions/0002-passive-usage-observations.md)
+explains the trust and attribution boundaries; collection/coverage semantics
+live in the [dashboard reference](../plugins/tafwid/skills/delegate/references/dashboard.md#account-limits-and-filtered-snapshots).
+
 Fresh installs use `$CODEX_HOME/state/tafwid` (default `~/.codex`). Legacy installs
 reuse `state/claude-delegate`; see [migration](migration.md). Records may contain
 source paths, task briefs, generated code and excerpts of diagnostic output.

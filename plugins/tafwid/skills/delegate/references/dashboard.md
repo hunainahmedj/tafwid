@@ -25,6 +25,60 @@ Conversation titles are resolved from Codex's local `session_index.jsonl` metada
 
 ## Storage and history
 
+### Account limits and filtered snapshots
+
+The account panel displays the signed-in Claude subscription's five-hour,
+weekly and named model-specific windows when the native client supplies them.
+It shows used/remaining percentages, reset times/countdowns and last-observed
+and last-checked times. These are entire-account readings, independent of
+conversation, model and role filters. Missing windows are not estimated.
+Expired observations remain stale until a successful refresh; resets never
+silently turn an old reading into zero usage.
+
+The authenticated account endpoint starts a background check at most once per
+minute while the dashboard requests it. The browser polls it every 30 seconds;
+countdowns run locally. Closing the dashboard stops those polling requests;
+there is no scheduled account monitor. Up to seven days / 10,080 observations
+are retained in private `account-usage.json`, using the normal state root.
+An account change clears previous-account history. This reader uses Claude's
+observed `get_usage` control protocol (verified with 2.1.273), not a stable
+public provider API. It sends no model messages, disables hooks/tools/MCP and
+does not extract credentials. Unsupported clients show unavailable/stale data.
+
+**Usage snapshot** applies time/message boundaries to individual recorded usage
+samples, including responses from a worker that started before the boundary.
+Conversation/model/role/status/search filters still select workers. Token totals
+separate input, output, cache reads and cache writes. Samples are assigned by
+response/step completion time; a response spanning the boundary counts whole.
+The existing **Recorded run totals** and worker lists retain their Started
+filter semantics and can therefore show different totals.
+
+**Context by worker** shows first, peak and latest observed request occupancy
+within the selection. Occupancy is input + cache read + cache write + output
+for one response, divided by that model's recorded context limit when known.
+It is not cumulative token consumption. Compaction can lower it. First observed
+does not mean the exact start of the selected period. Capacities are read from
+Claude result model metadata or OpenCode's recorded provider configuration;
+missing capacity keeps the percentage unknown. Context is never summed across
+workers. Helper agents are not included in these main-worker samples.
+
+**Account change over this period** compares observations of the same account
+and allowance window. A message/time boundary requires a reading at or before
+the boundary and within two minutes of it. An earlier baseline is labelled
+approximate, with both timestamps shown. Missing readings, a reset, expired
+window or decreasing usage prevents comparison. Account changes include other
+Claude activity even when the worker filters select one task or model.
+
+Historical samples come only from each registered OpenCode run's `events.jsonl`
+or the exact Claude session transcript for its workspace. Reads are bounded to
+an 8 MiB tail, 1 MiB record and 2,048 samples per transcript. Oversized/incomplete
+files, active/failed runs and absent fields are labelled partial or unavailable.
+Repeated Claude message IDs are deduplicated and resumed runs use their own
+time intervals. The parser caches normalized metadata rather than prompts.
+Deleted artifacts and previously unrecorded account readings cannot be recovered.
+
+### Whole-run usage
+
 Usage cards sum only matching runs. Each worker card sums its full recorded run
 history, even if a filter matches only one resume. **Usage** in the worker dialog
 shows the selected run's exact input/output, cache read/write and reasoning tokens,

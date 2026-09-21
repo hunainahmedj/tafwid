@@ -1,5 +1,6 @@
 import { activeStates, labels, sortLabels, conversationName, modelName, backendName, roleName, groupWorkers, filterRuns, sortRuns, elapsed, messageBoundary } from "/view.mjs";
 import { usageTotals, tokenText, costText, compactUsage, compactCost, usageDetails } from "/stats.mjs";
+import { usageSnapshot, accountDeltas, accountStatus } from "/snapshots.mjs";
 import { setupActivity } from "/activity-ui.mjs";
 const params = new URLSearchParams(location.hash.slice(1));
 const token = params.get("token");
@@ -16,6 +17,9 @@ let selected = null;
 let selectedTab = "exchanges";
 let selectedRunId = null;
 let busy = false;
+let account = {status:"refreshing",windows:[],history:[],observed_at:null,checked_at:null};
+let accountBusy = false;
+let accountRequestedAt = null;
 function el(tag, className, value) { const node=document.createElement(tag); if(className)node.className=className; if(value!==undefined)node.textContent=value; return node; }
 function modelClass(run) { const name=modelName(run).toLowerCase(); return ["fable","opus","sonnet"].find(m=>name.includes(m)) || "other"; }
 function duration(seconds) { const n=Math.max(0,Math.floor(seconds)); return n<60?`${n}s`:n<3600?`${Math.floor(n/60)}m ${n%60}s`:`${Math.floor(n/3600)}h ${Math.floor(n%3600/60)}m`; }
@@ -84,13 +88,14 @@ function renderTimeFilter() {
     messageContext.error?messageContext.error:
     !messages.length?"No user-message boundary is available in this task’s local log.":
     !boundary?"Choose a starting message. If a saved message is no longer available, choose another.":
-    `Runs started since ${new Date(boundary.timestamp*1000).toLocaleString()} · “${boundary.preview}”${filters.period==="latest"?" · Follows new messages automatically.":" · This starting message stays selected as new messages arrive."}`;
+    `Run starts and snapshot samples since ${new Date(boundary.timestamp*1000).toLocaleString()} · “${boundary.preview}”${filters.period==="latest"?" · Follows new messages automatically.":" · This starting message stays selected as new messages arrive."}`;
   return boundary?.timestamp;
 }
 function render() {
   const since=renderTimeFilter();
   const filtered=sortRuns(groupWorkers(runs,{...filters,since}),filters.sort);
   renderStats(filterRuns(runs,{...filters,since}));
+  renderSnapshot({...filters,since});
   const scoped=Boolean(filters.q||filters.model||filters.role||filters.status||filters.period);
   for(const [id,on] of [["this-task",Boolean(task)&&filters.conversation===task],["all-tasks",!filters.conversation]]){
     $(id).classList.toggle("selected",on);$(id).setAttribute("aria-pressed",String(on));
@@ -162,6 +167,84 @@ function renderExchanges(history) {
     }
     container.append(section);
   });
+}
+function observedTime(at) { return Number.isFinite(at)?new Date(at*1000).toLocaleString():"Not observed"; }
+function percent(value) { return Number.isFinite(value)?`${Number(value.toFixed(1))}%`:"—"; }
+function statCard(label,value,note) {
+  const card=el("div","stat");card.append(el("span","stat-label",label),el("strong","stat-value",value),el("span","stat-note",note));return card;
+}
+function renderAccountCountdowns() {
+  const status=accountStatus(account);
+  $("account-status").textContent=({available:"Current",stale:"Stale observation",unavailable:"Unavailable",refreshing:"Refreshing…"})[status]||"Unavailable";
+  $("account-status").className="account-status "+status;
+  for(const node of document.querySelectorAll("[data-reset-at]")){
+    const remaining=Number(node.dataset.resetAt)-Date.now()/1000;
+    node.textContent=remaining<=0?"Reset time passed · awaiting update":`Resets in ${duration(remaining)}`;
+  }
+}
+function renderAccount() {
+  const status=accountStatus(account);
+  $("account-plan").textContent=account.subscription_type||"";
+  const container=$("account-windows");container.replaceChildren();
+  for(const window of account.windows||[]){
+    const card=statCard(window.label,`${percent(window.used_percent)} used`,`${Number.isFinite(window.used_percent)?percent(Math.max(0,100-window.used_percent)):"—"} remaining`);
+    card.classList.add("account-window");
+    if(Number.isFinite(window.used_percent)){
+      const meter=el("progress","limit-meter");meter.max=100;meter.value=Math.min(100,Math.max(0,window.used_percent));meter.setAttribute("aria-label",`${window.label} used`);card.append(meter);
+    }
+    const reset=el("span","stat-note",Number.isFinite(window.resets_at)?`Reset: ${observedTime(window.resets_at)}`:"Reset time unavailable");card.append(reset);
+    if(Number.isFinite(window.resets_at)){const countdown=el("span","stat-note reset-countdown");countdown.dataset.resetAt=window.resets_at;card.append(countdown);}
+    container.append(card);
+  }
+  if(!container.childElementCount)container.append(el("p","snapshot-empty",status==="refreshing"?"Reading account limits…":"Account limits are unavailable. Worker records remain available below."));
+  $("account-updated").textContent=`Last observed: ${observedTime(account.observed_at)} · Last checked: ${observedTime(account.checked_at)} · Checks run in the background.`;
+  $("account-error").hidden=!account.error;
+  $("account-error").textContent=account.error||"";
+  renderAccountCountdowns();
+}
+async function refreshAccount() {
+  if(accountBusy||!token||accountRequestedAt!==null&&Date.now()-accountRequestedAt<30000)return;
+  accountBusy=true;accountRequestedAt=Date.now();
+  try {account=await api("/api/account-usage");}
+  catch(error){account={...account,status:account.windows?.length?"stale":"unavailable",error:error.message};}
+  finally {accountBusy=false;renderAccount();renderSnapshot({...filters,since:renderTimeFilter()});}
+}
+function contextObservation(label,sample) {
+  const block=el("div","context-observation");
+  block.append(el("span","stat-label",label),el("strong","context-value",percent(sample?.context_percent)));
+  block.append(el("span","stat-note",sample?(Number.isFinite(sample.context_limit)?`${tokenText(sample.context_tokens)} / ${tokenText(sample.context_limit)} tokens`:`${tokenText(sample.context_tokens)} tokens · capacity unknown`):"No context observation"));
+  if(sample)block.append(el("span","stat-note",observedTime(sample.at)));
+  return block;
+}
+function renderSnapshot(activeFilters) {
+  const snapshot=usageSnapshot(runs,activeFilters),summary=$("snapshot-summary");summary.replaceChildren();
+  $("snapshot-coverage").textContent=({complete:"Complete recorded samples",partial:"Partial coverage",unavailable:"No recorded samples"})[snapshot.coverage];
+  $("snapshot-range").textContent=!snapshot.valid?"Select a conversation and an available message to show a snapshot.":
+    `${snapshot.start===null?"All recorded samples":`Sample times since ${observedTime(snapshot.start)}`} · ${snapshot.samples} samples across ${snapshot.workers.length} workers. Includes workers that started earlier.`;
+  for(const [field,label] of [["input","Input tokens"],["output","Output tokens"],["cache_read","Cache read"],["cache_write","Cache write"]]){
+    const metric=snapshot[field];summary.append(statCard(label,tokenText(metric.value),`${metric.known}/${snapshot.samples} samples reported${metric.known<snapshot.samples?" · partial":""}`));
+  }
+  $("snapshot-note").textContent=snapshot.samples?
+    `Observed ${observedTime(snapshot.first_at)} → ${observedTime(snapshot.latest_at)}. ${snapshot.missing_runs} matching runs lack samples in this period; ${snapshot.partial_runs} have partial telemetry. Unknown values are not counted as zero.`:
+    "No timed observations are available in this selection. Historical run totals below cannot establish usage within a message boundary.";
+  const context=$("snapshot-context");context.replaceChildren();
+  for(const worker of snapshot.workers){
+    const card=el("article","context-worker"),heading=el("div","context-worker-heading");
+    heading.append(el("strong",null,worker.title||"Worker"),el("span","stat-note",`${backendName(worker)} · ${conversationName(worker)} · ${worker.samples} samples`));
+    card.append(heading);
+    const observations=el("div","context-observations");
+    for(const [key,label] of [["first","First observed"],["peak",Number.isFinite(worker.peak?.context_percent)?"Peak % · known capacity":"Peak tokens"],["latest","Latest observed"]])observations.append(contextObservation(label,worker[key]));
+    card.append(observations);context.append(card);
+  }
+  if(!snapshot.workers.length)context.append(el("p","snapshot-empty","No worker context observations in this selection."));
+  const changes=$("snapshot-account");changes.replaceChildren();
+  for(const delta of accountDeltas(account,activeFilters)){
+    const row=el("div","account-delta");
+    row.append(el("strong",null,delta.label),el("span","delta-value",delta.comparable?`${delta.approximate?"≈ ":""}+${Number(delta.delta.toFixed(1))} percentage points`:"Not comparable"));
+    row.append(el("span","stat-note",delta.comparable?`${delta.approximate?"Approximate boundary · ":""}Observed ${observedTime(delta.baseline_at)} → ${observedTime(delta.latest_at)}`:delta.reason));
+    changes.append(row);
+  }
+  if(!changes.childElementCount)changes.append(el("p","snapshot-empty","Account observations are unavailable. A comparison needs a known starting observation and a later observation within the same limit window."));
 }
 function renderStats(matching) {
   const stats=usageTotals(matching),container=$("usage-summary");container.replaceChildren();
@@ -247,4 +330,6 @@ document.querySelectorAll("[data-tab]").forEach(button=>button.addEventListener(
 document.querySelector(".detail-tabs").addEventListener("keydown",event=>{if(!["ArrowLeft","ArrowRight","Home","End"].includes(event.key))return;event.preventDefault();const tabs=[...document.querySelectorAll("[data-tab]")];const current=tabs.indexOf(document.activeElement);const next=event.key==="Home"?0:event.key==="End"?tabs.length-1:(current+(event.key==="ArrowRight"?1:-1)+tabs.length)%tabs.length;tabs[next].focus();tabs[next].click();});
 const activityView=setupActivity(api,el);
 $("settings-link").href="/settings"+location.hash;
-populateFilters();render();refresh();setInterval(refresh,2000);
+populateFilters();render();refresh();refreshAccount();setInterval(refresh,2000);
+setInterval(refreshAccount,30000);
+setInterval(renderAccountCountdowns,1000);

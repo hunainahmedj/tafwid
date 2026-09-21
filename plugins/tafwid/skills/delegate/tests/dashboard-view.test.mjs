@@ -128,3 +128,117 @@ test('latest boundary follows new messages while a chosen message stays pinned',
  assert.equal(view.messageBoundary({period:'message',message:'10'},messages).timestamp,190000);
  assert.equal(view.messageBoundary({period:'message',message:'missing'},messages),null);
 });
+
+// Snapshot totals must follow the time of each observation, including active workers
+// whose run started before the selected message. Run summaries cannot answer this.
+const snapshots=await import('../assets/dashboard/snapshots.mjs');
+const sample=(id,at,extra={})=>({id,at,input:10,output:2,cache_read:0,cache_write:null,context_tokens:400,context_limit:1000,context_percent:40,model:'sonnet',...extra});
+const sampledRun=(id,samples,extra={})=>({id,title:'Sampled worker',codex_thread_id:'one',backend:'claude',session_id:'session',status:'completed',started_at:10,ended_at:200,model_selection:{requested_model:'sonnet',role:'implementer'},telemetry:{samples,coverage:'complete',source:'test',truncated:false},...extra});
+test('sample snapshot counts an already active worker from the inclusive message boundary',()=>{
+ assert.equal(typeof snapshots.usageSnapshot,'function');
+ const result=snapshots.usageSnapshot([sampledRun('old',[sample('before',99),sample('boundary',100),sample('after',150),sample('future',250)])],{period:'message',conversation:'one',since:100},200);
+ assert.equal(result.samples,2);
+ assert.equal(result.input.value,20);
+ assert.equal(result.first_at,100);
+ assert.equal(result.latest_at,150);
+});
+test('snapshot fails closed for unresolved message scope and preserves identity filters',()=>{
+ const runs=[sampledRun('one',[sample('a',100)]),sampledRun('two',[sample('b',100)],{codex_thread_id:'two'})];
+ assert.equal(snapshots.usageSnapshot(runs,{period:'latest',conversation:'one'},200).samples,0);
+ assert.equal(snapshots.usageSnapshot(runs,{period:'message',since:100},200).samples,0);
+ assert.equal(snapshots.usageSnapshot(runs,{conversation:'two',model:'sonnet'},200).samples,1);
+ assert.equal(snapshots.usageSnapshot(runs,{model:'opus'},200).samples,0);
+ assert.equal(snapshots.usageSnapshot(runs,{},200).samples,2);
+});
+test('snapshot deduplicates resumed samples only within the same worker identity',()=>{
+ const a=sample('shared',100),b=sample('new',110);
+ const result=snapshots.usageSnapshot([sampledRun('first',[a]),sampledRun('resume',[a,b]),sampledRun('other',[a],{backend:'opencode'})],{},200);
+ assert.equal(result.samples,3);
+ assert.equal(result.input.value,30);
+ assert.equal(result.workers.length,2);
+});
+test('zero remains known while missing samples and partial telemetry remain explicit',()=>{
+ const result=snapshots.usageSnapshot([sampledRun('one',[sample('a',100,{input:0,output:null}),sample('b',110,{input:null,output:null})]),{id:'missing',started_at:50}],{},200);
+ assert.equal(result.input.value,0);
+ assert.equal(result.input.known,1);
+ assert.equal(result.output.value,null);
+ assert.equal(result.coverage,'partial');
+ assert.equal(result.missing_runs,1);
+ const empty=snapshots.usageSnapshot([],{},200);
+ assert.equal(empty.input.value,null);
+ assert.equal(empty.coverage,'unavailable');
+});
+test('context tracks first peak and latest observations across compaction without summing workers',()=>{
+ const result=snapshots.usageSnapshot([sampledRun('one',[sample('c',120,{context_percent:15,context_tokens:150}),sample('a',100),sample('b',110,{context_percent:90,context_tokens:900})]),sampledRun('other',[sample('d',130)],{session_id:'another'})],{},200);
+ const worker=result.workers.find(w=>w.session_id==='session');
+ assert.equal(worker.first.context_percent,40);
+ assert.equal(worker.peak.context_percent,90);
+ assert.equal(worker.latest.context_percent,15);
+ assert.equal(worker.latest.at,120);
+ assert.equal(worker.latest.context_tokens,150);
+ assert.equal(result.context_percent,undefined);
+});
+const accountSample=(at,used=20,reset=500,account='a')=>({at,account_id:account,windows:[{key:'five_hour',label:'Five-hour',used_percent:used,resets_at:reset}]});
+const accountData=history=>({account_id:'a',history,windows:history.at(-1)?.windows||[]});
+test('account delta uses known bracketing samples and ignores worker and model filters',()=>{
+ const result=snapshots.accountDeltas(accountData([accountSample(80,10),accountSample(120,20),accountSample(180,25)]),{period:'message',conversation:'one',since:100,model:'sonnet',role:'reviewer'},200);
+ assert.equal(result[0].delta,15);
+ assert.equal(result[0].baseline_at,80);
+ assert.equal(result[0].latest_at,180);
+ assert.equal(result[0].comparable,true);
+});
+test('account resets decreases and unavailable start baselines are never negative consumption',()=>{
+ for(const history of [[accountSample(80,90),accountSample(180,10,900)],[accountSample(80,30),accountSample(180,10)],[accountSample(120,10),accountSample(180,20)],[accountSample(80,10,null),accountSample(180,20,null)],[accountSample(80,10),accountSample(180,20,500,'other')]]){
+  const result=snapshots.accountDeltas(accountData(history),{period:'message',conversation:'one',since:100},200);
+  assert.equal(result[0].comparable,false);
+  assert.equal(result[0].delta,null);
+ }
+});
+test('account delta detects an intermediate reset even when endpoint usage is higher',()=>{
+ const result=snapshots.accountDeltas(accountData([accountSample(80,10),accountSample(120,5,900),accountSample(180,20)]),{period:'message',conversation:'one',since:100},200);
+ assert.equal(result[0].comparable,false);
+ assert.equal(result[0].delta,null);
+});
+test('account boundary must be observed recently and fractional reset rounding is tolerated',()=>{
+ const stale=snapshots.accountDeltas(accountData([accountSample(10,10),accountSample(190,20)]),{period:'message',conversation:'one',since:150},200);
+ assert.equal(stale[0].comparable,false);
+ const near=snapshots.accountDeltas(accountData([accountSample(80,10,500),accountSample(180,20,501)]),{period:'message',conversation:'one',since:100},200);
+ assert.equal(near[0].delta,10);
+ assert.equal(near[0].approximate,true);
+});
+
+test('relative sample windows include the boundary and unknown context never becomes zero',()=>{
+ const result=snapshots.usageSnapshot([sampledRun('old',[sample('before',99),sample('at',100,{context_percent:null,context_tokens:null,context_limit:null}),sample('after',200,{context_percent:null,context_tokens:200,context_limit:null})])],{period:'15m'},1000);
+ assert.equal(result.samples,2);
+ assert.equal(result.workers[0].first.context_tokens,200);
+ assert.equal(result.workers[0].peak.context_tokens,200);
+ assert.equal(result.workers[0].peak.context_percent,null);
+ assert.equal(result.workers[0].latest.context_percent,null);
+});
+test('expired account windows cannot imply current consumption from old observations',()=>{
+ const result=snapshots.accountDeltas(accountData([accountSample(80,10,190),accountSample(180,20,190)]),{period:'message',conversation:'one',since:100},200);
+ assert.equal(result[0].comparable,false);
+ assert.equal(result[0].delta,null);
+});
+
+test('peak uses highest recorded tokens when all capacities are unknown',()=>{
+ const result=snapshots.usageSnapshot([sampledRun('one',[sample('a',100,{context_tokens:900,context_limit:null,context_percent:null}),sample('b',120,{context_tokens:150,context_limit:null,context_percent:null})])],{},200);
+ assert.equal(result.workers[0].peak.context_tokens,900);
+ assert.equal(result.workers[0].peak.context_percent,null);
+ assert.equal(result.workers[0].peak.at,100);
+});
+test('peak percentage uses only known capacity observations when capacities are mixed',()=>{
+ const result=snapshots.usageSnapshot([sampledRun('one',[sample('a',100,{context_tokens:9000,context_limit:null,context_percent:null}),sample('b',120,{context_tokens:150,context_limit:1000,context_percent:15})])],{},200);
+ assert.equal(result.workers[0].peak.context_percent,15);
+ assert.equal(result.workers[0].peak.at,120);
+});
+test('account status becomes stale at reset without requiring another poll',()=>{
+ assert.equal(typeof snapshots.accountStatus,'function');
+ const observation={status:'available',windows:[{resets_at:200}]};
+ assert.equal(snapshots.accountStatus(observation,199),'available');
+ assert.equal(snapshots.accountStatus(observation,200),'stale');
+ assert.equal(snapshots.accountStatus(observation,201),'stale');
+ assert.equal(snapshots.accountStatus({...observation,windows:[{resets_at:500}]},201),'available');
+ assert.equal(snapshots.accountStatus({status:'stale',windows:[{resets_at:500}]},201),'stale');
+ assert.equal(snapshots.accountStatus({status:'refreshing',windows:[]},201),'refreshing');
+});

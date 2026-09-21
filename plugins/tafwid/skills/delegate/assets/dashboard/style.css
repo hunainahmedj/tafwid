@@ -79,3 +79,54 @@ a.activity-button{text-decoration:none}a:focus-visible,select:focus-visible{outl
 .stat-note { font-size:10px; color:#9ba68e; line-height:1.5; }
 .worker-usage { display:block; margin-top:6px; font-size:10px; line-height:1.5; color:#c0cead; }
 @media(max-width:650px) { .usage-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } .stat { padding:12px; } .stat-value { font-size:20px; } }
+
+/* Account limits remain outside worker filters; snapshots use timed observations. */
+.account-section{padding:20px;border:1px solid #48513d;border-radius:12px;background:#20251b;margin:0 0 30px}
+.account-section h2{font-size:15px;flex-wrap:wrap;gap:6px}
+.account-intro{font-size:12px;line-height:1.6;color:#a9b39d;margin:0 0 16px}
+.account-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px}
+.account-window{background:#252b1f;border-color:#3b4630}
+.account-window .stat-value{font-size:25px}
+.account-status{font-size:10px;line-height:1.5;border:1px solid #48543b;border-radius:5px;padding:4px 8px;color:#d7e4b7;white-space:nowrap}
+.account-status.stale,.account-status.unavailable{color:#e5cf96;border-color:#716138}
+.account-section .count-note{margin-bottom:0;overflow-wrap:anywhere}
+.limit-meter{width:100%;height:6px;border:0;appearance:none;background:#3b4531;border-radius:4px;margin:4px 0}
+.limit-meter::-webkit-progress-bar{background:#3b4531;border-radius:4px}
+.limit-meter::-webkit-progress-value{background:#c6dca0;border-radius:4px}
+.limit-meter::-moz-progress-bar{background:#c6dca0;border-radius:4px}
+.reset-countdown{color:#cbd9b8}
+.snapshot-section{margin:26px 0 32px;padding:20px;border:1px solid var(--line);border-radius:12px;background:#1b1e19}
+.snapshot-section h2{font-size:15px}
+.snapshot-section>.section-heading{gap:12px;flex-wrap:wrap}
+.snapshot-grid{grid-template-columns:repeat(4,minmax(0,1fr))}
+.snapshot-subheading{font-size:12px;font-weight:500;line-height:1.6;margin:24px 0 12px}
+.snapshot-empty{font-size:12px;line-height:1.7;color:#a0ab94;margin:8px 0}
+.context-list{display:grid;gap:10px}
+.context-worker{border:1px solid #35402c;border-radius:9px;background:#20261c;overflow:hidden}
+.context-worker-heading{padding:13px 15px;border-bottom:1px solid #35402c;display:flex;flex-wrap:wrap;gap:7px 15px;align-items:center;justify-content:space-between}
+.context-worker-heading strong{font-size:12px;font-weight:500;overflow-wrap:anywhere}
+.context-observations{display:grid;grid-template-columns:repeat(3,minmax(0,1fr))}
+.context-observation{display:flex;flex-direction:column;gap:7px;padding:15px;min-width:0}
+.context-observation+.context-observation{border-left:1px solid #35402c}
+.context-value{font-size:20px;font-weight:500;color:#d7e4b7}
+.context-observation .stat-note{overflow-wrap:anywhere}
+.account-comparison{border-top:1px solid var(--line);padding-top:16px;margin-top:20px}
+.account-comparison summary{font-size:12px;line-height:1.8;cursor:pointer;color:#d0dbc2}
+.account-delta{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px 16px;padding:12px 0;border-bottom:1px solid var(--line);font-size:12px}
+.account-delta:last-child{border-bottom:0}
+.account-delta strong{font-weight:500;overflow-wrap:anywhere}
+.account-delta .stat-note{grid-column:1/-1}
+.delta-value{color:#d7e4b7;text-align:right}
+@media(max-width:650px){
+ .account-section,.snapshot-section{padding:15px}
+ .account-section>.section-heading{flex-wrap:wrap;gap:10px}
+ .account-grid{grid-template-columns:1fr}
+ .snapshot-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .usage-section h2{flex-wrap:wrap;gap:6px}
+ .usage-caption{margin-left:0}
+ .context-observation{padding:12px 9px}
+ .context-observation .stat-label{font-size:10px}
+ .context-observation .stat-note{font-size:9px}
+ .account-delta{grid-template-columns:1fr}
+ .delta-value{text-align:left}
+}

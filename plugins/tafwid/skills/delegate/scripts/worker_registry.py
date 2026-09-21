@@ -9,6 +9,7 @@ import time
 import uuid
 import paths
 import metrics
+import telemetry
 
 ACTIVE = {"starting", "running"}
 DOCUMENTS = {"brief": "brief.md", "input": "input.txt", "report": "report.md", "stderr": "stderr.log"}
@@ -76,6 +77,7 @@ def load_record(run_id):
         raise ValueError("Invalid run record")
     record = effective(record)
     record['usage'] = metrics.for_record(record)
+    record['telemetry'] = telemetry.for_record(record)
     return record
 
 

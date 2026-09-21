@@ -17,13 +17,15 @@ import session
 import activity
 import settings
 import routing
+import account_usage
 
 ASSETS = Path(__file__).resolve().parents[1] / "assets" / "dashboard"
 CSP = "default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data:; frame-ancestors 'none'; base-uri 'none'; form-action 'none'"
 
 
-def make_server(token, port=0):
+def make_server(token, port=0, account_reader=None):
     activity_reader = activity.ActivityReader()
+    account_reader = account_reader or account_usage.AccountReader()
     class Handler(BaseHTTPRequestHandler):
         def log_message(self, *args):
             pass  # Never write a URL token or a task brief into an access log.
@@ -83,6 +85,8 @@ def make_server(token, port=0):
                 try:
                     if url.path == "/api/health":
                         self.respond(200, {"app": "claude-workers", "pid": os.getpid()})
+                    elif url.path == "/api/account-usage":
+                        self.respond(200, account_reader.read())
                     elif url.path == "/api/settings/catalog":
                         self.respond(200, routing.catalog())
                     elif url.path == "/api/settings":
@@ -117,6 +121,7 @@ def make_server(token, port=0):
                      "/settings": ("settings.html", "text/html; charset=utf-8"),
                      "/app.js": ("app.js", "text/javascript; charset=utf-8"),
                      "/view.mjs": ("view.mjs", "text/javascript; charset=utf-8"),
+                     "/snapshots.mjs": ("snapshots.mjs", "text/javascript; charset=utf-8"),
                      "/stats.mjs": ("stats.mjs", "text/javascript; charset=utf-8"),
                      "/settings-ui.mjs": ("settings-ui.mjs", "text/javascript; charset=utf-8"),
                      "/activity-ui.mjs": ("activity-ui.mjs", "text/javascript; charset=utf-8"),
