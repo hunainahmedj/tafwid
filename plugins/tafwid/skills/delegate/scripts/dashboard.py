@@ -117,6 +117,7 @@ def make_server(token, port=0):
                      "/settings": ("settings.html", "text/html; charset=utf-8"),
                      "/app.js": ("app.js", "text/javascript; charset=utf-8"),
                      "/view.mjs": ("view.mjs", "text/javascript; charset=utf-8"),
+                     "/stats.mjs": ("stats.mjs", "text/javascript; charset=utf-8"),
                      "/settings-ui.mjs": ("settings-ui.mjs", "text/javascript; charset=utf-8"),
                      "/activity-ui.mjs": ("activity-ui.mjs", "text/javascript; charset=utf-8"),
                      "/style.css": ("style.css", "text/css; charset=utf-8")}

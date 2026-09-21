@@ -4,7 +4,7 @@ Run `python3 "${TAFWID_SKILL_DIR}/scripts/dashboard.py" start` and open the retu
 
 ## What it shows
 
-- Active and Done lists contain one worker per Claude session and Codex conversation, with a run count on each card. A resumed invocation continues that session and appears inside its history. Missing session IDs stay separate; unrelated conversations never merge.
+- Active and Done lists contain one worker per harness, native session and Codex conversation, with a run count on each card. A resumed invocation continues that session and appears inside its history. Missing session IDs stay separate; unrelated conversations never merge.
 - Filter by conversation, requested model, role, status (including Needs attention), and start time. Filters match individual runs, then show the whole matching worker with its complete recorded history. A card shows the latest run's model/role/outcome, or an active status while any run is active; a previous failed run may match even when the latest run succeeded. The card title comes from the earliest recorded run.
 - Started offers 15/30 minutes, 1/3/6/12/24 hours, 7/30 days, **Since latest user message**, and **Since a chosen message**. Message filters require one selected conversation. Latest follows new user messages automatically; choosing a message pins that starting point through later messages and refreshes. The message picker shows timestamps and short request previews, including replies to clarification questions. It reads up to 200 recent requests from the local task log, skipping known injected context. Missing logs/messages show no matches and an explanation, never an unfiltered result. These are time boundaries for run starts, not semantic assignment to a feature: an earlier run that remains active is excluded unless that worker has a later matching run. Matching workers still include their full run history.
 - Sort within each list by newest/oldest latest-run start, last update, longest/shortest total run duration, or worker title. Duration sums recorded invocation durations, excluding time between runs. Search includes conversation names and status labels.
@@ -17,13 +17,30 @@ Run `python3 "${TAFWID_SKILL_DIR}/scripts/dashboard.py" start` and open the retu
 - Codex assigns role labels. Some correspond to Superpowers stages; others are task-specific. Labels alone neither select a named plugin agent nor prove a specific role template was supplied. Historical role-template provenance is not recorded.
 - Requested profile, effort, selection reason, Claude session, artifact path, and model usage keys. Usage keys can include helper models; they do not prove which model did the main work.
 
-The page refreshes every two seconds. A worker whose launcher stops reporting for more than fifteen seconds is shown as interrupted, with a note to inspect artifacts. This does not prove the Claude process has exited. Completed means the worker finished; Codex still verifies its work. Workers requesting native help or review are distinguished from successful completion.
+The page refreshes every two seconds. A worker whose launcher stops reporting for more than fifteen seconds is shown as interrupted, with a note to inspect artifacts. This does not prove the worker process has exited. Completed means the worker finished; Codex still verifies its work. Workers requesting native help or review are distinguished from successful completion.
 
 The dashboard is a separate browser tab. It cannot insert external workers into Codex's native Subagents panel. It cannot stop, resume, or dispatch workers. Its separate Settings page controls model routing and worker permissions for future launcher invocations. Logs are the launcher's diagnostic stderr output, not a streaming Claude tool transcript. Reports normally appear at the end of a run. Exchanges use `input.txt` (launcher contract, brief, supplied instructions), falling back to `brief.md` when unavailable, and `report.md` (the normalized worker result or launcher diagnostic). They are recorded handoffs, not a verbatim chat or complete orchestration trace. Only registered runs are included; missing older history is not reconstructed.
 
 Conversation titles are resolved from Codex's local `session_index.jsonl` metadata on refresh, using the latest recorded title for each ID. Only names for registered workers are returned. Missing titles fall back to an abbreviated ID; no conversation transcript is read. Two conversations with the same name remain separate choices, distinguished by their ID suffix.
 
 ## Storage and history
+
+Usage cards sum only matching runs. Each worker card sums its full recorded run
+history, even if a filter matches only one resume. **Usage** in the worker dialog
+shows the selected run's exact input/output, cache read/write and reasoning tokens,
+cost evidence and effective output throughput. Unknown values display as — or
+Not recorded; totals show coverage instead of substituting zeros. Input is uncached;
+reasoning is provider-defined and is not added to output totals. Claude's cost is
+an API-equivalent estimate, not a subscription charge. OpenCode's cost is reported
+by the harness, not verified against an invoice. Effective throughput includes
+tool time, waits and retries; it is not model generation speed. Across runs it uses
+summed run durations, not concurrent wall-clock duration. Helpers and interrupted
+streams may be absent. Metrics normally become available when a run ends.
+
+Older registered runs use their own saved summary/result artifacts where available.
+This read-only recovery never scans unrelated folders or edits historical records.
+Parsing is cached by file signature; missing/deleted or oversized artifacts leave
+usage unknown. Fresh Claude results persist normalized usage for future history.
 
 For existing installations, all paths below use `state/claude-delegate` instead
 when that is the only state directory. Tafwid reuses settings and history in

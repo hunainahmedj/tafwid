@@ -8,6 +8,7 @@ import threading
 import time
 import uuid
 import paths
+import metrics
 
 ACTIVE = {"starting", "running"}
 DOCUMENTS = {"brief": "brief.md", "input": "input.txt", "report": "report.md", "stderr": "stderr.log"}
@@ -73,7 +74,9 @@ def load_record(run_id):
     record = json.loads(path.read_text())
     if not isinstance(record, dict) or record.get("id") != run_id or not isinstance(record.get("output_dir"), str):
         raise ValueError("Invalid run record")
-    return effective(record)
+    record = effective(record)
+    record['usage'] = metrics.for_record(record)
+    return record
 
 
 def conversation_titles(thread_ids):
@@ -132,6 +135,7 @@ def details(run_id):
     history = []
     for candidate in list_runs(row.get("codex_thread_id")):
         same_session = (row.get("session_id") and candidate.get("session_id") == row["session_id"]
+                        and candidate.get("backend", "claude") == row.get("backend", "claude")
                         and candidate.get("codex_thread_id") == row.get("codex_thread_id"))
         if candidate["id"] == run_id or same_session:
             try:
@@ -147,14 +151,14 @@ def details(run_id):
 
 class Tracker:
     def __init__(self, out, task_id, session_id, title, selection, cwd, permissions=None,
-                 instruction_manifest=None):
+                 instruction_manifest=None, backend="claude"):
         self.id = str(uuid.uuid4())
         self.path = state_root() / "workers" / (self.id + ".json")
         self.lock = threading.Lock()
         self.stop = threading.Event()
         self.warned = False
         now = time.time()
-        self.record = {"version": 1, "id": self.id, "title": title, "status": "starting",
+        self.record = {"version": 1, "id": self.id, "title": title, "status": "starting", "backend": backend,
                        "session_id": session_id, "codex_thread_id": task_id,
                        "model_selection": selection, "models_used": [], "cwd": cwd,
                        "permissions": permissions,
@@ -193,7 +197,8 @@ class Tracker:
     def finish(self, summary):
         with self.lock:
             self.record.update({key: summary[key] for key in
-                ("status", "session_id", "models_used", "permission_denials", "claude_exit_code", "permissions") if key in summary})
+                ("status", "session_id", "models_used", "permission_denials", "claude_exit_code", "permissions",
+                 "backend", "worker_exit_code", "usage", "usage_scope") if key in summary})
             self.record["ended_at"] = time.time()
             self.record["documents"] = documents(self.record)
             self.save()
@@ -224,6 +229,7 @@ def import_run(out, title=None):
         if "--model" in command:
             selection = {"requested_model": command[command.index("--model") + 1], "role": "worker"}
     record = {"version": 1, "id": run_id, "title": title or out.name, "status": summary["status"],
+              "backend": summary.get("backend", "claude"),
               "session_id": summary["session_id"], "codex_thread_id": summary.get("codex_thread_id"),
               "model_selection": selection, "models_used": summary.get("models_used", []),
               "permissions": summary.get("permissions"),

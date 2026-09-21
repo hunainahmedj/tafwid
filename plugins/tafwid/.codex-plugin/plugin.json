@@ -17,7 +17,8 @@
     "defaultPrompt": [
       "Use $tafwid:delegate to turn delegation on.",
       "Use $tafwid:dashboard to view workers.",
-      "Use $tafwid:settings to choose task models."
+      "Use $tafwid:settings to choose task models.",
+      "Use $tafwid:scout to find free model candidates."
     ],
     "brandColor": "#D7E4B7",
     "composerIcon": "./assets/icon.png",

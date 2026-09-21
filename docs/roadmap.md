@@ -9,13 +9,25 @@ and acceptance-review guidance.
 
 ## Next
 
+The current checkout includes an experimental OpenCode/OpenRouter/Zen free-model
+adapter. It uses explicit model IDs; shared task-type routing across harnesses
+and a provider selector in Settings remain future work.
+
+Named self-hosted LM Studio/vLLM connections also use the OpenCode adapter.
+Connection setup is currently CLI-based, with configurable private endpoints,
+context limits and credential references. GUI connection management and shared
+task-type routing remain future work.
+
+The checkout also includes cached scouting for free OpenRouter/Zen candidates
+and dashboard usage metrics. Repeatable bounded evaluations and
+accepted quality scores remain future work; metadata-based candidates and local
+run outcomes are deliberately separate.
+
 - More actionable timeout, crash and quota reports, including unfinished work and
   cleanup evidence.
 - Consolidated review/correction checkpoints without removing independent review.
-- Backend adapter extraction with a real second implementation.
-- Cursor and OpenCode adapters, each with explicit permissions and resume rules.
-- OpenRouter execution integration, including opt-in free-model selection with
-  paid fallback prevented explicitly.
+- Cursor and additional adapters, each with explicit permissions and resume rules.
+- Harness/provider selection and saved OpenRouter task-type model mappings.
 - Broader platform and live compatibility coverage.
 
 No dates or support claims are implied for planned integrations. Track concrete

@@ -1,4 +1,5 @@
-import { activeStates, labels, sortLabels, conversationName, modelName, roleName, groupWorkers, sortRuns, elapsed, messageBoundary } from "/view.mjs";
+import { activeStates, labels, sortLabels, conversationName, modelName, backendName, roleName, groupWorkers, filterRuns, sortRuns, elapsed, messageBoundary } from "/view.mjs";
+import { usageTotals, tokenText, costText, compactUsage, compactCost, usageDetails } from "/stats.mjs";
 import { setupActivity } from "/activity-ui.mjs";
 const params = new URLSearchParams(location.hash.slice(1));
 const token = params.get("token");
@@ -56,12 +57,12 @@ function row(run) {
   button.setAttribute("aria-label",`Open ${run.title}, ${run.runs.length} ${run.runs.length===1?"run":"runs"}, latest ${labels[run.status]||run.status}`);
   button.append(el("span",`avatar ${modelClass(run)}`,modelClass(run)==="fable"?"✳":modelClass(run)==="opus"?"◈":"✧"));
   const body=el("span","worker-body");body.append(el("span","worker-title",run.title));
-  const sub=el("span","worker-subtitle");sub.append(el("span",null,modelName(run)),el("span","separator","/"),el("span",null,(run.model_selection?.role||"worker").replaceAll("-"," ")));
+  const sub=el("span","worker-subtitle");sub.append(el("span",null,backendName(run)),el("span","separator","·"),el("span",null,modelName(run)),el("span","separator","/"),el("span",null,(run.model_selection?.role||"worker").replaceAll("-"," ")));
   const conversation=el("span","worker-conversation",conversationName(run));
   conversation.title=conversationName(run)+(run.codex_thread_id?` · ${run.codex_thread_id}`:"");
-  const history=el("span","worker-history",`${run.runs.length} ${run.runs.length===1?"run":"runs"} · ${run.runs.length>1?"same Claude session":"single run"}${run.matching_runs<run.runs.length?` · ${run.matching_runs} match filters`:""}`);
+  const history=el("span","worker-history",`${run.runs.length} ${run.runs.length===1?"run":"runs"} · ${run.runs.length>1?"same worker session":"single run"}${run.matching_runs<run.runs.length?` · ${run.matching_runs} match filters`:""}`);
   if(run.runs.length>1)history.title="Latest run: "+run.runs.at(-1).title;
-  body.append(sub,conversation,history);button.append(body);
+  body.append(sub,conversation,history,el("span","worker-usage",compactUsage(run.runs)+" · all recorded runs"),el("span","worker-usage",compactCost(run.runs)));button.append(body);
   const end=el("span","worker-end");end.append(el("span",`status ${run.status}`,labels[run.status]||run.status));
   end.append(el("span","time",activeStates.has(run.status)?duration(elapsed(run)):age(run.ended_at||run.updated_at)));
   if(["longest","shortest"].includes(filters.sort)&&!activeStates.has(run.status))end.append(el("span","time",duration(elapsed(run))+" total"));
@@ -89,6 +90,7 @@ function renderTimeFilter() {
 function render() {
   const since=renderTimeFilter();
   const filtered=sortRuns(groupWorkers(runs,{...filters,since}),filters.sort);
+  renderStats(filterRuns(runs,{...filters,since}));
   const scoped=Boolean(filters.q||filters.model||filters.role||filters.status||filters.period);
   for(const [id,on] of [["this-task",Boolean(task)&&filters.conversation===task],["all-tasks",!filters.conversation]]){
     $(id).classList.toggle("selected",on);$(id).setAttribute("aria-pressed",String(on));
@@ -149,8 +151,8 @@ function renderExchanges(history) {
     const request=run.documents?.input||run.documents?.brief;
     const report=run.documents?.report;
     const entries=[
-      ["request",`Codex → Claude · ${index?"Follow-up instructions":"First recorded instructions"}`,request||"Instructions are unavailable for this recorded run."],
-      ["reply",`${["error","timeout","interrupted"].includes(run.status)?"Launcher outcome for Codex":"Claude → Codex · Reported outcome"}`,report||(activeStates.has(run.status)?"Awaiting the worker's report.":"No report was recorded.")]
+      ["request",`Codex → ${backendName(run)} · ${index?"Follow-up instructions":"First recorded instructions"}`,request||"Instructions are unavailable for this recorded run."],
+      ["reply",`${["error","timeout","interrupted"].includes(run.status)?"Launcher outcome for Codex":`${backendName(run)} → Codex · Reported outcome`}`,report||(activeStates.has(run.status)?"Awaiting the worker's report.":"No report was recorded.")]
     ];
     for(const [kind,title,body] of entries){
       const key=run.id+":"+kind;
@@ -161,13 +163,23 @@ function renderExchanges(history) {
     container.append(section);
   });
 }
+function renderStats(matching) {
+  const stats=usageTotals(matching),container=$("usage-summary");container.replaceChildren();
+  const items=[['Input tokens',tokenText(stats.input.value),`${stats.input.known}/${stats.runs} runs · uncached`],
+    ['Output tokens',tokenText(stats.output.value),`${stats.output.known}/${stats.runs} runs`],
+    ['Cache read',tokenText(stats.cache_read.value),`${stats.cache_read.known}/${stats.runs} runs`],
+    ['Reported cost',costText(stats.reported.value),`${stats.reported.known} OpenCode runs`],
+    ['API-equivalent estimate',costText(stats.api_equivalent.value),`${stats.api_equivalent.known} Claude runs · not a bill`],
+    ['Effective output rate',stats.throughput===null?'—':stats.throughput.toFixed(1)+' tok/s',`${stats.timed} timed runs · includes tools`]];
+  for(const [label,value,note] of items){const card=el('div','stat');card.append(el('span','stat-label',label),el('strong','stat-value',value),el('span','stat-note',note));container.append(card);}
+}
 function renderDetail() {
   if(!selected)return;
   const history=selected.runs?.length?selected.runs:[selected];
   const current=history.find(run=>run.id===selectedRunId)||history.at(-1);
   selectedRunId=current.id;
   $("detail-title").textContent=history[0].title;
-  $("detail-role").textContent=`CLAUDE WORKER · ${history.length} ${history.length===1?"RUN":"RUNS"}`;
+  $("detail-role").textContent=`${backendName(current).toUpperCase()} WORKER · ${history.length} ${history.length===1?"RUN":"RUNS"}`;
   const meta=$("detail-meta");meta.replaceChildren(el("span",null,`${duration(history.reduce((sum,run)=>sum+elapsed(run),0))} across recorded runs`),el("span","detail-conversation",`Coordinator: Codex · ${conversationName(selected)}`));
   document.querySelectorAll("[data-tab]").forEach(button=>button.setAttribute("aria-selected",String(button.dataset.tab===selectedTab)));
   const exchanges=selectedTab==="exchanges";
@@ -183,11 +195,12 @@ function renderDetail() {
     selector.value=selectedRunId;
     $("detail-content").setAttribute("aria-labelledby","tab-"+selectedTab);
     let text;
-    if(selectedTab==="info")text=[`Requested model: ${current.model_selection?.requested_model||"Claude default"}`,`Task type: ${current.model_selection?.task_type?.replaceAll("_"," ")||"Not recorded"}`,`Model routing: ${current.model_selection?.source?.replaceAll("_"," ")||"Not recorded"}`,`Role assigned by Codex: ${roleName(current.model_selection?.role)}`,"Role labels describe the assignment; they do not select a named Claude plugin agent. Role-template provenance was not recorded.",`Permission policy: ${({scoped:"Scoped",full:"Full access",inherit:"Follow Codex"})[current.permissions?.policy]||"Not recorded"}`,`Effective permissions: ${({scoped:"Scoped",full:"Full access"})[current.permissions?.effective]||"Not recorded"}`,`Claude permission mode: ${current.permissions?.claude_mode||"Not recorded"}`,`Permission source: ${current.permissions?.source||"Not recorded"}`,`Permission decision: ${current.permissions?.reason||"Not recorded"}`,`Profile: ${current.model_selection?.profile||"Explicit or legacy"}`,`Effort: ${current.model_selection?.effort||"Claude default"}`,`Selection reason: ${current.model_selection?.reason||"Not recorded"}`,`Models in usage report: ${(current.models_used||[]).join(", ")||"Not reported yet"}`,"(Usage can include helper models.)",`Started: ${new Date(current.started_at*1000).toLocaleString()}`,`Claude session: ${current.session_id||"Not recorded"}`,`Run ID: ${current.id}`,`Coordinator: Codex · ${conversationName(current)}`,`Conversation ID: ${current.codex_thread_id||"Not recorded"}`,`Workspace: ${current.cwd}`,`Artifacts: ${current.output_dir}`,current.status_note||""].join("\n\n");
-    else text=current.documents?.[selectedTab] || (selectedTab==="report"&&activeStates.has(current.status)?"The worker is running. Its report will appear here when it finishes.":selectedTab==="stderr"?"No diagnostic output recorded. Claude’s full tool transcript is not streamed into this view.":"This artifact is not available.");
+    if(selectedTab==="info")text=[`Harness: ${backendName(current)}`,`Requested model: ${current.model_selection?.requested_model||"Claude default"}`,`Task type: ${current.model_selection?.task_type?.replaceAll("_"," ")||"Not recorded"}`,`Model routing: ${current.model_selection?.source?.replaceAll("_"," ")||"Not recorded"}`,`Role assigned by Codex: ${roleName(current.model_selection?.role)}`,"Role labels describe the assignment; they do not select a named harness plugin agent. Role-template provenance was not recorded.",`Permission policy: ${({scoped:"Scoped",full:"Full access",inherit:"Follow Codex"})[current.permissions?.policy]||"Not recorded"}`,`Effective permissions: ${({scoped:"Scoped",full:"Full access"})[current.permissions?.effective]||"Not recorded"}`,`Harness permission mode: ${current.permissions?.opencode_mode||current.permissions?.claude_mode||"Not recorded"}`,`Permission source: ${current.permissions?.source||"Not recorded"}`,`Permission decision: ${current.permissions?.reason||"Not recorded"}`,`Profile: ${current.model_selection?.profile||"Explicit or legacy"}`,`Effort: ${current.model_selection?.effort||"Claude default"}`,`Selection reason: ${current.model_selection?.reason||"Not recorded"}`,`Observed models: ${(current.models_used||[]).join(", ")||"Not reported yet"}`,current.backend==="opencode"?"Model evidence covers exported session history; helper calls may be absent.":"(Usage can include helper models.)",`Started: ${new Date(current.started_at*1000).toLocaleString()}`,`Worker session: ${current.session_id||"Not recorded"}`,`Run ID: ${current.id}`,`Coordinator: Codex · ${conversationName(current)}`,`Conversation ID: ${current.codex_thread_id||"Not recorded"}`,`Workspace: ${current.cwd}`,`Artifacts: ${current.output_dir}`,current.status_note||""].join("\n\n");
+    else if(selectedTab==="usage")text=usageDetails(current);
+    else text=current.documents?.[selectedTab] || (selectedTab==="report"&&activeStates.has(current.status)?"The worker is running. Its report will appear here when it finishes.":selectedTab==="stderr"?"No diagnostic output recorded. The full tool transcript is not streamed into this view.":"This artifact is not available.");
     if($("detail-content").textContent!==text)$("detail-content").textContent=text;
   }
-  $("detail-footnote").textContent="One worker groups runs sharing a Claude session and Codex conversation. Only recorded runs are shown. A completed run does not prove Codex reviewed or accepted it.";
+  $("detail-footnote").textContent="One worker groups runs sharing a harness, worker session and Codex conversation. Only recorded runs are shown. A completed run does not prove Codex reviewed or accepted it.";
 }
 async function openDetails(id) {
   selectedId=id;selected=null;selectedRunId=null;selectedTab="exchanges";$("exchange-content").replaceChildren();delete $("exchange-content").dataset.signature;$("exchange-content").hidden=false;$("run-picker").hidden=true;$("detail-content").hidden=true;$("detail-title").textContent="Loading worker…";$("detail-content").textContent="";$("detail-meta").replaceChildren();$("details").showModal();
