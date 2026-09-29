@@ -15,6 +15,7 @@ import uuid
 import harnesses
 import paths
 import settings
+import connections
 
 
 def current_task_id():
@@ -43,18 +44,7 @@ def status():
     Return thread_id and enabled. Missing identity or saved state means off;
     malformed saved state raises ValueError instead of being treated as enabled.
     """
-    task_id = current_task_id()
-    default = {"thread_id": task_id, "enabled": False}
-    if task_id is None:
-        return default
-    try:
-        data = json.loads(state_path(task_id).read_text(encoding="utf-8"))
-    except FileNotFoundError:
-        return default
-    if (not isinstance(data, dict) or data.get("version") != 1
-            or data.get("thread_id") != task_id or type(data.get("enabled")) is not bool):
-        raise ValueError("Invalid delegation state; explicitly set on/off to repair this task's state")
-    return {"thread_id": task_id, "enabled": data["enabled"]}
+    return connections.read(current_task_id())
 
 
 def set_enabled(enabled, harness=None):
@@ -63,27 +53,14 @@ def set_enabled(enabled, harness=None):
     if task_id is None:
         raise ValueError("No Codex task identity; cannot save a session switch. Use an explicit one-shot task instead.")
     target = state_path(task_id)
-    if harness is not None and not enabled:
-        raise ValueError("A harness can only be selected with on")
     if enabled:
-        config = settings.read(task_id, initialize=False)
-        selected = config["harness"] if harness is None else harness
-        harnesses.check_ready(selected)
-        settings.update(task_id, harness=selected)
-    target.parent.mkdir(parents=True, mode=0o700, exist_ok=True)
-    data = {"version": 1, "thread_id": task_id, "enabled": enabled,
-            "updated_at": datetime.now(timezone.utc).isoformat()}
-    temporary = None
-    try:
-        with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", dir=target.parent,
-                                         prefix=".switch-", delete=False) as file:
-            temporary = Path(file.name)
-            json.dump(data, file, indent=2)
-        os.replace(temporary, target)
-    finally:
-        if temporary and temporary.exists():
-            temporary.unlink()
-    return {"thread_id": task_id, "enabled": enabled}
+        selected = harness or settings.read(task_id, initialize=False)["harness"]
+        connections.enable(task_id, selected)
+        if selected == "claude":
+            settings.update(task_id, harness="claude")
+    else:
+        connections.disable(task_id, harness)
+    return {"thread_id": task_id, "enabled": connections.read(task_id)["enabled"]}
 
 
 def main():
@@ -117,14 +94,24 @@ Output and exit codes:
         "action", choices=("on", "off", "status"),
         help="required action: on enables, off disables, status reads the setting",
     )
-    parser.add_argument("harness", nargs="?", choices=tuple(harnesses.ADAPTERS),
-                        help="optional harness for on; saved in this task's settings")
+    parser.add_argument("harness", nargs="?", help="claude or gpt for a named account")
+    parser.add_argument("name", nargs="?", help="account name after gpt")
     args = parser.parse_args()
     action = args.action
-    if args.harness is not None and action != "on":
-        parser.error("a harness can only be selected with on")
+    if args.name and args.harness != "gpt":
+        parser.error("an account name follows gpt")
+    if args.harness == "gpt" and not args.name:
+        parser.error("gpt requires an account name")
+    if args.harness not in (None, "claude", "gpt"):
+        parser.error("use claude or gpt NAME")
     try:
-        result = status() if action == "status" else set_enabled(action == "on", args.harness)
+        if action == "status":
+            if args.harness is not None:
+                parser.error("status takes no connection")
+            result = status()
+        else:
+            selector = "gpt:" + args.name if args.harness == "gpt" else args.harness
+            result = set_enabled(action == "on", selector)
         print(json.dumps(result))
         return 0
     except (OSError, ValueError) as exc:
