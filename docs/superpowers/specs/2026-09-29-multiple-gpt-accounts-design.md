@@ -5,7 +5,9 @@ Status: Written design for user review. No runtime or prompt changes are authori
 
 ## Goal and scope
 
-Tafwid can assign a bounded task from the current Codex task to a Codex CLI worker signed into a different ChatGPT account. The user can add more than one personal GPT account and more than one Business GPT account. One exact account is selected for each Tafwid task. Tafwid never selects another account after a readiness, login, permission, model, or usage failure. The current Claude worker remains available.
+Tafwid can assign bounded work from the current Codex task to Codex CLI workers signed into named ChatGPT accounts. The user can add more than one personal GPT account and more than one Business GPT account. A Tafwid task can enable a pool of connections, including GPT accounts and the existing Claude connection. Each worker assignment records one exact destination from that pool. A readiness, login, permission, model, or usage failure never reroutes an assignment to another connection.
+
+The connection pool is the foundation for a later cluster spanning Claude, multiple GPT accounts, local LLMs, and OpenCode Zen. Future adapters join the same pool without changing its task or run identity rules. This release implements named GPT accounts and coexistence with the current Claude connection. It allows separate, explicitly routed assignments to run concurrently across that pool. Automatic task splitting, worker allocation, and usage-based balancing belong to a later release; Zen and local LLMs are not yet supported.
 
 The setup is visible and interactive. The user completes Codex's own login flow and confirms the intended account and workspace before Tafwid marks the connection ready. The current Codex login is left alone. Tafwid stores no passwords, token contents, account emails, or account usage snapshots.
 
@@ -23,11 +25,19 @@ Add a separate `$tafwid:account` skill for setup and inspection. Keep `$tafwid:d
 | `$tafwid:account add gpt business` | Add a Business GPT account. Ask for a unique nickname. |
 | `$tafwid:account list` | Show nicknames, types, and ready/pending status without inspecting credentials. |
 | `$tafwid:account check NAME` | Check the named CLI login method without making a model request. |
-| `$tafwid:delegate on gpt NAME` | Select that ready account for automatic delegation in this task. |
-| `$tafwid:delegate on claude` | Preserve the current Claude behavior. |
-| One-shot assignment to `gpt NAME` | Run once without changing the task's saved account. |
+| `$tafwid:delegate on gpt NAME` | Enable that ready GPT account in this task's connection pool. |
+| `$tafwid:delegate on claude` | Enable the current Claude connection alongside any enabled GPT accounts. |
+| `$tafwid:delegate off gpt NAME` | Remove one GPT account from new automatic assignments; running workers continue. |
+| `$tafwid:delegate off claude` | Remove Claude from new automatic assignments; running workers continue. |
+| `$tafwid:delegate off` | Disable all new automatic assignments; running workers continue. |
+| `$tafwid:delegate status` | Show the selected pool and its ready, pending, or unavailable connections. |
+| One-shot assignment to `gpt NAME` | Run once without changing the task's enabled pool. |
 
-The skill asks for a nickname when omitted. Nicknames are unique across account types and cannot be `gpt`, `personal`, `business`, or `claude`. A saved task selection records the account's immutable ID as well as its nickname and type. Renaming or replacing a connection cannot redirect an existing task silently. `on gpt` with multiple ready accounts asks the user to choose one; with one ready account it still states the account being selected. A missing account offers the setup flow and waits for the user's answer. It does not launch login as a side effect of an ordinary delegation request.
+The account skill asks for a nickname when omitted. Nicknames are unique across account types and cannot be `gpt`, `personal`, `business`, or `claude`. A task pool records immutable connection IDs as well as display nicknames and types. Renaming or replacing a connection cannot redirect an existing task silently. `on gpt` with multiple ready accounts asks which to add; with one ready account it still states the account being added. A missing account offers the setup flow and waits for the user's answer. It does not launch login as a side effect of an ordinary delegation request.
+
+The existing Claude login is represented as one connection in the pool. Adding a GPT account does not disable it. The connection model has provider and account-type fields so future Claude, Zen, and local adapters can register their own named connections. No future adapter is treated as ready before it exists and passes its own readiness check.
+
+For each assignment, the coordinator or user names one enabled destination, such as `claude`, `gpt pro-main`, or `gpt work`. A request to spread independent work among selected connections can be carried out with several explicit assignments and separate output directories. This release does not assign destinations automatically. If the user's requested allocation is unclear, the coordinator asks how to divide the work. One connection can handle more than one assignment; a task can have workers on different platforms at the same time. Concurrent edits to the same files use separate worktrees or serialized assignments.
 
 The account skill announces the type, nickname, and private Codex home before it runs `codex login`. The user signs in through Codex's browser flow, or chooses its device-code flow if needed. After `codex login` exits, the runtime checks `codex login status` from that same home. A clearly reported ChatGPT login method qualifies for user confirmation; API-key, access-token, workload-identity, failed, or ambiguous status remains pending. The user then confirms that the browser sign-in used the intended account and workspace. Only an explicit confirmation marks the connection ready. Cancellation leaves it unavailable for delegation. The skill can explain how to retry a pending login. Readiness is checked again at dispatch.
 
@@ -46,7 +56,7 @@ Each account gets its own owner-only directory outside Git, under Tafwid's exist
 
 The setup and worker subprocesses receive a controlled environment that sets their account's `CODEX_HOME` and removes inherited API-key, access-token, workload-identity, and custom-provider overrides that could change billing or identity. Readiness uses the same environment as dispatch. If machine-managed authentication requirements force an unisolatable credential store or a different login method, setup fails with an actionable message. Tafwid never falls back to the caller's default Codex home.
 
-The private account registry records version, immutable ID, nickname, type, home path, and pending/ready state. Task settings record only the selected account ID. Private run records include the account ID, nickname, type, backend, worker session ID, workspace, and result paths. No account credentials enter a task brief or run summary. Existing Claude task settings and run records remain readable through migration.
+The private account registry records version, immutable ID, nickname, type, home path, and pending/ready state. Task settings record the enabled connection IDs. Private run records include the exact connection ID, nickname, type, backend, worker session ID, workspace, and result paths. No account credentials enter a task brief or run summary. Existing Claude task settings and run records remain readable through migration. An enabled legacy task with Claude selected migrates to a pool containing only its current Claude connection; an off task remains off.
 
 ## Worker flow
 
@@ -54,7 +64,7 @@ Add a Codex harness behind the existing launcher boundary. A new GPT run starts 
 
 The existing completion hook, waiter, heartbeat, and concise acceptance report remain the coordinator path. Their records become backend-neutral while preserving legacy Claude fields when reading older runs. GPT worker output stays outside Git. The parent Codex task owns acceptance and checks relevant evidence before reporting completion.
 
-The first GPT release uses the CLI's default available model unless the user requests a specific GPT model. Claude-specific Sonnet/Opus/Fable routes never apply to GPT. Explicit model requests are passed to Codex and failures are reported for that account, without switching models or accounts. There is no automatic usage-based balancing.
+The first GPT release uses the CLI's default available model unless the user requests a specific GPT model. Claude-specific Sonnet/Opus/Fable routes never apply to GPT. Explicit model requests are passed to Codex and failures are reported for that account, without switching models or accounts.
 
 GPT `read` mode uses the CLI's read-only sandbox. GPT `edit` mode uses a workspace-write sandbox with noninteractive approval policy. The existing saved `full` Claude policy does not silently grant a GPT worker unrestricted filesystem access; that mode is unsupported for GPT in this release. The selected sandbox and approval policy are recorded with the run. Any tool access not supported by the chosen Codex sandbox produces a blocked report or process error for acceptance review.
 
@@ -80,7 +90,7 @@ Its skill metadata will show `Tafwid Account`, describe it as `Set up and check 
 
 Proposed additions to the existing delegate skill are limited to these sentences:
 
-> For GPT workers, select one ready named account for this task. If none is selected, ask the user. If the selected account is unavailable, stop dispatch and offer `$tafwid:account` setup. Never substitute another account. Follow the GPT account guide for sign-in and worker rules.
+> Enable only the connections the user chooses for this task. Record one exact enabled connection for each worker assignment. If routing is unclear, ask the user. If a selected GPT account is unavailable, stop that assignment and offer `$tafwid:account` setup. Never substitute another connection. Follow the GPT account guide for sign-in and worker rules.
 
 Its frontmatter description will change to:
 
@@ -92,12 +102,12 @@ The quoted worker instruction, skill text, and human-facing questions are review
 
 The shared runtime gains an account command with `add`, `check`, `list`, and `confirm` actions, plus a Codex harness module. Every new public script has a module docstring describing its purpose, privacy behavior, invocation examples, output, and exit codes; every function has a useful docstring; `--help` performs no login, writes, or model request. Error messages explain the next user action without printing credential material. Existing script help changes will be shown in the implementation plan.
 
-Update the package checker for the new skill entry point and required files. Update README, architecture, workflow, account setup guide, and release manifests consistently. Keep the installed plugin untouched during development. Offline tests use isolated temporary homes and fake Codex executables to cover two personal accounts, Business metadata, login confirmation, environment isolation, no fallback, task-local selection, resume identity, permissions, errors, and backward-compatible Claude behavior. `make test` and `python3 scripts/check_package.py` are required gates. No test makes a real model request or signs into a real account.
+Update the package checker for the new skill entry point and required files. Update README, architecture, workflow, account setup guide, and release manifests consistently. Keep the installed plugin untouched during development. Offline tests use isolated temporary homes and fake Codex executables to cover two personal accounts, Business metadata, login confirmation, environment isolation, no fallback, task-local connection pools, concurrent Claude and GPT runs, resume identity, permissions, errors, and backward-compatible Claude behavior. `make test` and `python3 scripts/check_package.py` are required gates. No test makes a real model request or signs into a real account.
 
 ## Acceptance
 
 1. A user can add two personal GPT accounts and one Business GPT account through visible sign-in steps, each with a unique nickname and isolated CLI home.
 2. The ordinary Codex CLI login remains usable and unchanged after setup and worker dispatch.
-3. A task chooses one exact GPT account; no failure routes work to a different GPT account, Claude, API billing, or the caller's Codex home.
+3. A task can enable Claude and multiple GPT accounts together. It can run separate assignments on different enabled connections. Each worker assignment records its exact destination; no failure routes work to a different connection, API billing, or the caller's Codex home.
 4. A Codex worker can complete and resume a bounded task under the selected account, with private artifacts, completion-hook monitoring, and independent Codex acceptance.
 5. Prompt text matches the user-approved copy. New scripts have useful docstrings and `--help`. Offline tests and package checks pass.
