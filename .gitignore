@@ -13,3 +13,8 @@ dist/
 .venv/
 
 .worktrees/
+
+# Local office prototype
+node_modules/
+test-results/
+playwright-report/

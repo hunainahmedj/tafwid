@@ -47,7 +47,7 @@ All prototype paths below are relative to `prototypes/agent-office/`.
 
 Root changes: `.gitignore` for dependency/test outputs; Archivist dashboard module, backlog, ownership, changelog, and an ADR for the implemented rendering boundary.
 
-## Task 1: Usable dashboard and shared state
+### Task 1: Usable dashboard and shared state
 
 **Files:** Create the app scaffolding, `src/model.ts`, `src/fixtures.ts`, `src/main.ts`, `src/dashboard.ts`, `src/styles.css`, `playwright.config.ts`, and `tests/model.spec.ts`.
 
@@ -68,7 +68,7 @@ Root changes: `.gitignore` for dependency/test outputs; Archivist dashboard modu
 - [ ] Apply the approved palette and system typography. Use role accents and readable status labels, differentiated surface hierarchy, and a branching Tafwid mark. Use no unused navigation or pretend controls.
 - [ ] Verify the DOM app locally with keyboard selection and scenario switching; commit this independently usable dashboard slice with a TAF-2 reference.
 
-## Task 2: Lightweight selectable office
+### Task 2: Lightweight selectable office
 
 **Files:** Create `src/office.ts`, `src/office-assets.ts`, `tests/dashboard.spec.ts`; update `src/main.ts` and `src/styles.css`.
 
@@ -84,7 +84,7 @@ Root changes: `.gitignore` for dependency/test outputs; Archivist dashboard modu
 - [ ] Add a browser check selecting a visible workstation by canvas coordinates, repeat after resize, and assert the corresponding detail heading changes. Use bounding-box-derived click coordinates from the fixed camera; keep them in the test rather than adding public test controls.
 - [ ] Verify scene selection, fallback behavior, and TypeScript build. Visually inspect one desktop view for clipped objects and readable selection before committing the office slice with a TAF-2 reference.
 
-## Task 3: Complete interaction, visual verification, and documentation
+### Task 3: Complete interaction, visual verification, and documentation
 
 **Files:** Update `tests/dashboard.spec.ts`, `playwright.config.ts`, `src/styles.css`, prototype `README.md`, and the listed Archivist homes.
 
