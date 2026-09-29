@@ -108,5 +108,6 @@ live data, remote generation, and worker controls remain deferred. Package
 integrity scans the repository, so generated browser artifacts must be kept
 outside scanned source or cleaned from the prototype before that check.
 
-Execution begins after the user reviews this plan and selects native or
-subagent-driven execution, per the writing-plans workflow.
+The user approved proceeding with the recommended native execution and a
+maximum of five build–critique–improve rounds on 2026-09-30. The critique
+rubric and evidence live in the prototype review record.

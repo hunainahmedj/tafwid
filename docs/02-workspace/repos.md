@@ -11,7 +11,7 @@ Adjacent personal projects are outside this documentation scope.
 | `scripts/check_package.py` | Source/package integrity validation |
 | `docs/` | Archivist documentation and existing user guides |
 | `docs/superpowers/` | Working specs and implementation plans, preserved in place |
-| `prototypes/agent-office/` (planned, [TAF-2](../01-project/backlog.md)) | Local sample-data dashboard; design reference, outside the distributable plugin |
+| `prototypes/agent-office/` ([TAF-2](../01-project/backlog.md)) | Local sample-data dashboard; design reference, outside the distributable plugin |
 
 ## Documentation migration
 

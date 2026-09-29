@@ -4,4 +4,4 @@
 | --- | --- | --- | --- |
 | [Delegation](../04-modules/delegation.md) | Tafwid contributors | Individual assignment unspecified | [TAF-1](../01-project/backlog.md) |
 | [Accounts](../04-modules/accounts.md) | Tafwid contributors | Individual assignment unspecified | [TAF-1](../01-project/backlog.md) |
-| [Dashboard](../04-modules/dashboard.md) | Planned | Individual assignment unspecified | [TAF-2](../01-project/backlog.md) |
+| [Dashboard](../04-modules/dashboard.md) | Tafwid contributors | Individual assignment unspecified | [TAF-2](../01-project/backlog.md) |

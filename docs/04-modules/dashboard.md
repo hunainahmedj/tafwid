@@ -2,9 +2,9 @@
 
 ## What is it?
 
-A planned visual overview of agent work, beginning with a compact 3D office
-and an accessible agent roster. Planned work is tracked as
-[TAF-2](../01-project/backlog.md); no released dashboard behavior is asserted here.
+A local prototype combining a compact 3D office with an accessible agent
+roster. It uses fictional sample snapshots and is separate from the released
+Tafwid plugin. Work is tracked in [TAF-2](../01-project/backlog.md).
 
 ## Why was it built?
 
@@ -14,21 +14,25 @@ for the chosen first boundary.
 
 ## When is it used?
 
-The first prototype will be used locally to evaluate whether a person can
+Use it locally to evaluate whether a person can
 understand current work and attention states from the dashboard.
 
 ## How does it work?
 
-The approved [design](../superpowers/specs/2026-09-30-agent-office-dashboard-design.md)
-and proposed [implementation plan](../superpowers/plans/2026-09-30-agent-office-dashboard.md)
-define the experiment. Implementation evidence and run instructions will
-be added here when the prototype exists.
+The [prototype README](../../prototypes/agent-office/README.md) owns run
+instructions and implementation structure. Its [review record](../../prototypes/agent-office/REVIEW.md)
+owns critique scores, verification evidence, and limits.
+
+One state model drives the room and roster. The rendering module loads
+independently of the dashboard, and the accessible roster works if 3D
+is unavailable. See [ADR-0003](../05-decisions/0003-local-procedural-office.md)
+for this implementation boundary.
 
 ## Code location
 
 | Repo / package | Paths |
 | --- | --- |
-| Tafwid | Proposed `prototypes/agent-office/`, outside the distributable plugin |
+| Tafwid | `prototypes/agent-office/`, outside the distributable plugin |
 
 ## Decisions
 

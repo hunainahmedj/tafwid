@@ -149,3 +149,9 @@ shared spaces need their own identity, consent, and visibility design.
 Live worker integration, launching or cancelling agents, account allowance
 metrics, persistent role/personality configuration, custom Blender assets,
 walking around, multiple rooms, invitations, chat, and shared presence.
+
+## Execution constraint
+
+The user requested up to five build–critique–improve rounds, stopping once
+a structured score exceeds 8.5/10. Record the rubric and evidence; do not
+treat a subjective score as an objective guarantee.

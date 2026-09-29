@@ -10,7 +10,7 @@ Ordinary tests use temporary homes and fake worker executables.
 
 [TAF-2](../01-project/backlog.md) specifies a browser application served on
 localhost with synthetic examples. No production or staging deployment is
-configured for it. Run commands will live beside its implementation.
+configured for it. Run commands live in the [prototype README](../../prototypes/agent-office/README.md).
 
 ## Asset-authoring resources
 
