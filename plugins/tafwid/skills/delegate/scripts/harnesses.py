@@ -6,14 +6,19 @@ install software, or initiate login. Add future adapters to ADAPTERS.
 """
 
 import claude_code
+import codex_cli
 
 DEFAULT_HARNESS = "claude"
-ADAPTERS = {"claude": claude_code}
+ADAPTERS = {"claude": claude_code, "gpt": codex_cli}
 
 
-def check_ready(harness=None, *, cwd=None):
+def check_ready(harness=None, *, cwd=None, account=None):
     """Check a named harness, or the default, without changing session state."""
     name = DEFAULT_HARNESS if harness is None else harness
     if name not in ADAPTERS:
         raise ValueError(f"Unsupported worker harness: {name}")
-    return ADAPTERS[name].check_ready(cwd=cwd)
+    if name == "gpt":
+        if account is None:
+            raise ValueError("A named GPT account is required")
+        return codex_cli.check_ready(account, cwd=cwd)
+    return claude_code.check_ready(cwd=cwd)

@@ -65,7 +65,8 @@ def can_watch(record, key):
 
 
 class Tracker:
-    def __init__(self, out, task_id, session_id, title, selection, cwd, permissions=None):
+    def __init__(self, out, task_id, session_id, title, selection, cwd, permissions=None,
+                 backend="claude", connection_id="claude:default"):
         """Create a run and a private observation key for an assigned monitor."""
         self.id = str(uuid.uuid4())
         self.watch_key = secrets.token_hex(32)
@@ -74,7 +75,8 @@ class Tracker:
         self.stop = threading.Event()
         self.warned = False
         now = time.time()
-        self.record = {"version": 1, "id": self.id, "title": title, "status": "starting", "backend": "claude",
+        self.record = {"version": 1, "id": self.id, "title": title, "status": "starting", "backend": backend,
+                       "connection_id": connection_id,
                        "session_id": session_id, "codex_thread_id": task_id,
                        "watch_key_hash": hashlib.sha256(self.watch_key.encode("ascii")).hexdigest(),
                        "model_selection": selection, "models_used": [], "cwd": cwd,

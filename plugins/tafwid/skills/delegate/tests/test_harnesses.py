@@ -43,19 +43,17 @@ class HarnessTests(unittest.TestCase):
         for name in claude_code.OVERRIDES:
             os.environ.pop(name, None)
 
-    def test_session_can_enable_with_a_non_claude_adapter(self):
-        with patch.dict(harnesses.ADAPTERS, {"fixture": ReadyFixture}, clear=True):
-            with patch.object(harnesses, "DEFAULT_HARNESS", "fixture"):
-                result = session.set_enabled(True)
-        self.assertEqual(result, {"thread_id": TASK, "enabled": True})
-        self.assertEqual(session.status(), result)
-        config = self.root / 'tafwid/state/tasks' / TASK / 'settings.json'
-        self.assertEqual(json.loads(config.read_text())['harness'], 'fixture')
+    def test_named_gpt_readiness_uses_selected_account(self):
+        account = {"id": "id", "name": "work", "kind": "business", "status": "ready", "home": "/private"}
+        with patch.object(harnesses.codex_cli, "check_ready", return_value={"executable": "codex"}) as check:
+            result = harnesses.check_ready("gpt", account=account)
+        self.assertEqual(result["executable"], "codex")
+        check.assert_called_once_with(account, cwd=None)
 
     def test_unknown_default_does_not_enable_or_fall_back(self):
         with patch.object(harnesses, "DEFAULT_HARNESS", "unsupported"):
             with self.assertRaisesRegex(ValueError, "Unsupported worker harness"):
-                session.set_enabled(True)
+                harnesses.check_ready()
         self.assertEqual(list(self.root.iterdir()), [])
 
     def test_auth_process_failures_return_safe_json_without_writing_state(self):

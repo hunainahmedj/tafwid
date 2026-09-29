@@ -22,6 +22,9 @@ import run_state
 import settings as worker_settings
 import routing
 import harnesses
+import connections
+import accounts
+import codex_cli
 
 # Profiles pick a model and its effort. They grant no tool, permission, or budget.
 PROFILES = routing.PROFILES
@@ -150,6 +153,7 @@ Completion still requires acceptance review. See references/workflow.md for usag
     parser.add_argument("--cwd", type=Path, required=True, help="Workspace or isolated worktree")
     parser.add_argument("--prompt-file", type=Path, required=True, help="UTF-8 task brief; never shell-expanded")
     parser.add_argument("--output-dir", type=Path, required=True, help="New directory for private run artifacts")
+    parser.add_argument("--connection", help="Exact worker destination: claude or gpt:NAME")
     parser.add_argument("--mode", choices=("read", "edit"), default="read",
                         help="Read: file inspection and skills/tool discovery. Edit: also Edit/Write. Plugins use existing permissions.")
     parser.add_argument("--allow-tool", action="append", default=[],
@@ -191,6 +195,89 @@ def stop_group(proc):
         proc.wait()
 
 
+def run_gpt(args, *, task_id, cwd, prompt, previous, selected):
+    """Run one named Codex CLI worker in its private account environment."""
+    if args.task_type or args.profile or args.effort or args.allow_tool:
+        raise ValueError("GPT assignments do not use Claude task routes, effort, or tool allowances")
+    if args.permissions == "full":
+        raise ValueError("GPT workers do not support full permissions")
+    account = accounts.get(selected["name"])
+    if selected["id"] != "gpt:" + account["id"]:
+        raise ValueError("GPT account identity changed; start a new assignment")
+    if previous and previous.get("connection_id") != selected["id"]:
+        raise ValueError("Resume account identity differs from the original run")
+    if previous and previous.get("backend") != "gpt":
+        raise ValueError("Resume backend differs from the original run")
+    if previous and previous.get("mode") != args.mode:
+        raise ValueError("Resume mode differs from the original run")
+    session_id = str(uuid.UUID(previous["session_id"])) if previous else None
+    readiness = harnesses.check_ready("gpt", cwd=cwd, account=account)
+    title = nonblank("--title", args.title) or prompt.strip().splitlines()[0].lstrip("# ")[:100]
+    model = nonblank("--model", args.model) or (previous or {}).get("requested_model")
+    selection = {"requested_model": model, "role": nonblank("--role", args.role) or "worker",
+                 "reason": nonblank("--selection-reason", args.selection_reason) or
+                 ("explicit model" if model else "selected Codex CLI default")}
+    out = args.output_dir.expanduser().resolve()
+    out.mkdir(mode=0o700, parents=True, exist_ok=False)
+    (out / "brief.md").write_text(prompt, encoding="utf-8")
+    (out / "input.txt").write_text(codex_cli.CONTRACT + "\n\nTASK BRIEF:\n" + prompt, encoding="utf-8")
+    schema = out / "schema.json"
+    schema.write_text(json.dumps(codex_cli.OUTPUT_SCHEMA), encoding="utf-8")
+    events = out / "events.jsonl"
+    final_message = out / "final.json"
+    stderr_path = out / "stderr.log"
+    command = codex_cli.build_command(readiness["executable"], cwd=cwd, schema=schema,
+                                      mode=args.mode, model=model, session_id=session_id,
+                                      output=final_message)
+    (out / "request.json").write_text(json.dumps({"cwd": str(cwd), "command": command,
+        "connection_id": selected["id"], "model_selection": selection, "mode": args.mode}, indent=2))
+    permissions = {"effective": "read-only" if args.mode == "read" else "workspace-write",
+                   "approval": "never"}
+    with run_state.Tracker(out, task_id, session_id, title, selection, str(cwd),
+                           permissions=permissions, backend="gpt", connection_id=selected["id"]) as tracker:
+        if not args.once:
+            current = connections.resolve(task_id, selected["selector"])
+            if current["id"] != selected["id"]:
+                raise ValueError("Connection changed before launch")
+        harnesses.check_ready("gpt", cwd=cwd, account=account)
+        status, report, code = "needs_review", "", None
+        with (out / "input.txt").open("rb") as stdin, events.open("wb") as stdout, stderr_path.open("wb") as stderr:
+            proc = subprocess.Popen(command, cwd=cwd, env=accounts.isolated_env(Path(account["home"])),
+                                    stdin=stdin, stdout=stdout, stderr=stderr, start_new_session=True)
+            tracker.running(proc.pid)
+            print(json.dumps({"event": "started", "run_id": tracker.id,
+                              "watch_key": tracker.watch_key, "worker_pid": proc.pid,
+                              "output_dir": str(out)}), file=sys.stderr, flush=True)
+            try:
+                code = proc.wait(timeout=args.timeout)
+            except subprocess.TimeoutExpired:
+                stop_group(proc)
+                code, status = 124, "timeout"
+                report = "Codex worker timed out; inspect its private artifacts and working tree."
+            except KeyboardInterrupt:
+                stop_group(proc)
+                code, status = 130, "interrupted"
+                report = "Codex worker was interrupted; inspect its private artifacts and working tree."
+        if not report:
+            parsed = codex_cli.parse_result(events, final_message, exit_code=code,
+                                            expected_session_id=session_id)
+            status, report = parsed["status"], parsed["report"]
+            session_id = parsed["session_id"]
+        (out / "report.md").write_text(report + "\n", encoding="utf-8")
+        summary = {"status": status, "backend": "gpt", "connection_id": selected["id"],
+                   "connection": selected["selector"], "account_kind": selected["kind"],
+                   "session_id": session_id, "codex_thread_id": task_id, "cwd": str(cwd),
+                   "mode": args.mode, "requested_model": model, "model_selection": selection,
+                   "run_id": tracker.id, "models_used": [], "permissions": permissions,
+                   "codex_exit_code": code, "report_file": str(out / "report.md"),
+                   "result_file": str(final_message), "stderr_file": str(stderr_path),
+                   "report_excerpt": report[:3000], "report_truncated": len(report) > 3000}
+        (out / "summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
+        tracker.finish(summary)
+        print(json.dumps(summary, ensure_ascii=False))
+        return 0 if status == "completed" else code if code in (124, 130) else 1
+
+
 def run(args):
     """Launch or resume a worker using the options returned by parse_args.
 
@@ -218,10 +305,10 @@ def run(args):
         if not (re.fullmatch(r"Bash\([A-Za-z0-9_./-][^,\n\r]*\)", rule)
                 or re.fullmatch(r"mcp__[A-Za-z0-9_-]+__[A-Za-z0-9_-]+", rule)):
             raise ValueError("Use a scoped Bash(command ...) rule or exact MCP tool name; no unrestricted tool wildcards")
-    session, prior = None, None
+    session, prior, previous = None, None, None
     if args.resume_from:
         previous = json.loads((args.resume_from.expanduser() / "summary.json").read_text())
-        if previous.get("backend", "claude") != "claude":
+        if previous.get("backend", "claude") not in ("claude", "gpt"):
             raise ValueError("Only Claude Code workers can be resumed; this run belongs to a retired backend")
         if "codex_thread_id" not in previous or previous["codex_thread_id"] != task_id:
             raise ValueError("Resume has missing or different Codex task ownership; start a fresh worker")
@@ -229,6 +316,15 @@ def run(args):
             raise ValueError("Resume workspace differs from the original run")
         session = str(uuid.UUID(previous["session_id"]))
         prior = recorded_selection(previous)
+    selector = args.connection or (previous.get("connection") if previous and previous.get("backend") == "gpt" else None)
+    selected = connections.resolve(task_id, selector, once=args.once)
+    if previous and previous.get("backend", "claude") != selected["provider"]:
+        raise ValueError("Resume connection differs from the original run")
+    if previous and previous.get("connection_id", "claude:default") != selected["id"]:
+        raise ValueError("Resume connection identity differs from the original run")
+    if selected["provider"] == "gpt":
+        return run_gpt(args, task_id=task_id, cwd=cwd, prompt=prompt,
+                       previous=previous, selected=selected)
     config = worker_settings.read(task_id)
     if config["harness"] != "claude":
         raise ValueError("Only Claude Code has a worker launcher; no fallback will be used")
@@ -311,7 +407,8 @@ def run(args):
             except (ValueError, TypeError):
                 report = "Claude returned missing or invalid result JSON. Inspect result.json and stderr.log."
         (out / "report.md").write_text(report + "\n", encoding="utf-8")
-        summary = {"status": status, "session_id": session, "cwd": str(cwd),
+        summary = {"status": status, "backend": "claude", "connection_id": "claude:default",
+                   "session_id": session, "cwd": str(cwd),
                    "codex_thread_id": task_id, "model_selection": selection, "run_id": tracker.id,
                    "models_used": models_used, "permissions": permissions,
                    "subscription_type": subscription, "claude_exit_code": code,
