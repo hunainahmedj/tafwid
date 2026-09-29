@@ -1,0 +1,10 @@
+---
+description: Archivist documentation discipline
+alwaysApply: true
+---
+
+This project uses the Archivist docs system (docs tree: docs/). After
+changing code, before finishing: map each change to its doc home (module
+docs 04-modules/, ADRs 05-decisions/, changelog 07-meta/changelog.md) per
+docs/07-meta/documentation-guide.md and update those docs — or state
+explicitly: 'No docs needed because <reason>'.

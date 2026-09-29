@@ -1,0 +1,24 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash -c 'p=\"docs/07-meta/hooks/codex-session-start.sh\"; [ -f \"$p\" ] || exit 0; exec bash \"$p\"'"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash -c 'p=\"docs/07-meta/hooks/codex-stop.sh\"; [ -f \"$p\" ] || exit 0; exec bash \"$p\"'"
+          }
+        ]
+      }
+    ]
+  }
+}

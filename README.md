@@ -78,6 +78,8 @@ sent through the selected CLI; inference is not necessarily local.
 
 ## Contribute
 
+The [project documentation](docs/README.md) covers the runtime and planned office dashboard.
+
 Run `make test` for package checks and offline Python tests. Tests use temporary
 homes and fake workers; they do not make model requests. See
 [CONTRIBUTING.md](CONTRIBUTING.md) and [architecture](docs/architecture.md).

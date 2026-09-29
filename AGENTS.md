@@ -1,3 +1,5 @@
+Before non-trivial work, read docs/AGENTS.md (project briefing) and the relevant module doc under docs/04-modules/.
+
 # Tafwid contributor instructions
 
 Tafwid is a Codex plugin. The distributable plugin is under `plugins/tafwid`;
