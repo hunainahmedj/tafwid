@@ -1,39 +1,12 @@
 # Roadmap
 
-## Implemented in 0.1
+Keep the core small: task-local switches, Claude launch/resume, completion waiting,
+explicit permissions and concise acceptance evidence.
 
-Claude Code delegation from Codex; task-local on/off; model routing and permission
-settings; bounded completion waiting; generic instruction handoff and resume
-deduplication; worker/run dashboard; public orchestrator activity; test evidence
-and acceptance-review guidance.
+Priorities:
 
-## Next
+- Make the entry point and command help easy to follow.
+- Measure coordination overhead with reproducible, separately authorized benchmarks.
+- Improve reliability using offline fixtures before adding integrations.
 
-The proposed [provider-aware dashboard and delegation redesign](superpowers/specs/2026-09-21-provider-aware-dashboard-design.md)
-captures the approved UX direction and command syntax. Its
-[implementation plan](superpowers/plans/2026-09-21-provider-aware-dashboard.md)
-awaits review and execution selection; the shipped limitations below still apply.
-
-The current checkout includes an experimental OpenCode/OpenRouter/Zen free-model
-adapter. It uses explicit model IDs; shared task-type routing across harnesses
-and a provider selector in Settings remain future work.
-
-Named self-hosted LM Studio/vLLM connections also use the OpenCode adapter.
-Connection setup is currently CLI-based, with configurable private endpoints,
-context limits and credential references. GUI connection management and shared
-task-type routing remain future work.
-
-The checkout also includes cached scouting for free OpenRouter/Zen candidates
-and dashboard usage metrics. Repeatable bounded evaluations and
-accepted quality scores remain future work; metadata-based candidates and local
-run outcomes are deliberately separate.
-
-- More actionable timeout, crash and quota reports, including unfinished work and
-  cleanup evidence.
-- Consolidated review/correction checkpoints without removing independent review.
-- Cursor and additional adapters, each with explicit permissions and resume rules.
-- Harness/provider selection and saved OpenRouter task-type model mappings.
-- Broader platform and live compatibility coverage.
-
-No dates or support claims are implied for planned integrations. Track concrete
-work through repository issues once the project is published.
+New features should justify their runtime and context cost before entering the core.

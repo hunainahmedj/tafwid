@@ -9,6 +9,7 @@ dist/
 .artifacts/
 .playwright-cli/
 .claude/
+.remember/
 .venv/
 
 .worktrees/

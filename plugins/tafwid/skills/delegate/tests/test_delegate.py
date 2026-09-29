@@ -17,10 +17,6 @@ FAKE = r'''
 import json, os, sys, time
 from pathlib import Path
 case = os.environ.get("FIXTURE_CASE", "success")
-if sys.argv[1:3] == ["plugin", "list"]:
-    Path("plugin-list-called").write_text("yes")
-    print(os.environ.get("FIXTURE_PLUGINS", "[]"))
-    sys.exit(0)
 if "auth" in sys.argv:
     if case == "slow_auth":
         Path("auth-started").write_text("ready")
@@ -36,21 +32,15 @@ if case == "timeout":
 if case == "malformed":
     print("not json")
     sys.exit(0)
-structured = {"status": "completed", "report": "Done. " + "x" * 10000, "handoff": None}
-if case in ("native", "native_denied"):
-    structured = {"status": "native_required", "report": "Implementation finished; visual check pending.",
-        "handoff": {"capability": "browser", "reason": "Chrome connection unavailable",
-        "requested_action": "Open http://localhost:3000 in the requested Chrome browser and check the menu",
-        "context": "Server is running; use the existing checkout. No form submission is needed.",
-        "expected_result": "Desktop and mobile screenshots plus observations"}}
+structured = {"status": "completed", "report": "Done. " + "x" * 10000}
 if case == "blocked":
-    structured = {"status": "blocked", "report": "Acceptance criteria are missing.", "handoff": None}
-if case == "invalid_handoff":
-    structured = {"status": "native_required", "report": "Need help", "handoff": None}
+    structured = {"status": "blocked", "report": "Acceptance criteria are missing."}
+if case == "invalid_status":
+    structured = {"status": "unknown", "report": "Need help"}
 payload = {"type": "result", "subtype": "success", "is_error": case == "expired",
  "result": "OAuth session expired" if case == "expired" else "Done. " + "x" * 10000,
  "session_id": sys.argv[sys.argv.index("--resume") + 1] if "--resume" in sys.argv else sys.argv[sys.argv.index("--session-id") + 1],
- "permission_denials": [{"tool_name": "Bash", "tool_input": {"command": "pytest"}}] if case in ("denied", "native_denied") else []}
+ "permission_denials": [{"tool_name": "Bash", "tool_input": {"command": "pytest"}}] if case == "denied" else []}
 if case == "usage":
     payload["usage"] = {"input_tokens": 400, "output_tokens": 150}
     payload["total_cost_usd"] = 0.41
@@ -94,16 +84,40 @@ class DelegationTests(unittest.TestCase):
             *(["--once"] if once else []), *extra],
             env={**self.env, "FIXTURE_CASE": case}, text=True, capture_output=True, timeout=15)
 
-    def test_usage_is_saved_for_dashboard_without_increasing_completion_context(self):
+    def test_removed_provider_options_fail_before_launch(self):
+        for extra in (("--backend", "opencode"), ("--allow-command", "python *"),
+                      ("--instructions-file", "/unused/role.md")):
+            with self.subTest(extra=extra):
+                result = self.run_cli(*extra)
+                self.assertEqual(result.returncode, 2, result.stderr)
+                self.assertIn("unrecognized arguments", result.stderr)
+                self.assertFalse(self.out.exists())
+                self.assertFalse((self.cwd / "received.json").exists())
+
+    def test_retired_worker_cannot_resume_as_claude(self):
+        previous = self.root / "previous"
+        previous.mkdir()
+        summary = {"backend": "retired", "session_id": str(uuid.uuid4()),
+                   "codex_thread_id": self.env["CODEX_THREAD_ID"], "cwd": str(self.cwd)}
+        path = previous / "summary.json"
+        path.write_text(json.dumps(summary))
+        result = self.run_cli("--resume-from", str(previous))
+        self.assertEqual(result.returncode, 2, result.stderr)
+        self.assertIn("Only Claude Code workers can be resumed", result.stderr)
+        self.assertEqual(json.loads(path.read_text()), summary)
+        self.assertFalse(self.out.exists())
+        self.assertFalse((self.cwd / "received.json").exists())
+
+    def test_raw_usage_is_preserved_without_increasing_completion_context(self):
         result = self.run_cli(case="usage")
         self.assertEqual(result.returncode, 0, result.stderr)
-        summary = json.loads((self.out / "summary.json").read_text())
-        self.assertEqual(summary["usage"]["output"], 150)
-        self.assertEqual(summary["usage"]["cost_usd"], .41)
+        raw = json.loads((self.out / "result.json").read_text())
+        self.assertEqual(raw["usage"]["output_tokens"], 150)
+        self.assertEqual(raw["total_cost_usd"], .41)
         self.assertNotIn("usage", json.loads(result.stdout))
 
     def test_wait_observes_real_launcher_results_without_relaunching(self):
-        for case, expected in (("success", "completed"), ("native", "native_required"),
+        for case, expected in (("success", "completed"), ("blocked", "blocked"),
                                ("quota", "error"), ("expired", "error"), ("timeout", "timeout")):
             with self.subTest(case=case):
                 self.out = self.root / ("wait-" + case)
@@ -113,8 +127,14 @@ class DelegationTests(unittest.TestCase):
                 with subprocess.Popen(command, env={**self.env, "FIXTURE_CASE": case,
                         "FIXTURE_DELAY": ".15"}, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                         text=True) as launcher:
+                    started = json.loads(launcher.stderr.readline())
+                    self.assertEqual(started["event"], "started")
+                    uuid.UUID(started["run_id"])
+                    self.assertGreater(started["worker_pid"], 0)
+                    self.assertEqual(started["output_dir"], str(self.out.resolve()))
+                    self.assertIsNone(launcher.poll(), "Run ID must be available while worker is active")
                     observed = subprocess.run([sys.executable, str(SCRIPT.with_name("wait.py")),
-                        "--run-dir", str(self.out), "--timeout", "4"], env=self.env,
+                        "--run-id", started["run_id"], "--timeout", "4"], env=self.env,
                         text=True, capture_output=True, timeout=6)
                     stdout, stderr = launcher.communicate(timeout=6)
                 self.assertEqual(observed.returncode, 0, observed.stderr)
@@ -122,161 +142,53 @@ class DelegationTests(unittest.TestCase):
                 self.assertEqual(event["event"], "ready", event)
                 ready = event["ready"][0]
                 self.assertEqual(ready["status"], expected)
-                self.assertEqual(ready["run_id"], json.loads(stdout)["dashboard_run_id"])
+                self.assertEqual(ready["run_id"], json.loads(stdout)["run_id"])
+                self.assertEqual(ready["run_id"], started["run_id"])
+                self.assertEqual(event["pending_run_ids"], [])
                 self.assertEqual(event["pending_dirs"], [])
                 if case == "quota":
                     self.assertIn("session limit", ready["report_excerpt"])
-                if case == "native":
-                    self.assertEqual(json.loads(Path(ready["handoff_file"]).read_text())["capability"], "browser")
 
-    def save_policy(self, policy):
-        path = Path(self.env["CODEX_HOME"]) / "state/tafwid/settings.json"
+    def test_launcher_grants_monitor_access_without_exposing_key_to_worker(self):
+        command = [sys.executable, str(SCRIPT), "--once", "--cwd", str(self.cwd),
+                   "--prompt-file", str(self.prompt), "--output-dir", str(self.out)]
+        with subprocess.Popen(command, env={**self.env, "FIXTURE_DELAY": "1"},
+                              stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True) as launcher:
+            started = json.loads(launcher.stderr.readline())
+            self.assertTrue(started.get("watch_key"), "Started event must grant monitoring access")
+            monitor_env = {**self.env, "CODEX_THREAD_ID": "00000000-0000-4000-8000-000000000002"}
+            observed = subprocess.run([sys.executable, str(SCRIPT.with_name("wait.py")),
+                "--run-id", started["run_id"], "--watch-key",
+                f'{started["run_id"]}={started["watch_key"]}', "--timeout", "4"],
+                env=monitor_env, capture_output=True, text=True, timeout=6)
+            stdout, stderr = launcher.communicate(timeout=6)
+        self.assertEqual(launcher.returncode, 0, stderr)
+        self.assertEqual(observed.returncode, 0, observed.stderr)
+        data = json.loads(observed.stdout)
+        self.assertEqual(data["ready"][0]["status"], "completed", data)
+        self.assertEqual(json.loads(stdout)["codex_thread_id"], self.env["CODEX_THREAD_ID"])
+        record_path = Path(self.env["CODEX_HOME"]) / "tafwid/state/workers" / (started["run_id"] + ".json")
+        for content in (stdout, observed.stdout, record_path.read_text(),
+                        *(p.read_text() for p in self.out.iterdir() if p.is_file()),
+                        (self.cwd / "received.json").read_text()):
+            self.assertNotIn(started["watch_key"], content)
+        previous = self.out
+        self.out = self.root / "monitor-resume"
+        self.env = monitor_env
+        (self.cwd / "received.json").unlink()
+        resumed = self.run_cli("--resume-from", str(previous))
+        self.assertEqual(resumed.returncode, 2, resumed.stderr)
+        self.assertIn("task ownership", resumed.stderr)
+        self.assertFalse(self.out.exists())
+        self.assertFalse((self.cwd / "received.json").exists())
+
+    def save_policy(self, policy, task=False):
+        root = Path(self.env["CODEX_HOME"]) / "tafwid/state"
+        path = (root / "tasks" / self.env["CODEX_THREAD_ID"] / "settings.json"
+                if task else root / "settings.json")
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(json.dumps({"version": 1, "permission_policy": policy}))
         return path
-
-    def test_instruction_delivery_deduplicates_files_and_keeps_manifest_off_stdout(self):
-        role = self.root / "role.md"
-        role.write_text("UNIQUE ROLE: verify the exact changed behavior.\n")
-        run = self.run_cli("--instructions-file", str(role), "--instructions-file", str(role))
-        self.assertEqual(run.returncode, 0, run.stderr)
-        prompt = json.loads((self.cwd / "received.json").read_text())["prompt"]
-        self.assertEqual(prompt.count("UNIQUE ROLE"), 1)
-        manifest = json.loads((self.out / "instructions.json").read_text())
-        self.assertEqual(len(manifest["instructions"]), 1)
-        self.assertEqual(manifest["instructions"][0]["delivery"], "inline")
-        self.assertNotIn("fingerprint", run.stdout)
-        self.assertNotIn("instruction_manifest", prompt)
-        self.assertFalse((self.cwd / "plugin-list-called").exists())
-
-    def test_instruction_resume_retains_unchanged_and_sends_changed_copy(self):
-        role = self.root / "role.md"
-        role.write_text("RULE V1: focused verification.\n")
-        first = self.run_cli("--instructions-file", str(role))
-        self.assertEqual(first.returncode, 0, first.stderr)
-        original = self.out
-        self.out = self.root / "resume-instructions"
-        second = self.run_cli("--resume-from", str(original), "--instructions-file", str(role))
-        self.assertEqual(second.returncode, 0, second.stderr)
-        prompt = json.loads((self.cwd / "received.json").read_text())["prompt"]
-        self.assertNotIn("RULE V1", prompt)
-        self.assertEqual(json.loads((self.out / "instructions.json").read_text())["instructions"][0]["delivery"], "retained")
-        previous = self.out
-        role.write_text("RULE V2: corrected verification.\n")
-        self.out = self.root / "changed-instructions"
-        third = self.run_cli("--resume-from", str(previous), "--instructions-file", str(role))
-        self.assertEqual(third.returncode, 0, third.stderr)
-        prompt = json.loads((self.cwd / "received.json").read_text())["prompt"]
-        self.assertIn("RULE V2", prompt)
-        self.assertIn("replaces", prompt)
-
-    def test_failed_worker_does_not_cause_instructions_to_be_skipped_on_resume(self):
-        role = self.root / "role.md"
-        role.write_text("REQUIRED AFTER AUTH RECOVERY\n")
-        self.run_cli("--instructions-file", str(role), case="expired")
-        previous = self.out
-        self.out = self.root / "recovered-instructions"
-        run = self.run_cli("--resume-from", str(previous), "--instructions-file", str(role))
-        self.assertEqual(run.returncode, 0, run.stderr)
-        self.assertIn("REQUIRED AFTER AUTH RECOVERY", json.loads((self.cwd / "received.json").read_text())["prompt"])
-
-    def test_older_resume_directory_cannot_suppress_a_reverted_policy(self):
-        role = self.root / "role.md"
-        role.write_text("Policy A")
-        first = self.run_cli("--instructions-file", str(role))
-        self.assertEqual(first.returncode, 0, first.stderr)
-        oldest = self.out
-        role.write_text("Policy B")
-        self.out = self.root / "newer-policy"
-        second = self.run_cli("--resume-from", str(oldest), "--instructions-file", str(role))
-        self.assertEqual(second.returncode, 0, second.stderr)
-        role.write_text("Policy A")
-        self.out = self.root / "revert-policy"
-        third = self.run_cli("--resume-from", str(oldest), "--instructions-file", str(role))
-        self.assertEqual(third.returncode, 0, third.stderr)
-        self.assertIn("Policy A", json.loads((self.cwd / "received.json").read_text())["prompt"])
-
-    def test_matching_native_skill_is_referenced_and_changed_dependency_forces_source(self):
-        source = self.root / "codex-skill"
-        source.mkdir()
-        body = "---\nname: checking\ndescription: Check things\n---\nUNIQUE CHECKING BODY. See [rules](rules.md).\n"
-        (source / "SKILL.md").write_text(body)
-        (source / "rules.md").write_text("Required rule A")
-        plugin = self.root / "native-plugin"
-        target = plugin / "skills/checking"
-        target.mkdir(parents=True)
-        (target / "SKILL.md").write_text(body)
-        (target / "rules.md").write_text("Required rule A")
-        self.env["FIXTURE_PLUGINS"] = json.dumps([{"id": "tools@market", "enabled": True,
-            "version": "1.2", "installPath": str(plugin), "scope": "user"}])
-        first = self.run_cli("--instructions-file", str(source / "SKILL.md"))
-        self.assertEqual(first.returncode, 0, first.stderr)
-        prompt = json.loads((self.cwd / "received.json").read_text())["prompt"]
-        self.assertIn("tools:checking", prompt)
-        self.assertNotIn("UNIQUE CHECKING BODY", prompt)
-        record = json.loads((self.out / "instructions.json").read_text())["instructions"][0]
-        self.assertEqual(record["delivery"], "native")
-        self.assertEqual(record["native_version"], "1.2")
-        (target / "rules.md").write_text("Different rule B")
-        self.out = self.root / "different-native-skill"
-        second = self.run_cli("--instructions-file", str(source / "SKILL.md"))
-        self.assertEqual(second.returncode, 0, second.stderr)
-        prompt = json.loads((self.cwd / "received.json").read_text())["prompt"]
-        self.assertIn("UNIQUE CHECKING BODY", prompt)
-        self.assertNotIn("Use Skill", prompt)
-
-    def test_empty_instruction_selection_has_no_discovery_or_extra_prompt_section(self):
-        run = self.run_cli()
-        self.assertEqual(run.returncode, 0, run.stderr)
-        prompt = json.loads((self.cwd / "received.json").read_text())["prompt"]
-        self.assertNotIn("Superpowers", prompt)
-        self.assertNotIn("WORKER INSTRUCTIONS", prompt)
-        self.assertFalse((self.cwd / "plugin-list-called").exists())
-
-    def test_disabled_or_unreadable_plugin_inventory_uses_selected_source(self):
-        source = self.root / "selected"
-        source.mkdir()
-        (source / "SKILL.md").write_text("---\nname: checking\n---\nAlways include this policy.\n")
-        plugin = self.root / "plugins"
-        native = plugin / "skills/checking"
-        native.mkdir(parents=True)
-        (native / "SKILL.md").write_text((source / "SKILL.md").read_text())
-        cases = ["[]", "not-json", json.dumps([{"id": "tools@market", "enabled": False,
-                                               "installPath": str(plugin)}])]
-        for index, inventory in enumerate(cases):
-            self.env["FIXTURE_PLUGINS"] = inventory
-            self.out = self.root / f"inventory-{index}"
-            run = self.run_cli("--instructions-file", str(source / "SKILL.md"))
-            self.assertEqual(run.returncode, 0, run.stderr)
-            prompt = json.loads((self.cwd / "received.json").read_text())["prompt"]
-            self.assertIn("Always include this policy.", prompt)
-            self.assertNotIn("Use Skill", prompt)
-
-    def test_claude_personal_skill_can_be_selected_without_any_plugin(self):
-        path = Path(self.env["CLAUDE_CONFIG_DIR"]) / "skills/checking/SKILL.md"
-        path.parent.mkdir(parents=True)
-        path.write_text("---\nname: checking\n---\nClaude-only selected policy.\n")
-        run = self.run_cli("--instructions-file", str(path))
-        self.assertEqual(run.returncode, 0, run.stderr)
-        prompt = json.loads((self.cwd / "received.json").read_text())["prompt"]
-        self.assertIn("Use Skill checking", prompt)
-        self.assertNotIn("Claude-only selected policy.", prompt)
-
-    def test_missing_resume_manifest_redelivers_and_registry_retains_audit(self):
-        role = self.root / "role.md"
-        role.write_text("Persistent audit policy.\n")
-        first = self.run_cli("--instructions-file", str(role))
-        self.assertEqual(first.returncode, 0, first.stderr)
-        summary = json.loads(first.stdout)
-        record = Path(self.env["CODEX_HOME"]) / "state/tafwid/workers" / (summary["dashboard_run_id"] + ".json")
-        stored = json.loads(record.read_text())["instruction_manifest"]
-        self.assertEqual(stored["instructions"][0]["delivery"], "inline")
-        (self.out / "instructions.json").unlink()
-        previous = self.out
-        self.out = self.root / "legacy-resume"
-        resumed = self.run_cli("--resume-from", str(previous), "--instructions-file", str(role))
-        self.assertEqual(resumed.returncode, 0, resumed.stderr)
-        self.assertIn("Persistent audit policy.", json.loads((self.cwd / "received.json").read_text())["prompt"])
 
     def test_full_access_edit_has_shell_and_audited_permission_mode(self):
         self.save_policy("full")
@@ -291,7 +203,7 @@ class DelegationTests(unittest.TestCase):
         self.assertEqual(permission["effective"], "full")
         self.assertEqual(permission["source"], "settings")
         self.assertEqual(json.loads((self.out / "request.json").read_text())["permissions"], permission)
-        records = list((Path(self.env["CODEX_HOME"]) / "state/tafwid/workers").glob("*.json"))
+        records = list((Path(self.env["CODEX_HOME"]) / "tafwid/state/workers").glob("*.json"))
         self.assertEqual(json.loads(records[0].read_text())["permissions"], permission)
 
     def test_inherit_requires_current_exact_full_access_signal(self):
@@ -311,7 +223,7 @@ class DelegationTests(unittest.TestCase):
         self.assertEqual(first.returncode, 0, first.stderr)
         previous = self.out
         self.out = self.root / "resumed"
-        self.save_policy("scoped")
+        self.save_policy("scoped", task=True)
         resumed = self.run_cli("--mode", "edit", "--resume-from", str(previous))
         self.assertEqual(resumed.returncode, 0, resumed.stderr)
         self.assertEqual(json.loads(resumed.stdout)["permissions"]["effective"], "scoped")
@@ -379,17 +291,6 @@ class DelegationTests(unittest.TestCase):
         self.assertNotEqual(run.returncode, 0)
         self.assertFalse((self.cwd / "received.json").exists())
 
-    def test_explicit_worker_instructions_reach_claude_literally(self):
-        role = self.root / "role.md"
-        role.write_text("Implementer: run the failing test first.\nLiteral $(touch ROLE_INJECTION).\n")
-        verification = self.root / "verification.md"
-        verification.write_text("Verify the acceptance criteria before reporting completion.\n")
-        run = self.run_cli("--instructions-file", str(role), "--instructions-file", str(verification))
-        self.assertEqual(run.returncode, 0, run.stderr)
-        prompt = json.loads((self.cwd / "received.json").read_text())["prompt"]
-        self.assertIn(role.read_text(), prompt)
-        self.assertIn(verification.read_text(), prompt)
-        self.assertFalse((self.cwd / "ROLE_INJECTION").exists())
 
     def test_off_during_authentication_prevents_pending_worker(self):
         enabled = subprocess.run([sys.executable, str(STATE), "on"], env=self.env,
@@ -446,21 +347,21 @@ class DelegationTests(unittest.TestCase):
         self.assertGreater(len((self.out / "report.md").read_text()), 10000)
         self.assertEqual(self.out.stat().st_mode & 0o777, 0o700)
 
-    def test_completed_launch_is_registered_for_dashboard(self):
+    def test_completed_launch_records_private_wait_state(self):
         run = self.run_cli("--title", "Review fixture", "--profile", "standard", "--role", "reviewer")
         self.assertEqual(run.returncode, 0, run.stderr)
         summary = self.summary()
-        path = Path(self.env["CODEX_HOME"]) / "state/tafwid/workers" / (summary["dashboard_run_id"] + ".json")
+        path = Path(self.env["CODEX_HOME"]) / "tafwid/state/workers" / (summary["run_id"] + ".json")
         record = json.loads(path.read_text())
         self.assertEqual(record["title"], "Review fixture")
         self.assertEqual(record["status"], "completed")
         self.assertEqual(record["session_id"], summary["session_id"])
         self.assertEqual(record["codex_thread_id"], self.env["CODEX_THREAD_ID"])
         self.assertEqual(record["model_selection"]["requested_model"], "opus")
-        self.assertIn("Done.", record["documents"]["report"])
+        self.assertIn("Done.", record["report_excerpt"])
         self.assertEqual(path.stat().st_mode & 0o777, 0o600)
 
-    def test_dashboard_tracks_a_running_worker_before_result_exists(self):
+    def test_wait_state_tracks_running_worker_before_result_exists(self):
         proc = subprocess.Popen([sys.executable, str(SCRIPT), "--once", "--cwd", str(self.cwd),
             "--prompt-file", str(self.prompt), "--output-dir", str(self.out), "--timeout", "2"],
             env={**self.env, "FIXTURE_CASE": "timeout"}, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -468,7 +369,7 @@ class DelegationTests(unittest.TestCase):
             deadline = time.monotonic() + 4
             records = []
             while time.monotonic() < deadline:
-                records = list((Path(self.env["CODEX_HOME"]) / "state/tafwid/workers").glob("*.json"))
+                records = list((Path(self.env["CODEX_HOME"]) / "tafwid/state/workers").glob("*.json"))
                 if records and json.loads(records[0].read_text())["status"] == "running":
                     break
                 time.sleep(0.02)
@@ -495,49 +396,15 @@ class DelegationTests(unittest.TestCase):
         self.assertNotIn("--strict-mcp-config", args)
         self.assertNotIn("--mcp-config", args)
 
-    def test_native_handoff_is_preserved_and_not_marked_complete(self):
-        for case in ("native", "native_denied"):
-            with self.subTest(case=case):
-                self.out = self.root / case
-                run = self.run_cli(case=case)
-                self.assertEqual(run.returncode, 3, run.stderr)
-                summary = self.summary()
-                self.assertEqual(summary["status"], "native_required")
-                handoff = json.loads(Path(summary["handoff_file"]).read_text())
-                self.assertEqual(handoff["capability"], "browser")
-                self.assertIn("Chrome", handoff["requested_action"])
-                self.assertIn("native_required", run.stdout)
-                self.assertLess(len(run.stdout), 5000)
 
     def test_blocked_worker_is_not_marked_complete(self):
         run = self.run_cli(case="blocked")
         self.assertNotEqual(run.returncode, 0)
         self.assertEqual(self.summary()["status"], "blocked")
 
-    def test_native_result_resumes_same_worker_without_turning_switch_off(self):
-        enabled = subprocess.run([sys.executable, str(STATE), "on"], env=self.env,
-                                 capture_output=True, text=True)
-        self.assertEqual(enabled.returncode, 0, enabled.stderr)
-        self.assertEqual(self.run_cli(case="native", once=False).returncode, 3)
-        previous = self.out
-        session = self.summary()["session_id"]
-        native_result = previous / "native-result.md"
-        native_result.write_text("Completed: Codex checked the menu in Chrome. Desktop and mobile passed.\n")
-        self.prompt.write_text("Codex completed the requested browser check. Read " + str(native_result) + " and finish your report.")
-        self.out = self.root / "resumed-after-native"
-        run = self.run_cli("--resume-from", str(previous), once=False)
-        self.assertEqual(run.returncode, 0, run.stderr)
-        self.assertEqual(self.summary()["session_id"], session)
-        self.assertEqual(self.summary()["status"], "completed")
-        self.assertIsNone(self.summary()["handoff_file"])
-        received = json.loads((self.cwd / "received.json").read_text())
-        self.assertIn(str(native_result), received["prompt"])
-        state = subprocess.run([sys.executable, str(STATE), "status"], env=self.env,
-                               capture_output=True, text=True)
-        self.assertTrue(json.loads(state.stdout)["enabled"])
 
-    def test_missing_structured_report_or_incomplete_handoff_needs_review(self):
-        for case in ("missing_structured", "invalid_handoff"):
+    def test_missing_structured_report_or_invalid_status_needs_review(self):
+        for case in ("missing_structured", "invalid_status"):
             with self.subTest(case=case):
                 self.out = self.root / case
                 run = self.run_cli(case=case)
@@ -644,13 +511,15 @@ class DelegationTests(unittest.TestCase):
         self.assertNotEqual(run.returncode, 0)
         self.assertEqual(sentinel.read_text(), "keep me")
 
-    def save_model_routes(self, deep="fable", final_review=None):
+    def save_model_routes(self, deep="fable", final_review=None, task=False):
         config = {"version": 2, "permission_policy": "scoped", "models": {
             "profiles": {"fast": "sonnet", "standard": "opus", "deep": deep},
             "tasks": {name: None for name in ("mechanical", "investigation", "implementation", "debugging",
                       "documentation", "testing", "task_review", "architecture", "final_review")}}}
         config["models"]["tasks"]["final_review"] = final_review
-        path = Path(self.env["CODEX_HOME"]) / "state/tafwid/settings.json"
+        root = Path(self.env["CODEX_HOME"]) / "tafwid/state"
+        path = (root / "tasks" / self.env["CODEX_THREAD_ID"] / "settings.json"
+                if task else root / "settings.json")
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(json.dumps(config))
 
@@ -676,12 +545,50 @@ class DelegationTests(unittest.TestCase):
         argv = json.loads((self.cwd / "received.json").read_text())["args"]
         self.assertEqual(argv[argv.index("--model") + 1], "opus")
 
+    def test_later_workers_and_resume_ignore_other_tasks_global_changes(self):
+        self.save_model_routes(deep='opus')
+        path = Path(self.env['CODEX_HOME']) / 'tafwid/state/settings.json'
+        config = json.loads(path.read_text())
+        config['permission_policy'] = 'full'
+        path.write_text(json.dumps(config))
+        self.assertEqual(self.run_cli('--profile', 'deep', '--mode', 'edit').returncode, 0)
+        previous = self.out
+        self.save_model_routes(deep='sonnet')
+        self.out = self.root / 'later-worker'
+        result = self.run_cli('--profile', 'deep', '--mode', 'edit')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(self.sent_flag('--model'), 'opus')
+        self.assertEqual(self.sent_flag('--permission-mode'), 'bypassPermissions')
+        self.out = self.root / 'after-global-change-resume'
+        result = self.run_cli('--resume-from', str(previous), '--mode', 'edit')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(self.sent_flag('--model'), 'opus')
+        self.assertEqual(self.sent_flag('--permission-mode'), 'bypassPermissions')
+        self.env['CODEX_THREAD_ID'] = '00000000-0000-4000-8000-000000000002'
+        self.out = self.root / 'new-task'
+        result = self.run_cli('--profile', 'deep', '--mode', 'edit')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(self.sent_flag('--model'), 'sonnet')
+        self.assertEqual(self.sent_flag('--permission-mode'), 'dontAsk')
+
+    def test_run_overrides_do_not_change_task_snapshot(self):
+        first = self.run_cli('--profile', 'standard', '--permissions', 'full')
+        self.assertEqual(first.returncode, 0, first.stderr)
+        path = Path(self.env['CODEX_HOME']) / 'tafwid/state/tasks' / self.env['CODEX_THREAD_ID'] / 'settings.json'
+        self.assertTrue(path.exists())
+        before = path.read_bytes()
+        self.out = self.root / 'default-worker'
+        result = self.run_cli('--profile', 'standard')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(self.sent_flag('--permission-mode'), 'dontAsk')
+        self.assertEqual(path.read_bytes(), before)
+
     def test_resume_keeps_model_until_explicitly_rerouted(self):
         self.save_model_routes(final_review="fable")
         first = self.run_cli("--task-type", "final_review")
         self.assertEqual(first.returncode, 0, first.stderr)
         previous = self.out
-        self.save_model_routes(final_review="opus")
+        self.save_model_routes(final_review="opus", task=True)
         self.out = self.root / "retained"
         run = self.run_cli("--resume-from", str(previous))
         self.assertEqual(run.returncode, 0, run.stderr)

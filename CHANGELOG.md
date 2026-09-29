@@ -2,38 +2,16 @@
 
 ## Unreleased
 
-- Show native Claude account allowances, named model limits and reset windows,
-  with cached observations, account isolation and explicit stale/unavailable states.
-- Add filtered per-response token snapshots and per-worker observed context
-  occupancy, including already-running workers, resume deduplication, compaction
-  drops and conservative account-window comparisons. Collection adds no model
-  prompts or worker context instructions.
-
-- Document the OpenCode harness decision, provider trial evidence and scoped
-  documentation audit, including the limits of live Zen verification.
-
-- Add configurable self-hosted LM Studio/vLLM workers through OpenCode: named
-  private connections, exact served models, declared context/tool capabilities,
-  credential references, local discovery and endpoint-pinned resumes. No cloud
-  fallback or machine-specific package defaults.
-
-- Execute free OpenCode Zen workers with fresh price/capability checks, native
-  public or configured-account access, pinned helper models and session resumes.
-  Reject provider switches on an existing worker and unrecognized SDK transports.
-
-- Add `$tafwid:scout` for cached OpenRouter and OpenCode Zen free-model discovery
-  with task candidates, source timestamps and separate local outcome evidence.
-- Show filtered usage totals, per-worker tokens and per-run usage details.
-  Separate reported costs from Claude API-equivalent estimates; preserve unknown
-  values and identify effective throughput as including tool/wait time.
-- Recover historical usage from available artifacts without altering worker records.
-- Add an experimental OpenCode adapter for explicit OpenRouter free models, with
-  capability/price preflight and pinned worker/helper models.
-- Reuse task ownership, instruction deduplication, scoped command permissions,
-  session resumes, compact completion waits and native handoffs.
-- Record OpenCode events and token evidence; distinguish requested models from
-  session-export evidence. Keep HTTP response headers out of compact errors.
-- Label dashboard exchanges by harness and preserve existing Claude workers.
+- Simplify execution to Claude Code only.
+- Remove the dashboard and account/activity collection, native handoff protocol,
+  Superpowers adapter and automatic instruction-file delivery.
+- Keep task switches, launch/resume, compact completion waiting and CLI settings.
+- Split shared workflow and Claude guidance; document scripts and CLI help.
+- Preserve private run artifacts and existing saved state.
+- Add a trusted, one-time completion hook that resumes Codex when a selected
+  worker finishes; retain `wait.py` as the fallback.
+- Document benchmark method and measured results for crawl, web app and
+  exact-scheduler tasks.
 
 ## 0.2.0
 

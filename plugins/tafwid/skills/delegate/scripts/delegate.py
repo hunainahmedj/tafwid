@@ -1,41 +1,40 @@
 #!/usr/bin/env python3
-"""Run a bounded coding worker and emit a compact result for Codex."""
+"""Launch or resume a Claude Code worker and emit a JSON result.
+
+Requires named options --cwd, --prompt-file and --output-dir for every run.
+Use --resume-from for a follow-up task.
+Run with --help for the full CLI; help does not launch a worker.
+A started event on stderr provides run_id and a read-only watch_key before
+completion. Stdout contains only the final JSON summary.
+"""
 import argparse
 import json
 import math
 import os
 from pathlib import Path
 import re
-import shutil
 import signal
 import subprocess
 import sys
 import uuid
 import session as delegation_session
-import worker_registry
+import run_state
 import settings as worker_settings
 import routing
-import instructions as worker_instructions
+import harnesses
 
-OVERRIDES = (
-    "ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "ANTHROPIC_BASE_URL",
-    "CLAUDE_CODE_USE_BEDROCK", "CLAUDE_CODE_USE_VERTEX", "CLAUDE_CODE_USE_FOUNDRY",
-)
 # Profiles pick a model and its effort. They grant no tool, permission, or budget.
 PROFILES = routing.PROFILES
 EFFORTS = ("low", "medium", "high", "xhigh", "max")
 CONTRACT = """You are a Claude Code worker for a bounded Codex task.
-Follow the brief, AGENTS.md/CLAUDE.md and selected instructions once. Retain them on resume unless replaced;
-recover missing context from source files without loading equivalent copies.
+Follow the task brief and applicable workspace rules.
 Codex owns planning/dispatch; no replanning or nested workers unless requested.
 Stay in scope. Commits, pushes, deploys, messaging and account/tool configuration changes
 require explicit brief authorization. Report denied steps; never evade permissions.
-If a required capability is unavailable, finish independent work, pause dependent work and return
-native_required: capability, reason/attempts, exact requested action, context (URL/file/app/state),
-expected evidence. Handoffs never authorize bypassing permissions or safety rules.
-Respect requested browser/environment; no silent substitutes, invented observations or pending-as-done.
-Other blockers: blocked. Use completed only for finished assignments. Return structured report
-and handoff (null unless native_required).
+If a required capability is unavailable, finish independent work and report blocked
+with the missing capability and remaining work. Respect the requested browser/environment;
+no silent substitutes, invented observations or pending-as-done claims.
+Use completed only for finished assignments. Return a structured status and report.
 Follow assigned check ownership; preserve required gates. Reuse checks for unchanged relevant
 code/environment. For optional retries state the relevant change, new diagnostic hypothesis or transient evidence.
 Report (~250 words): outcome, files/findings with locations, risks/unverified work, and Checks: command/cwd/environment,
@@ -44,38 +43,26 @@ No checks: say so. Passing earlier checks does not verify later edits; Codex ret
 
 TASK BRIEF:
 """
-HANDOFF_FIELDS = ("capability", "reason", "requested_action", "context", "expected_result")
 OUTPUT_SCHEMA = {
     "type": "object", "additionalProperties": False,
     "properties": {
-        "status": {"type": "string", "enum": ["completed", "native_required", "blocked"]},
+        "status": {"type": "string", "enum": ["completed", "blocked"]},
         "report": {"type": "string", "minLength": 1},
-        "handoff": {"anyOf": [
-            {"type": "null"},
-            {"type": "object", "additionalProperties": False,
-             "properties": {name: {"type": "string", "minLength": 1} for name in HANDOFF_FIELDS},
-             "required": list(HANDOFF_FIELDS)},
-        ]},
     },
-    "required": ["status", "report", "handoff"],
+    "required": ["status", "report"],
 }
 
 
 def worker_output(data):
-    """Reject missing/contradictory completion or handoff claims."""
+    """Validate the worker's status and nonempty report before accepting its claim."""
     output = data.get("structured_output")
-    if not isinstance(output, dict) or not isinstance(output.get("report"), str) or not output["report"].strip():
+    if not isinstance(output, dict) or set(output) != {"status", "report"}:
+        raise ValueError("Expected structured worker status and report")
+    if not isinstance(output["report"], str) or not output["report"].strip():
         raise ValueError("Missing valid structured worker report")
-    state = output.get("status")
-    if state not in ("completed", "native_required", "blocked") or "handoff" not in output:
-        raise ValueError("Missing valid worker status or handoff field")
-    handoff = output["handoff"]
-    if state == "native_required":
-        if not isinstance(handoff, dict) or any(not isinstance(handoff.get(key), str) or not handoff[key].strip() for key in HANDOFF_FIELDS):
-            raise ValueError("Incomplete native handoff; ask the worker for the missing details")
-    elif handoff is not None:
-        raise ValueError("Worker supplied a handoff without native_required status")
-    return state, output["report"], handoff
+    if output["status"] not in ("completed", "blocked"):
+        raise ValueError("Invalid worker status")
+    return output["status"], output["report"]
 
 
 def nonblank(flag, value):
@@ -143,11 +130,23 @@ def resolve_selection(args, prior, config):
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--backend", choices=("claude", "opencode"),
-                        help="Worker harness; defaults to Claude, or the resumed run's backend")
-    parser.add_argument("--allow-command", action="append", default=[],
-                        help="OpenCode scoped shell command pattern (edit mode); repeatable")
+    """Parse launch options without starting a worker or changing saved settings."""
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""Examples (replace paths with your workspace and private files):
+  python3 scripts/delegate.py --once --cwd /workspace --prompt-file /private/task.md --output-dir /private/run-1 --task-type implementation --mode edit
+  python3 scripts/delegate.py --once --cwd /workspace --prompt-file /private/follow-up.md --output-dir /private/run-2 --resume-from /private/run-1 --mode edit
+
+Without --once, this chat's delegation switch must be on. Every invocation needs
+a new output directory. Output is compact JSON; full reports stay in that directory.
+Stderr emits a started event with run_id, worker_pid and watch_key after launch.
+The owner uses wait.py --run-id RUN_ID. To assign monitoring to another task,
+give it RUN_ID and WATCH_KEY for wait.py --run-id RUN_ID --watch-key RUN_ID=WATCH_KEY.
+The key allows observation of that run only; do not send it to the worker.
+Stdout remains a single final JSON summary; the key is not saved in run artifacts.
+Completion still requires acceptance review. See references/workflow.md for usage.
+""",
+    )
     parser.add_argument("--cwd", type=Path, required=True, help="Workspace or isolated worktree")
     parser.add_argument("--prompt-file", type=Path, required=True, help="UTF-8 task brief; never shell-expanded")
     parser.add_argument("--output-dir", type=Path, required=True, help="New directory for private run artifacts")
@@ -163,15 +162,13 @@ def parse_args():
                         help="Apply saved model routing for this type of task")
     choice.add_argument("--profile", choices=tuple(PROFILES),
                         help="Use the saved fast, standard, or deep tier model")
-    choice.add_argument("--model", help="Explicit Claude alias or model ID; otherwise use Claude's default")
+    choice.add_argument("--model", help="Claude alias or model ID; mutually exclusive with task-type/profile")
     parser.add_argument("--effort", choices=EFFORTS, help="Reasoning effort; overrides the profile default")
-    parser.add_argument("--title", help="Short task title displayed in the workers dashboard")
+    parser.add_argument("--title", help="Short task title recorded with the run")
     parser.add_argument("--role", help="Worker role recorded with the selection (default: worker)")
     parser.add_argument("--selection-reason", help="Why this model was chosen; recorded for audit")
     parser.add_argument("--once", action="store_true",
                         help="Explicit one-shot delegation without changing the current task's switch")
-    parser.add_argument("--instructions-file", type=Path, action="append", default=[],
-                        help="Selected role/skill file; deduplicated, or matched to an equivalent Claude skill")
     parser.add_argument("--timeout", type=float, default=900, help="Task timeout in seconds (default: 900)")
     return parser.parse_args()
 
@@ -194,43 +191,15 @@ def stop_group(proc):
         proc.wait()
 
 
-def check_auth(claude, cwd):
-    active = [name for name in OVERRIDES if os.environ.get(name)]
-    if active:
-        raise ValueError("Subscription-only launcher: resolve these environment overrides first: " + ", ".join(active))
-    auth = subprocess.run([claude, "auth", "status"], cwd=cwd,
-                          capture_output=True, text=True, timeout=30)
-    if auth.returncode:
-        raise ValueError("Claude login check failed. Run `claude auth login` in your terminal.")
-    try:
-        data = json.loads(auth.stdout)
-    except json.JSONDecodeError:
-        raise ValueError("Claude auth status did not return JSON; check the installed CLI.") from None
-    if (not isinstance(data, dict) or data.get("loggedIn") is not True
-            or data.get("authMethod") != "claude.ai"
-            or data.get("apiProvider") != "firstParty"
-            or data.get("subscriptionType") not in ("pro", "max", "team", "enterprise")
-            or data.get("apiKeySource")):
-        raise ValueError("Expected a Claude subscription login. Run `claude auth login`; do not select API billing.")
-    # This is configuration evidence only. Expired credentials can still pass it.
-    return data["subscriptionType"]
-
-
 def run(args):
-    backend = getattr(args, "backend", None)
-    if args.resume_from:
-        previous = json.loads((args.resume_from.expanduser() / "summary.json").read_text())
-        prior_backend = previous.get("backend", "claude")
-        if backend and backend != prior_backend:
-            raise ValueError("Resume backend differs from the original run")
-        backend = prior_backend
-    if backend == "opencode":
-        import opencode_worker
-        return opencode_worker.run(args)
-    if backend not in (None, "claude"):
-        raise ValueError("Unknown worker backend")
-    if getattr(args, "allow_command", []):
-        raise ValueError("--allow-command requires --backend opencode; Claude uses --allow-tool")
+    """Launch or resume a worker using the options returned by parse_args.
+
+    Validate task ownership, permissions and harness readiness before launch.
+    Emit the run ID and observation key on stderr at startup, then save private run artifacts and
+    print a compact JSON summary on stdout. Return 0 for
+    completion, 124 for timeout, 130 for interruption, or 1 for other outcomes
+    requiring attention. Setup errors propagate to main for JSON reporting.
+    """
     task_id = delegation_session.current_task_id()
     if not args.once and not delegation_session.status()["enabled"]:
         raise ValueError("Delegation is off for this Codex task. Enable it with session.py on, or use --once for an explicit one-shot request.")
@@ -249,26 +218,26 @@ def run(args):
         if not (re.fullmatch(r"Bash\([A-Za-z0-9_./-][^,\n\r]*\)", rule)
                 or re.fullmatch(r"mcp__[A-Za-z0-9_-]+__[A-Za-z0-9_-]+", rule)):
             raise ValueError("Use a scoped Bash(command ...) rule or exact MCP tool name; no unrestricted tool wildcards")
-    session, prior, prior_instructions = None, None, None
+    session, prior = None, None
     if args.resume_from:
         previous = json.loads((args.resume_from.expanduser() / "summary.json").read_text())
+        if previous.get("backend", "claude") != "claude":
+            raise ValueError("Only Claude Code workers can be resumed; this run belongs to a retired backend")
         if "codex_thread_id" not in previous or previous["codex_thread_id"] != task_id:
             raise ValueError("Resume has missing or different Codex task ownership; start a fresh worker")
         if Path(previous["cwd"]).resolve() != cwd:
             raise ValueError("Resume workspace differs from the original run")
         session = str(uuid.UUID(previous["session_id"]))
         prior = recorded_selection(previous)
-        prior_instructions = worker_instructions.prior_manifest(args.resume_from, previous)
-    config = worker_settings.read()
+    config = worker_settings.read(task_id)
+    if config["harness"] != "claude":
+        raise ValueError("Only Claude Code has a worker launcher; no fallback will be used")
     permissions = worker_settings.resolve(args.permissions, config)
     selection = resolve_selection(args, prior, config)
     title = nonblank("--title", args.title) or prompt.strip().splitlines()[0].lstrip("# ")[:100]
-    claude = shutil.which("claude")
-    if not claude:
-        raise ValueError("Claude Code is not on PATH")
-    subscription = check_auth(claude, cwd)
-    instruction_text, instruction_manifest = worker_instructions.prepare(
-        args.instructions_file, prompt, prior_instructions, claude=claude, cwd=cwd)
+    readiness = harnesses.check_ready(config["harness"], cwd=cwd)
+    claude = readiness["executable"]
+    subscription = readiness["subscription_type"]
     out = args.output_dir.expanduser().resolve()
     out.mkdir(mode=0o700, parents=True, exist_ok=False)
     (out / "brief.md").write_text(prompt, encoding="utf-8")
@@ -294,14 +263,10 @@ def run(args):
         command += ["--session-id", session]
     (out / "request.json").write_text(json.dumps(
         {"cwd": str(cwd), "command": command, "model_selection": selection, "title": title, "permissions": permissions}, indent=2))
-    instruction_manifest.update(session_id=session, codex_thread_id=task_id, cwd=str(cwd))
-    (out / "instructions.json").write_text(json.dumps(instruction_manifest, indent=2), encoding="utf-8")
-    (out / "input.txt").write_text(CONTRACT + prompt + instruction_text, encoding="utf-8")
-    with worker_registry.Tracker(out, task_id, session, title, selection, str(cwd), permissions=permissions,
-                                 instruction_manifest=instruction_manifest) as tracker:
+    (out / "input.txt").write_text(CONTRACT + prompt, encoding="utf-8")
+    with run_state.Tracker(out, task_id, session, title, selection, str(cwd), permissions=permissions) as tracker:
         status, report, code, denials = "error", "", None, 0
-        handoff, models_used = None, []
-        run_usage = {}
+        models_used = []
         with (out / "input.txt").open("rb") as stdin, (out / "result.json").open("wb") as stdout, (out / "stderr.log").open("wb") as stderr:
             if not args.once and not delegation_session.status()["enabled"]:
                 raise ValueError("Delegation was turned off before launch; no worker started")
@@ -309,6 +274,10 @@ def run(args):
                                     start_new_session=True)
             tracker.running(proc.pid)
             try:
+                print(json.dumps({"event": "started", "run_id": tracker.id,
+                                  "watch_key": tracker.watch_key,
+                                  "worker_pid": proc.pid, "output_dir": str(out)}),
+                      file=sys.stderr, flush=True)
                 code = proc.wait(timeout=args.timeout)
             except subprocess.TimeoutExpired:
                 stop_group(proc)
@@ -326,8 +295,6 @@ def run(args):
                 # Every model the run billed, helpers included: usage evidence, not the worker's identity.
                 usage = data.get("modelUsage")
                 models_used = sorted(usage) if isinstance(usage, dict) else []
-                import metrics
-                run_usage = metrics.claude_usage(data)
                 report = data.get("result") or "Claude returned no report; inspect result.json."
                 if not isinstance(report, str):
                     report = json.dumps(report)
@@ -335,7 +302,7 @@ def run(args):
                 denials = len(data.get("permission_denials") or [])
                 if code == 0 and data.get("is_error") is False and data.get("subtype") == "success":
                     try:
-                        status, report, handoff = worker_output(data)
+                        status, report = worker_output(data)
                         if status == "completed" and denials:
                             status = "needs_review"
                     except ValueError as exc:
@@ -344,28 +311,27 @@ def run(args):
             except (ValueError, TypeError):
                 report = "Claude returned missing or invalid result JSON. Inspect result.json and stderr.log."
         (out / "report.md").write_text(report + "\n", encoding="utf-8")
-        if handoff is not None:
-            (out / "handoff.json").write_text(json.dumps(handoff, indent=2), encoding="utf-8")
         summary = {"status": status, "session_id": session, "cwd": str(cwd),
-                   "codex_thread_id": task_id, "model_selection": selection, "dashboard_run_id": tracker.id,
-                   "models_used": models_used, "permissions": permissions, "usage": run_usage,
+                   "codex_thread_id": task_id, "model_selection": selection, "run_id": tracker.id,
+                   "models_used": models_used, "permissions": permissions,
                    "subscription_type": subscription, "claude_exit_code": code,
                    "permission_denials": denials, "report_file": str(out / "report.md"),
                    "result_file": str(out / "result.json"), "stderr_file": str(out / "stderr.log"),
-                   "handoff_file": str(out / "handoff.json") if handoff is not None else None,
                    "report_excerpt": report[:3000], "report_truncated": len(report) > 3000}
         (out / "summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
         tracker.finish(summary)
-        # Dashboard telemetry stays on disk; normal completion messages stay compact.
-        print(json.dumps({key: value for key, value in summary.items() if key != 'usage'}, ensure_ascii=False))
+        print(json.dumps(summary, ensure_ascii=False))
         if status == "completed":
             return 0
-        if status == "native_required":
-            return 3
         return code if code in (124, 130) else 1
 
 
 def main():
+    """Parse CLI options, protect new files, and return the launcher's exit code.
+
+    Report setup errors as JSON on stderr with exit code 2. Argument parsing
+    handles --help and invalid options before any worker is launched.
+    """
     # Artifacts may contain private source code. This process changes no user config.
     os.umask(0o077)
     args = parse_args()

@@ -1,4 +1,4 @@
-"""Model routing shared by settings, the dashboard, and the worker launcher."""
+"""Model routing shared by settings and the worker launcher."""
 MODELS = ("sonnet", "opus", "fable")
 PROFILES = {"fast": "sonnet", "standard": "opus", "deep": "fable"}
 PROFILE_EFFORTS = {"fast": None, "standard": "medium", "deep": "high"}
@@ -45,10 +45,3 @@ def select(models, *, profile=None, task_type=None):
         model = models["profiles"][profile]
         source = "profile"
     return profile, model, PROFILE_EFFORTS[profile], source
-
-
-def catalog():
-    return {"models": list(MODELS),
-            "profiles": [{"id": key, "label": key.title(), "effort": PROFILE_EFFORTS[key]} for key in PROFILES],
-            "tasks": [{"id": key, "label": label, "description": description, "profile": profile}
-                      for key, (label, description, profile) in TASKS.items()]}

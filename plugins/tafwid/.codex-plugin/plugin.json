@@ -10,15 +10,12 @@
   "interface": {
     "displayName": "Tafwid",
     "shortDescription": "Delegate work. Keep control.",
-    "longDescription": "A local delegation plugin with task-local switches, model routing, worker history and reviewed handoffs. Claude Code is the first supported backend.",
+    "longDescription": "Delegate bounded tasks to Claude Code with task-local switches, model selection, explicit permissions and compact reports.",
     "developerName": "hunainahmedj",
     "category": "Productivity",
     "capabilities": [],
     "defaultPrompt": [
-      "Use $tafwid:delegate to turn delegation on.",
-      "Use $tafwid:dashboard to view workers.",
-      "Use $tafwid:settings to choose task models.",
-      "Use $tafwid:scout to find free model candidates."
+      "Use $tafwid:delegate to turn delegation on."
     ],
     "brandColor": "#D7E4B7",
     "composerIcon": "./assets/icon.png",
@@ -34,7 +31,6 @@
   "keywords": [
     "delegation",
     "coding-agents",
-    "codex",
-    "local-dashboard"
+    "codex"
   ]
 }
