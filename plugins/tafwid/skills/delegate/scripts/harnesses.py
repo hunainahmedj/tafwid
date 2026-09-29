@@ -1,6 +1,6 @@
 """Route readiness checks to the selected worker harness.
 
-Adapters expose check_ready(cwd=None). They return launch metadata on success
+Claude exposes check_ready(cwd=None); GPT requires a named account. Both return launch metadata on success
 or raise ValueError with an actionable message. Checks must not launch workers,
 install software, or initiate login. Add future adapters to ADAPTERS.
 """

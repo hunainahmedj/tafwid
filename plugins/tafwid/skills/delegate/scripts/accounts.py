@@ -26,6 +26,8 @@ def registry_path():
 
 def _rows():
     """Read saved records and reject malformed registry data."""
+    if registry_path().is_symlink() or registry_path().parent.is_symlink():
+        raise ValueError("GPT account registry is redirected")
     try:
         data = json.loads(registry_path().read_text(encoding="utf-8"))
     except FileNotFoundError:
@@ -46,11 +48,16 @@ def _safe_home(home):
     home = Path(home)
     if home.parent.parent != root or not home.name:
         raise ValueError("Account home is outside the private registry")
+    base = Path(os.environ.get("CODEX_HOME") or Path.home() / ".codex").expanduser()
+    if base.is_symlink() or (base / "tafwid").is_symlink() or (base / "state").is_symlink():
+        raise ValueError("Codex state path is redirected; account setup stopped")
     for part in (root, home.parent, home):
         if part.is_symlink() or not part.is_dir():
             raise ValueError("Account home is missing or redirected; repair setup before use")
         if part.stat().st_mode & 0o077:
             raise ValueError("Account home is accessible to other local users")
+        if part.stat().st_uid != os.getuid():
+            raise ValueError("Account home belongs to another local user")
     return home
 
 
@@ -60,6 +67,9 @@ def create(name: str, kind: str) -> dict:
         raise ValueError("Use a unique lowercase account name starting with a letter (up to 32 characters)")
     if kind not in KINDS:
         raise ValueError("Account type must be personal or business")
+    base = Path(os.environ.get("CODEX_HOME") or Path.home() / ".codex").expanduser()
+    if any(part.is_symlink() for part in (base, base / "tafwid", base / "state")):
+        raise ValueError("Codex state path is redirected; account setup stopped")
     rows = _rows()
     if any(row.get("name") == name for row in rows):
         raise ValueError("That GPT account name already exists")
@@ -92,6 +102,22 @@ def list_accounts() -> list[dict]:
     return [dict(row) for row in _rows()]
 
 
+def validate_home(account: dict) -> Path:
+    """Validate a saved account's private home before any CLI invocation."""
+    return _safe_home(account["home"])
+
+
+def mark_pending(name: str) -> dict:
+    """Require renewed user confirmation before a login retry can be used."""
+    row = get(name)
+    rows = _rows()
+    for item in rows:
+        if item["id"] == row["id"]:
+            item["status"] = "pending"
+    _save(rows)
+    return get(name)
+
+
 def isolated_env(home: Path, base=None) -> dict[str, str]:
     """Select one CLI home and drop inherited identity or billing overrides."""
     source = os.environ if base is None else base
@@ -121,6 +147,9 @@ def check(account: dict) -> dict:
     if auth.is_symlink() or not auth.is_file():
         result["reason"] = "No file-based Codex login in this account home"
         return result
+    if auth.stat().st_uid != os.getuid() or auth.stat().st_mode & 0o077:
+        result["reason"] = "Codex credential file needs owner-only access; repair its permissions"
+        return result
     try:
         proc = subprocess.run([executable, "login", "status"], env=isolated_env(home),
                               capture_output=True, text=True, timeout=15, check=False)
@@ -129,7 +158,7 @@ def check(account: dict) -> dict:
         return result
     if proc.returncode != 0:
         result["reason"] = "Codex is not signed in here; retry sign-in"
-    elif "chatgpt" in proc.stdout.lower() and "api key" not in proc.stdout.lower():
+    elif "chatgpt" in (proc.stdout + proc.stderr).lower() and "api key" not in (proc.stdout + proc.stderr).lower():
         result.update(login_method="chatgpt", reason="ChatGPT login method found; confirm the account and workspace")
     else:
         result["reason"] = "Login method is not clearly ChatGPT; retry Codex sign-in"

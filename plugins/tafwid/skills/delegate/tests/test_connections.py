@@ -62,6 +62,15 @@ class ConnectionTests(unittest.TestCase):
                 connections.enable(TASK, "claude")
         self.assertEqual(connections.read(TASK), before)
 
+    def test_status_reports_unavailable_without_changing_pool(self):
+        with mock.patch("connections.claude_code.check_ready", return_value={}):
+            connections.enable(TASK, "claude")
+        before = (self.home / "tafwid/state" / (TASK + ".json")).read_bytes()
+        with mock.patch("connections.claude_code.check_ready", side_effect=ValueError("sign in")):
+            shown = connections.describe(TASK)
+        self.assertEqual(shown["connections"][0]["availability"], "unavailable")
+        self.assertEqual((self.home / "tafwid/state" / (TASK + ".json")).read_bytes(), before)
+
 
 if __name__ == "__main__":
     unittest.main()

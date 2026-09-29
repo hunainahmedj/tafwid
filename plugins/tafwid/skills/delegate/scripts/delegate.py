@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Launch or resume a Claude Code worker and emit a JSON result.
+"""Launch or resume a Claude or named GPT worker and emit a JSON result.
 
 Requires named options --cwd, --prompt-file and --output-dir for every run.
 Use --resume-from for a follow-up task.
@@ -138,6 +138,7 @@ def parse_args():
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""Examples (replace paths with your workspace and private files):
   python3 scripts/delegate.py --once --cwd /workspace --prompt-file /private/task.md --output-dir /private/run-1 --task-type implementation --mode edit
+  python3 scripts/delegate.py --once --connection gpt:work --cwd /workspace --prompt-file /private/task.md --output-dir /private/gpt-run --mode read
   python3 scripts/delegate.py --once --cwd /workspace --prompt-file /private/follow-up.md --output-dir /private/run-2 --resume-from /private/run-1 --mode edit
 
 Without --once, this chat's delegation switch must be on. Every invocation needs
@@ -166,7 +167,7 @@ Completion still requires acceptance review. See references/workflow.md for usag
                         help="Apply saved model routing for this type of task")
     choice.add_argument("--profile", choices=tuple(PROFILES),
                         help="Use the saved fast, standard, or deep tier model")
-    choice.add_argument("--model", help="Claude alias or model ID; mutually exclusive with task-type/profile")
+    choice.add_argument("--model", help="Explicit model ID or Claude alias; mutually exclusive with task-type/profile")
     parser.add_argument("--effort", choices=EFFORTS, help="Reasoning effort; overrides the profile default")
     parser.add_argument("--title", help="Short task title recorded with the run")
     parser.add_argument("--role", help="Worker role recorded with the selection (default: worker)")
@@ -178,7 +179,7 @@ Completion still requires acceptance review. See references/workflow.md for usag
 
 
 def stop_group(proc):
-    """Interrupt Claude and its commands, then kill anything still in that group."""
+    """Interrupt a worker and its commands, then kill the remaining group."""
     try:
         os.killpg(proc.pid, signal.SIGINT)
     except ProcessLookupError:
@@ -199,8 +200,8 @@ def run_gpt(args, *, task_id, cwd, prompt, previous, selected):
     """Run one named Codex CLI worker in its private account environment."""
     if args.task_type or args.profile or args.effort or args.allow_tool:
         raise ValueError("GPT assignments do not use Claude task routes, effort, or tool allowances")
-    if args.permissions == "full":
-        raise ValueError("GPT workers do not support full permissions")
+    if args.permissions not in (None, "scoped"):
+        raise ValueError("GPT workers use read-only or workspace-write sandbox permissions")
     account = accounts.get(selected["name"])
     if selected["id"] != "gpt:" + account["id"]:
         raise ValueError("GPT account identity changed; start a new assignment")
@@ -263,6 +264,8 @@ def run_gpt(args, *, task_id, cwd, prompt, previous, selected):
                                             expected_session_id=session_id)
             status, report = parsed["status"], parsed["report"]
             session_id = parsed["session_id"]
+        else:
+            session_id = codex_cli.started_session(events) or session_id
         (out / "report.md").write_text(report + "\n", encoding="utf-8")
         summary = {"status": status, "backend": "gpt", "connection_id": selected["id"],
                    "connection": selected["selector"], "account_kind": selected["kind"],
@@ -288,7 +291,7 @@ def run(args):
     requiring attention. Setup errors propagate to main for JSON reporting.
     """
     task_id = delegation_session.current_task_id()
-    if not args.once and not delegation_session.status()["enabled"]:
+    if not args.once and not connections.read(task_id)["enabled"]:
         raise ValueError("Delegation is off for this Codex task. Enable it with session.py on, or use --once for an explicit one-shot request.")
     cwd = args.cwd.expanduser().resolve(strict=True)
     if not cwd.is_dir():
@@ -316,7 +319,7 @@ def run(args):
             raise ValueError("Resume workspace differs from the original run")
         session = str(uuid.UUID(previous["session_id"]))
         prior = recorded_selection(previous)
-    selector = args.connection or (previous.get("connection") if previous and previous.get("backend") == "gpt" else None)
+    selector = args.connection or (previous.get("connection", "claude") if previous else None)
     selected = connections.resolve(task_id, selector, once=args.once)
     if previous and previous.get("backend", "claude") != selected["provider"]:
         raise ValueError("Resume connection differs from the original run")
@@ -364,8 +367,13 @@ def run(args):
         status, report, code, denials = "error", "", None, 0
         models_used = []
         with (out / "input.txt").open("rb") as stdin, (out / "result.json").open("wb") as stdout, (out / "stderr.log").open("wb") as stderr:
-            if not args.once and not delegation_session.status()["enabled"]:
-                raise ValueError("Delegation was turned off before launch; no worker started")
+            if not args.once:
+                try:
+                    active = connections.resolve(task_id, "claude")
+                except ValueError:
+                    raise ValueError("Claude connection was turned off before launch; no worker started") from None
+                if active["id"] != "claude:default":
+                    raise ValueError("Claude connection changed before launch; no worker started")
             proc = subprocess.Popen(command, cwd=cwd, stdin=stdin, stdout=stdout, stderr=stderr,
                                     start_new_session=True)
             tracker.running(proc.pid)

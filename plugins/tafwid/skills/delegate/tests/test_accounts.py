@@ -61,6 +61,22 @@ class AccountTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             accounts.check(row)
 
+    def test_symlink_codex_home_stops_before_registry_creation(self):
+        real = Path(self.tmp.name) / "real"
+        real.mkdir()
+        self.home.symlink_to(real)
+        with self.assertRaises(ValueError):
+            accounts.create("safe", "personal")
+        self.assertEqual(list(real.iterdir()), [])
+
+    def test_world_readable_auth_is_not_accepted(self):
+        row = accounts.create("safe", "personal")
+        auth = Path(row["home"], "auth.json")
+        auth.write_text("private")
+        os.chmod(auth, 0o644)
+        with mock.patch("accounts.shutil.which", return_value="/fake/codex"):
+            self.assertEqual(accounts.check(row)["login_method"], "unavailable")
+
     def test_check_requires_chatgpt_file_login_and_confirmation(self):
         row = accounts.create("safe", "personal")
         with mock.patch("accounts.shutil.which", return_value=None):
@@ -68,11 +84,14 @@ class AccountTests(unittest.TestCase):
         with mock.patch("accounts.shutil.which", return_value="/fake/codex"):
             self.assertEqual(accounts.check(row)["login_method"], "unavailable")
             Path(row["home"], "auth.json").write_text("private")
+            os.chmod(Path(row["home"], "auth.json"), 0o600)
             fake = mock.Mock(returncode=0, stdout="Logged in using ChatGPT", stderr="")
             with mock.patch("accounts.subprocess.run", return_value=fake) as run:
                 self.assertEqual(accounts.check(row)["login_method"], "chatgpt")
                 self.assertEqual(run.call_args.args[0], ["/fake/codex", "login", "status"])
                 self.assertEqual(run.call_args.kwargs["env"]["CODEX_HOME"], row["home"])
+                fake.stdout, fake.stderr = "", "Logged in using ChatGPT"
+                self.assertEqual(accounts.check(row)["login_method"], "chatgpt")
                 ready = accounts.confirm("safe")
                 self.assertEqual(ready["status"], "ready")
             fake.stdout = "Logged in using an API key"

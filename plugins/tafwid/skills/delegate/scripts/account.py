@@ -11,7 +11,6 @@ arguments, login, or state need attention. ``--help`` has no side effects.
 import argparse
 import json
 import os
-from pathlib import Path
 import shutil
 import subprocess
 import sys
@@ -21,6 +20,7 @@ import accounts
 
 def _login(row: dict, device_auth: bool = False) -> None:
     """Open native Codex login in the selected home and keep it pending."""
+    home = accounts.validate_home(row)
     executable = shutil.which("codex")
     if executable is None:
         raise ValueError("Install the Codex CLI, then run account.py login NAME")
@@ -28,7 +28,7 @@ def _login(row: dict, device_auth: bool = False) -> None:
           file=sys.stderr, flush=True)
     command = [executable, "login"] + (["--device-auth"] if device_auth else [])
     try:
-        proc = subprocess.run(command, env=accounts.isolated_env(Path(row["home"])),
+        proc = subprocess.run(command, env=accounts.isolated_env(home),
                               stdout=sys.stderr, stderr=sys.stderr, check=False)
     except OSError:
         raise ValueError("Could not start Codex sign-in; retry account.py login NAME") from None
@@ -49,7 +49,7 @@ def main(argv: list[str] | None = None) -> int:
     add.add_argument("type", nargs="?", choices=("business",), default="personal")
     add.add_argument("--name", required=True, help="Unique short account name")
     add.add_argument("--device-auth", action="store_true", help="Use Codex device-code login")
-    login = actions.add_parser("login", help="Retry sign-in in an existing account home")
+    login = actions.add_parser("login", help="Retry sign-in; account stays pending until confirmed again")
     login.add_argument("name")
     login.add_argument("--device-auth", action="store_true")
     check = actions.add_parser("check", help="Check login method without a model request")
@@ -65,6 +65,8 @@ def main(argv: list[str] | None = None) -> int:
             result = accounts.check(row)
         elif args.action == "login":
             row = accounts.get(args.name)
+            accounts.validate_home(row)
+            row = accounts.mark_pending(args.name)
             _login(row, args.device_auth)
             result = accounts.check(row)
         elif args.action == "check":

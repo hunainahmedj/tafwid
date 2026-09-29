@@ -50,6 +50,33 @@ def read(task_id: str | None) -> dict:
     return {"thread_id": task_id, "enabled": bool(rows), "connections": rows}
 
 
+def describe(task_id: str | None) -> dict:
+    """Show current login availability without changing the saved pool."""
+    pool = read(task_id)
+    shown = []
+    for row in pool["connections"]:
+        item = dict(row)
+        try:
+            if row["provider"] == "claude":
+                claude_code.check_ready()
+                item["availability"] = "ready"
+            elif row["provider"] == "gpt":
+                account = accounts.get(row["name"])
+                if "gpt:" + account["id"] != row["id"]:
+                    item["availability"] = "unavailable"
+                elif account["status"] != "ready":
+                    item["availability"] = "pending"
+                else:
+                    item["availability"] = ("ready" if accounts.check(account)["login_method"] == "chatgpt"
+                                            else "unavailable")
+            else:
+                item["availability"] = "unavailable"
+        except (OSError, ValueError, KeyError, TypeError):
+            item["availability"] = "unavailable"
+        shown.append(item)
+    return {**pool, "connections": shown}
+
+
 def _write(task_id: str, rows: list[dict]) -> dict:
     """Persist a version-2 pool atomically."""
     data = {"version": 2, "thread_id": task_id, "connections": rows,

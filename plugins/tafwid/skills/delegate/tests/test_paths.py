@@ -47,7 +47,10 @@ class StatePathsTests(unittest.TestCase):
         self.assertEqual(session.state_path("task"), legacy / "task.json")
         self.assertEqual(settings.read()["permission_policy"], "inherit")
         with patch.dict(os.environ, {"CODEX_THREAD_ID": task_id}):
-            self.assertEqual(session.status(), {"thread_id": task_id, "enabled": True})
+            shown = session.status()
+            self.assertEqual(shown["thread_id"], task_id)
+            self.assertTrue(shown["enabled"])
+            self.assertEqual(shown["connections"][0]["id"], "claude:default")
         self.assertEqual([r["id"] for r in registry.list_runs(task_id)], [run_id])
         self.assertEqual(before, {p: p.read_bytes() for p in legacy.rglob("*") if p.is_file()})
         self.assertFalse((self.home / "tafwid" / "state").exists())

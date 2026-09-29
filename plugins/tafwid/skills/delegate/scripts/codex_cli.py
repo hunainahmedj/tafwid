@@ -3,6 +3,7 @@
 import json
 from pathlib import Path
 import shutil
+import uuid
 
 import accounts
 
@@ -84,3 +85,21 @@ def parse_result(events: Path, final_message: Path, *, exit_code: int,
         return {"status": "needs_review", "report":
                 "Codex worker result is incomplete or invalid. Inspect private events and stderr.",
                 "session_id": session_id or expected_session_id, "models_used": []}
+
+
+def started_session(events: Path) -> str | None:
+    """Recover a valid worker thread ID after a timeout or interruption."""
+    try:
+        with events.open(encoding="utf-8") as stream:
+            for line in stream:
+                try:
+                    event = json.loads(line)
+                    if isinstance(event, dict) and event.get("type") == "thread.started":
+                        value = event.get("thread_id")
+                        if isinstance(value, str) and str(uuid.UUID(value)) == value:
+                            return value
+                except (ValueError, TypeError, json.JSONDecodeError):
+                    continue
+    except OSError:
+        pass
+    return None

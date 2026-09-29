@@ -317,6 +317,36 @@ class DelegationTests(unittest.TestCase):
                 proc.kill()
                 proc.communicate()
 
+    def test_removing_claude_from_mixed_pool_prevents_pending_claude_launch(self):
+        enabled = subprocess.run([sys.executable, str(STATE), "on"], env=self.env,
+                                 capture_output=True, text=True)
+        self.assertEqual(enabled.returncode, 0, enabled.stderr)
+        state = Path(self.env["CODEX_HOME"]) / "tafwid/state" / (self.env["CODEX_THREAD_ID"] + ".json")
+        pool = json.loads(state.read_text())
+        pool["connections"].append({"id": "gpt:other-id", "selector": "gpt:other",
+                                    "provider": "gpt", "name": "other", "kind": "personal"})
+        state.write_text(json.dumps(pool))
+        proc = subprocess.Popen([sys.executable, str(SCRIPT), "--connection", "claude",
+            "--cwd", str(self.cwd), "--prompt-file", str(self.prompt),
+            "--output-dir", str(self.out)], env={**self.env, "FIXTURE_CASE": "slow_auth"},
+            text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        try:
+            deadline = time.monotonic() + 5
+            while not (self.cwd / "auth-started").exists() and time.monotonic() < deadline:
+                time.sleep(0.01)
+            self.assertTrue((self.cwd / "auth-started").exists())
+            disabled = subprocess.run([sys.executable, str(STATE), "off", "claude"],
+                                      env=self.env, capture_output=True, text=True)
+            self.assertEqual(disabled.returncode, 0, disabled.stderr)
+            self.assertTrue(json.loads(disabled.stdout)["enabled"], "GPT stays enabled")
+            stdout, stderr = proc.communicate(timeout=10)
+            self.assertNotEqual(proc.returncode, 0, stdout)
+            self.assertFalse((self.cwd / "received.json").exists())
+        finally:
+            if proc.poll() is None:
+                proc.kill()
+                proc.communicate()
+
     def test_legacy_run_without_task_ownership_cannot_be_resumed(self):
         self.assertEqual(self.run_cli().returncode, 0)
         previous = self.out
