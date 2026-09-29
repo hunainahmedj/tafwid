@@ -28,10 +28,21 @@ class WaitTests(unittest.TestCase):
         env.start()
         self.addCleanup(env.stop)
 
-    def tracker(self, name="run", task=TASK):
+    def tracker(self, name="run", task=TASK, **connection):
         out = self.root / name
         out.mkdir()
-        return registry.Tracker(out, task, name, "Fixture worker", {}, str(self.root))
+        return registry.Tracker(out, task, name, "Fixture worker", {}, str(self.root), **connection)
+
+    def test_mixed_completions_keep_exact_connections(self):
+        with self.tracker("claude") as claude, self.tracker(
+                "gpt", backend="gpt", connection_id="gpt:account-id") as gpt:
+            claude.finish({"status": "completed", "report_excerpt": "Claude done"})
+            gpt.finish({"status": "blocked", "report_excerpt": "GPT needs access"})
+            result = self.run_wait(run_ids=[claude.id, gpt.id])
+            ready = {row["run_id"]: row for row in result["ready"]}
+            self.assertEqual(ready[claude.id]["connection_id"], "claude:default")
+            self.assertEqual(ready[gpt.id]["connection_id"], "gpt:account-id")
+            self.assertEqual(ready[gpt.id]["backend"], "gpt")
 
     def command(self, *paths, timeout=0, run_ids=(), watch_keys=None):
         return [sys.executable, str(SCRIPT), "--timeout", str(timeout),
