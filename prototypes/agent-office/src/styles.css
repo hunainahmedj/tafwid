@@ -440,6 +440,8 @@ h2 {
 }
 .agent-meta {
   display: flex;
+  flex-wrap: wrap;
+  row-gap: 3px;
   align-items: center;
   justify-content: space-between;
   gap: 5px;

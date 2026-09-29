@@ -1,6 +1,6 @@
 # Agent Office Dashboard Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Build a local, sample-data dashboard that makes agent activity clear through a colorful low-poly office and a synchronized roster.
 
@@ -59,14 +59,14 @@ Root changes: `.gitignore` for dependency/test outputs; Archivist dashboard modu
 - `visibleAgents(state): Agent[]`; `metrics(scenario): {working: number | null; review: number | null; completed: number}`.
 - `mountDashboard(root, dispatch): {render(state): void; sceneHost: HTMLElement; dispose(): void}`. Dispatch receives the same actions as `transition`.
 
-- [ ] Create scripts `dev` (Vite on localhost), `build` (tsc --noEmit then vite build), `preview`, and `test` (playwright test). Pin the listed packages, use strict TypeScript, and ignore node_modules, dist, test-results, and playwright-report.
-- [ ] Write `tests/model.spec.ts` with no browser fixture. Assert: active scenario has 2 working agents, 1 review agent, 1 ready agent, and 7 completed runs; attention filter includes review; hiding selection chooses the first visible entry; an empty filter clears selection; scene selection reveals its agent; an unknown ID is ignored; changing scenario resets selection; unavailable metrics return null for current working/review counts.
-- [ ] Run `npm test -- tests/model.spec.ts`; verify failure from missing model implementation.
-- [ ] Implement the interfaces and fixtures. Active agents are fictional coordinator, builder, researcher, reviewer. Include an attention agent in the unavailable scenario, where 4 previously completed runs remain historical and current counts are unknown. Empty scenario has zero agents and runs.
-- [ ] Run model tests and type checking; require both to pass.
-- [ ] Implement dashboard composition and semantic DOM: header, persistent Sample data badge, labeled scenario selector, three derived metrics, office host, filter buttons, selectable roster, and detail panel. Show a no-agent message and an unavailable-update notice with explicit sample context. Preserve focus when rendering selection changes.
-- [ ] Apply the approved palette and system typography. Use role accents and readable status labels, differentiated surface hierarchy, and a branching Tafwid mark. Use no unused navigation or pretend controls.
-- [ ] Verify the DOM app locally with keyboard selection and scenario switching; commit this independently usable dashboard slice with a TAF-2 reference.
+- [x] Create scripts `dev` (Vite on localhost), `build` (tsc --noEmit then vite build), `preview`, and `test` (playwright test). Pin the listed packages, use strict TypeScript, and ignore node_modules, dist, test-results, and playwright-report.
+- [x] Write `tests/model.spec.ts` with no browser fixture. Assert: active scenario has 2 working agents, 1 review agent, 1 ready agent, and 7 completed runs; attention filter includes review; hiding selection chooses the first visible entry; an empty filter clears selection; scene selection reveals its agent; an unknown ID is ignored; changing scenario resets selection; unavailable metrics return null for current working/review counts.
+- [x] Run `npm test -- tests/model.spec.ts`; verify failure from missing model implementation.
+- [x] Implement the interfaces and fixtures. Active agents are fictional coordinator, builder, researcher, reviewer. Include an attention agent in the unavailable scenario, where 4 previously completed runs remain historical and current counts are unknown. Empty scenario has zero agents and runs.
+- [x] Run model tests and type checking; require both to pass.
+- [x] Implement dashboard composition and semantic DOM: header, persistent Sample data badge, labeled scenario selector, three derived metrics, office host, filter buttons, selectable roster, and detail panel. Show a no-agent message and an unavailable-update notice with explicit sample context. Preserve focus when rendering selection changes.
+- [x] Apply the approved palette and system typography. Use role accents and readable status labels, differentiated surface hierarchy, and a branching Tafwid mark. Use no unused navigation or pretend controls.
+- [x] Verify the DOM app locally with keyboard selection and scenario switching; commit this independently usable dashboard slice with a TAF-2 reference.
 
 ### Task 2: Lightweight selectable office
 
@@ -77,12 +77,12 @@ Root changes: `.gitignore` for dependency/test outputs; Archivist dashboard modu
 - `createWorkstation(agent: Agent): THREE.Group`; `createRoom(): THREE.Group`. Pickable descendants carry `userData.agentId`.
 - Compose the DOM and scene around one state in `main.ts`; do not maintain a second selected-agent state in Three.js.
 
-- [ ] Write browser checks that selecting a roster entry updates details and selection semantics, changing scenarios updates the room's accessible summary, and the WebGL-disabled case still supports all roster interactions. Run them before scene integration and record the missing behavior.
-- [ ] Build four primitive workstations, role-colored characters with simple distinct accessories, floor, low walls, plants, and a restrained selected-workstation indicator. Use a fixed orthographic camera; do not add navigation, physics, or continuously running idle animation.
-- [ ] Implement raycasting from current canvas bounds. Share the selection callback with DOM controls. Fit camera framing with ResizeObserver, cap pixel ratio at 2, request frames only when necessary, and defer rendering while the document is hidden.
-- [ ] Catch renderer initialization failure and handle context loss with an accessible fallback. Dispose observers, listeners, geometries, materials, and renderer on teardown. The DOM view must remain functional independently.
-- [ ] Add a browser check selecting a visible workstation by canvas coordinates, repeat after resize, and assert the corresponding detail heading changes. Use bounding-box-derived click coordinates from the fixed camera; keep them in the test rather than adding public test controls.
-- [ ] Verify scene selection, fallback behavior, and TypeScript build. Visually inspect one desktop view for clipped objects and readable selection before committing the office slice with a TAF-2 reference.
+- [x] Write browser checks that selecting a roster entry updates details and selection semantics, changing scenarios updates the room's accessible summary, and the WebGL-disabled case still supports all roster interactions. Run them before scene integration and record the missing behavior.
+- [x] Build four primitive workstations, role-colored characters with simple distinct accessories, floor, low walls, plants, and a restrained selected-workstation indicator. Use a fixed orthographic camera; do not add navigation, physics, or continuously running idle animation.
+- [x] Implement raycasting from current canvas bounds. Share the selection callback with DOM controls. Fit camera framing with ResizeObserver, cap pixel ratio at 2, request frames only when necessary, and defer rendering while the document is hidden.
+- [x] Catch renderer initialization failure and handle context loss with an accessible fallback. Dispose observers, listeners, geometries, materials, and renderer on teardown. The DOM view must remain functional independently.
+- [x] Add a browser check selecting a visible workstation by canvas coordinates, repeat after resize, and assert the corresponding detail heading changes. Use bounding-box-derived click coordinates from the fixed camera; keep them in the test rather than adding public test controls.
+- [x] Verify scene selection, fallback behavior, and TypeScript build. Visually inspect one desktop view for clipped objects and readable selection before committing the office slice with a TAF-2 reference.
 
 ### Task 3: Complete interaction, visual verification, and documentation
 
@@ -90,15 +90,15 @@ Root changes: `.gitignore` for dependency/test outputs; Archivist dashboard modu
 
 **Interfaces:** Reuse Tasks 1–2; no new application services or public APIs.
 
-- [ ] Configure Chromium desktop (1440×1000) and mobile (390×844) checks against a localhost Vite web server. Keep test artifacts under ignored test-results and playwright-report directories.
-- [ ] Assert filters, selection reconciliation, all three scenarios, exact derived stats, always-visible Sample data, empty and unavailable notices, and absence of horizontal overflow. Inject a long task string into the fixture during a focused check, then retain a representative long fixture if needed to preserve coverage.
-- [ ] Assert keyboard selection and visible focus; check reduced-motion emulation. Force WebGL context creation failure with a browser init script and verify selecting a roster agent still updates details. Exercise context loss when the browser exposes the extension.
-- [ ] Run `npm test` and `npm run build`; require passing results. Fix actual failures without broadening the feature scope.
-- [ ] Use the approved available browser surface for a visible desktop and mobile walkthrough. Inspect screenshots for framing, density, contrast, long text, touch targets, and status clarity. Record evidence and report any backend limitation honestly. Check for console errors and missing network assets.
-- [ ] Measure local startup/load and inspect renderer draw calls/triangles on the available machine. Record observed evidence without claiming cross-device performance guarantees. Remove temporary instrumentation before the final build.
-- [ ] Write local commands (`npm ci`, `npm run dev`, `npm test`, `npm run build`), sample-data limits, WebGL fallback, and actual verification evidence in the prototype README. Update `docs/04-modules/dashboard.md`, `docs/06-admin/ownership.md`, `docs/07-meta/changelog.md`, and TAF-2 in the backlog. Add the next numbered ADR for the implemented technical choice and update its index.
-- [ ] Run `python3 scripts/check_package.py` and `git diff --check`. Plugin runtime changes are not planned; if any become necessary, run `make test` and review that scope before proceeding.
-- [ ] Obtain the execution workflow's independent final review, resolve material findings, and commit only intended source/docs. Open the localhost prototype in the user's Codex browser panel and report the run command plus remaining live-data limitation.
+- [x] Configure Chromium desktop (1440×1000) and mobile (390×844) checks against a localhost Vite web server. Keep test artifacts under ignored test-results and playwright-report directories.
+- [x] Assert filters, selection reconciliation, all three scenarios, exact derived stats, always-visible Sample data, empty and unavailable notices, and absence of horizontal overflow. Inject a long task string into the fixture during a focused check, then retain a representative long fixture if needed to preserve coverage.
+- [x] Assert keyboard selection and visible focus; check reduced-motion emulation. Force WebGL context creation failure with a browser init script and verify selecting a roster agent still updates details. Exercise context loss when the browser exposes the extension.
+- [x] Run `npm test` and `npm run build`; require passing results. Fix actual failures without broadening the feature scope.
+- [x] Use the approved available browser surface for a visible desktop and mobile walkthrough. Inspect screenshots for framing, density, contrast, long text, touch targets, and status clarity. Record evidence and report any backend limitation honestly. Check for console errors and missing network assets.
+- [x] Measure local startup/load and inspect renderer draw calls/triangles on the available machine. Record observed evidence without claiming cross-device performance guarantees. Remove temporary instrumentation before the final build.
+- [x] Write local commands (`npm ci`, `npm run dev`, `npm test`, `npm run build`), sample-data limits, WebGL fallback, and actual verification evidence in the prototype README. Update `docs/04-modules/dashboard.md`, `docs/06-admin/ownership.md`, `docs/07-meta/changelog.md`, and TAF-2 in the backlog. Add the next numbered ADR for the implemented technical choice and update its index.
+- [x] Run `python3 scripts/check_package.py` and `git diff --check`. Plugin runtime changes are not planned; if any become necessary, run `make test` and review that scope before proceeding.
+- [x] Obtain the execution workflow's independent final review, resolve material findings, and commit only intended source/docs. Open the localhost prototype in the user's Codex browser panel and report the run command plus remaining live-data limitation.
 
 ## Plan review
 

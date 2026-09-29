@@ -159,3 +159,20 @@ test("visible dashboard states pass automated accessibility checks", async ({
     ).toEqual([]);
   }
 });
+
+test("long status and elapsed time remain inside narrow mobile cards", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 320, height: 844 });
+  await page.goto("/");
+  await page.getByLabel("Demo scenario").selectOption("unavailable");
+  for (const card of await page.locator(".agent-card").all()) {
+    const bounds = await card.boundingBox();
+    for (const text of await card.locator(".status, .elapsed").all()) {
+      const textBounds = await text.boundingBox();
+      expect(textBounds!.x + textBounds!.width).toBeLessThanOrEqual(
+        bounds!.x + bounds!.width,
+      );
+    }
+  }
+});

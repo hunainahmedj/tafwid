@@ -23,6 +23,7 @@ Functional failures block signoff regardless of the weighted score.
 | 1 | 7.7 | 8.2 | 8.0 | 7.5 | 8.5 | 7.94 |
 | 2 | 8.4 | 8.6 | 8.6 | 8.0 | 8.2 | 8.41 |
 | 3 | 8.6 | 9.0 | 9.0 | 8.8 | 9.0 | 8.86 |
+| 4 | 8.7 | 9.0 | 9.0 | 8.9 | 9.0 | 8.90 |
 
 Round 1 found washed-out materials, small low-contrast labels, and selected
 agent details below the 1440×1000 desktop viewport. Round 2 strengthened
@@ -30,18 +31,23 @@ materials and typography and reduced wasted vertical space. It identified
 clipping at the top of the room and incomplete failure isolation for scene
 loading. Round 3 corrected camera framing, independently loaded the scene,
 fixed contrast findings, and reduced unnecessary geometry and draw calls.
-The threshold was crossed in round 3; no fourth or fifth design round was needed.
+The builder score crossed the threshold in round 3, but the independent
+review found internal status-text overflow at 320px. That hard failure
+blocked signoff. Round 4 enabled metadata wrapping and added an internal
+containment regression, which failed before the fix and passed afterward.
+The loop stopped after round 4; the fifth round was unused.
 
 ## Evidence
 
-- 23 Playwright checks passed: 3 model checks and 10 browser checks each at
+- 25 Playwright checks passed: 3 model checks and 11 browser checks each at
   desktop and mobile sizes. Coverage includes derived metrics, scenario
   transitions, selection/filter reconciliation, direct canvas picking after
   resizing, keyboard focus, unavailable/empty states, and rendering failure.
 - Automated axe WCAG A/AA checks reported no violations in active, empty, and
   unavailable states on desktop and mobile. This does not replace a full
   assistive-technology audit.
-- Visible Chromium walkthroughs at 1440×1000 and 390×844. The main desktop
+- Visible Chromium walkthroughs at 1440×1000 and 390×844, plus a 320×844 narrow-state pass and a native
+  desktop window at DPR 2. The main desktop
   view includes the selected detail panel; mobile scrolls vertically without
   horizontal overflow. The unavailable snapshot and its longer task text
   were inspected separately. No page errors in the ordinary interaction pass.
@@ -60,7 +66,8 @@ The threshold was crossed in round 3; no fourth or fifth design round was needed
 - The original Python baseline passed all 152 tests. No plugin runtime
   behavior was changed by this prototype.
 
-[Desktop evidence](evidence/desktop.png) · [Mobile evidence](evidence/mobile.png)
+[Desktop evidence](evidence/desktop.png) · [Mobile evidence](evidence/mobile.png) ·
+[Narrow unavailable state](evidence/narrow-unavailable.png)
 
 ## Limitations
 
@@ -69,3 +76,22 @@ are supported. Character identity, accepted-result state, real worker data,
 and invitations are not implemented. Assets are procedural; Blender and
 Higgsfield were not needed for this prototype. The room is static between
 interactions to keep rendering inexpensive.
+
+## Independent review and decisions
+
+A fresh reviewer inspected the implementation, screenshots, and narrow-screen
+behavior. Their independent subjective score was 8.66/10 before the final
+correction (visual 8.7, clarity 8.8, interaction 9.0, accessibility 7.9,
+execution 8.8). They found one Important issue, the 320px metadata overflow,
+and no Critical or Minor findings. That issue was corrected in round 4;
+the new regression and full 25-check suite passed. No second review was
+requested; the fix was verified by the reproducing test and visible pass.
+
+Implementation decision: load the scene independently and add axe to the
+development checks. This protects dashboard usability and measures contrast;
+the cost is an extra chunk request and a development-only dependency.
+
+The reviewer explicitly left cross-browser behavior, screen-reader behavior,
+and low-end GPU performance unverified. Keep those limits: another browser,
+assistive technology, or slower GPU may expose differences beyond this
+prototype's evidence. There are no deferred minor findings.
