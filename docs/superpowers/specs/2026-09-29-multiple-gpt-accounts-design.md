@@ -1,7 +1,7 @@
 # Multiple GPT accounts in Tafwid
 
 Date: 2026-09-29
-Status: Written design for user review. No runtime or prompt changes are authorized by this document alone.
+Status: Approved for implementation planning. Runtime and prompt changes await plan review.
 
 ## Goal and scope
 
