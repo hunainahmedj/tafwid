@@ -18,8 +18,9 @@ Write a brief containing:
 Workers do not inherit this chat. Include the information they need
 to complete their assignment.
 
-Assign each check to one owner. Use separate worktrees if workers’
-edits could conflict. Keep briefs and run records outside Git.
+A task can enable Claude and several named GPT accounts. Name one enabled connection for every worker assignment. Use `--connection claude` or `--connection gpt:NAME` when launching. If the user's allocation is unclear, ask which connection should do each assignment. Never reroute a failed assignment. Use separate worktrees when workers could edit the same files.
+
+Assign each check to one owner. Keep briefs and run records outside Git.
 
 ## Configure the worker
 
@@ -29,7 +30,7 @@ Read this chat’s saved settings:
 python3 scripts/settings.py show
 ```
 
-Choose one model selector for `delegate.py`:
+Claude assignments can use the saved task-type or profile model routes below. GPT assignments use the selected account's Codex CLI default unless the user requests a specific GPT model with `--model`.
 
 - `--task-type`: use the saved model route for this kind of task.
 - `--profile`: choose a saved tier, such as Fast, Standard or Deep.
@@ -104,8 +105,7 @@ python3 scripts/delegate.py \
 Pass the mode and tool allowances the worker still needs. The current
 saved permission policy applies.
 
-The worker keeps its previous model and reasoning effort unless you
-explicitly select different ones.
+Claude keeps its previous model and reasoning effort unless you select different ones. GPT keeps its requested model or uses the selected account's CLI default.
 
 Start a fresh worker when an independent review is required.
 

@@ -1,6 +1,6 @@
 {
   "name": "tafwid",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Delegate bounded work to coding agents while Codex orchestrates and reviews.",
   "author": {
     "name": "hunainahmedj",

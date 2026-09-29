@@ -2,7 +2,11 @@
 
 ## Unreleased
 
-- Simplify execution to Claude Code only.
+- Add named personal and Business GPT worker accounts with private Codex homes,
+  visible sign-in, and user confirmation.
+- Let each task enable Claude and multiple GPT connections, with exact routing
+  for every worker run and resume.
+- Keep completion monitoring and legacy Claude switch state compatible.
 - Remove the dashboard and account/activity collection, native handoff protocol,
   Superpowers adapter and automatic instruction-file delivery.
 - Keep task switches, launch/resume, compact completion waiting and CLI settings.

@@ -4,12 +4,12 @@
 
 **Delegate work. Keep control.**
 
-Tafwid lets Codex delegate bounded tasks to Claude Code. Codex coordinates the
+Tafwid lets Codex delegate bounded tasks to Claude Code or named GPT accounts. Codex coordinates the
 work and accepts the result using concise reports and relevant checks.
 
 ## What it does
 
-- Turn automatic delegation on or off for the current Codex task.
+- Enable a task-local pool of Claude and named GPT accounts.
 - Choose a Claude model explicitly or use saved task-based routing.
 - Launch a worker and resume it with corrections.
 - Wait for completion without repeatedly loading worker logs.
@@ -28,6 +28,8 @@ waiting costs across three task types.
 - Claude Code on `PATH`, signed in through `claude auth login` with a supported
   Claude subscription. API-key and alternate-provider overrides are rejected.
   Account limits and extra-usage settings still apply.
+- For GPT workers, Codex CLI on `PATH` and a separate ChatGPT sign-in for each
+  named account. See [account setup](docs/account-setup.md).
 
 ## Install
 
@@ -41,6 +43,7 @@ Start a new Codex task and select a skill from the `$` menu:
 | Skill | Purpose | Example |
 | --- | --- | --- |
 | `$tafwid:delegate` | Assign work or manage this task's switch | `$tafwid:delegate on` |
+| `$tafwid:account` | Add and check named GPT accounts | `$tafwid:account add gpt business` |
 
 A bare `$tafwid:delegate` reports status. Delegation starts off. Turning it off
 prevents new automatic dispatches; running workers continue. An explicit one-time
@@ -52,25 +55,26 @@ and start a new task. See [migration](docs/migration.md) for existing installati
 ## How to use it
 
 Codex writes a brief with the goal, workspace, constraints and acceptance criteria.
-The launcher starts Claude and returns a compact result. Corrections resume the
+The launcher starts the selected worker and returns a compact result. Corrections resume the
 same worker; an independent review, when needed, uses a separate worker.
 
-Use the [shared workflow](plugins/tafwid/skills/delegate/references/workflow.md)
-and [Claude Code guide](plugins/tafwid/skills/delegate/references/claude-code.md).
+Use the [shared workflow](plugins/tafwid/skills/delegate/references/workflow.md),
+[Claude Code guide](plugins/tafwid/skills/delegate/references/claude-code.md),
+and [GPT account guide](plugins/tafwid/skills/delegate/references/gpt-accounts.md).
 Each public script supports `--help`.
 
 To let Tafwid resume Codex when a worker finishes, review and trust Tafwid's
 hooks in Codex (`/hooks` in the CLI). Without hook trust, the workflow uses
 `wait.py` instead.
 
-Worker permissions default to Scoped. `settings.py show` shows saved model routes
-and can change permissions. Use `--model` on a launch for an explicit model choice.
+Claude worker permissions default to Scoped. `settings.py show` shows its saved
+model routes and can change its permissions. GPT workers use read-only or
+workspace-write sandboxes. Use `--model` for an explicit model choice.
 Tafwid does not silently change billing providers when a model is unavailable.
 
-Run artifacts stay in the caller's private output directory. Raw Claude usage
-remains in `result.json`; Tafwid does not aggregate it or fetch account allowances.
-Keep private evidence outside Git. Worker prompts are sent through Claude Code's
-configuration; inference is not necessarily local.
+Run artifacts stay in the caller's private output directory. Tafwid does not
+fetch account allowances. Keep private evidence outside Git. Worker prompts are
+sent through the selected CLI; inference is not necessarily local.
 
 ## Contribute
 

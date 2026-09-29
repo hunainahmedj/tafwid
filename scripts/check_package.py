@@ -65,7 +65,7 @@ def check():
 
     # Skill entry points and local documentation links.
     entries = {p.parent.name: p for p in (plugin / "skills").glob("*/SKILL.md")}
-    assert set(entries) == {"delegate"}, (
+    assert set(entries) == {"delegate", "account"}, (
         "Missing or unexpected skill entry points"
     )
     for name, path in entries.items():
@@ -76,6 +76,7 @@ def check():
 
     skill = plugin / "skills/delegate"
     assert (skill / "references/workflow.md").is_file(), "Missing delegation workflow"
+    assert (skill / "references/gpt-accounts.md").is_file(), "Missing GPT account guide"
     for document in (plugin / "skills").rglob("*.md"):
         for target in re.findall(r"\[[^\]]*\]\(([^)]+)\)", document.read_text()):
             if "://" in target or target.startswith("#"):
@@ -95,6 +96,7 @@ def check():
         "CHANGELOG.md",
         "docs/migration.md",
         "docs/architecture.md",
+        "docs/account-setup.md",
     ):
         assert (ROOT / name).is_file(), f"Missing {name}"
     for name in (
@@ -102,6 +104,10 @@ def check():
         "scripts/completion_hook.py",
         "scripts/paths.py",
         "scripts/session.py",
+        "scripts/account.py",
+        "scripts/accounts.py",
+        "scripts/connections.py",
+        "scripts/codex_cli.py",
         "scripts/run_state.py",
         "scripts/wait.py",
         "references/claude-code.md",

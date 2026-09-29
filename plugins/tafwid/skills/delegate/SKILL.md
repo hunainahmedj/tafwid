@@ -1,6 +1,6 @@
 ---
 name: delegate
-description: Use when the user requests Tafwid delegation on/off/status, assigns work to a Claude Code worker, or continues work with this task's delegation enabled.
+description: Use when the user manages Tafwid delegation, assigns work to Claude Code or a named GPT account, or continues with delegation enabled.
 ---
 
 # Tafwid delegation
@@ -66,3 +66,5 @@ the worker, wait for completion, and accept the result.
 
 For Claude-specific tools and permissions, also read
 [the Claude Code guide](references/claude-code.md).
+
+Enable only the connections the user chooses for this task. Record one exact enabled connection for each worker assignment. If routing is unclear, ask the user. If a selected GPT account is unavailable, stop that assignment and offer `$tafwid:account` setup. Never substitute another connection. Follow [the GPT account guide](references/gpt-accounts.md) for sign-in and worker rules.

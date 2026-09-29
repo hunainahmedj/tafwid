@@ -1,13 +1,14 @@
 # Architecture
 
-Tafwid has one skill entry point: `delegate`. It uses the Python
+Tafwid has two skill entry points: `delegate` and `account`. They use the Python
 runtime under `plugins/tafwid/skills/delegate/scripts`.
 
 | Module | Responsibility |
 | --- | --- |
-| `session.py` | Read or change the current task's delegation switch and check the selected harness before enabling it. |
+| `session.py` and `connections.py` | Read or change the current task's connection pool and resolve exact destinations. |
+| `account.py` and `accounts.py` | Open Codex sign-in in private GPT homes and check login method. |
 | `delegate.py` | Validate a brief, launch or resume a worker, and save a compact result. |
-| `harnesses.py` and `claude_code.py` | Isolate harness readiness, command construction and result handling. Claude Code is the only supported harness. |
+| `harnesses.py`, `claude_code.py`, and `codex_cli.py` | Check readiness and handle Claude or GPT worker commands and results. |
 | `wait.py` | Wait for selected runs in the current task. |
 | `completion_hook.py` | Arm a one-time wait at the next Codex Stop event. |
 | `run_state.py` | Keep small run records and a launcher heartbeat for waiting. |
@@ -15,20 +16,20 @@ runtime under `plugins/tafwid/skills/delegate/scripts`.
 | `routing.py` | Resolve task types, tiers and explicit selections. |
 | `paths.py` | Resolve private state paths and write JSON atomically. |
 
-The launcher sends the task brief and a common reporting contract to Claude.
+The launcher sends the task brief and a reporting contract to the selected worker.
 Workers return a status (`completed` or `blocked`) and a report. The launcher also
 reports errors, timeouts, interruptions and results needing review. Codex owns
 acceptance; a successful process exit alone is insufficient.
 
 Each run gets a new private output directory containing the brief, request,
-input, raw result, stderr, report and summary. Resumes preserve the Claude session
-and require the same Codex task and workspace. Model selection is retained unless
+input, raw result, stderr, report and summary. Resumes preserve the worker session
+and exact connection and require the same Codex task and workspace. Model selection is retained unless
 explicitly overridden; permissions are checked again on every launch.
 
 The waiter observes small local run records without model calls. It can return
 when a worker finishes, including one that completed before the wait started.
 It does not launch, cancel or extend workers. A stale heartbeat means the launcher
-stopped reporting, not proof that Claude stopped.
+stopped reporting, not proof that the worker stopped.
 
 The packaged Stop, Interrupt and UserPromptSubmit hooks are declared in
 `plugins/tafwid/hooks/hooks.json`. After Codex trusts them, `completion_hook.py arm`
@@ -43,7 +44,11 @@ requests. If hook trust is unavailable, `wait.py` remains the fallback.
 Task switches, settings and run records live under the current Codex home's state
 directory, normally `tafwid/state`. Existing legacy state is reused; conflicting
 state roots cause an error.
+Named GPT homes live below the private `accounts` state directory. Each has
+file-based CLI credentials selected through its own `CODEX_HOME`. Tafwid checks
+the login method without opening credentials. The task pool stores immutable
+connection IDs, while run records keep the chosen ID and backend.
 The runtime does not inspect Codex conversations or account usage.
 
-Tests use temporary state directories and fake Claude processes. No real worker
+Tests use temporary state directories and fake Claude and Codex processes. No real worker
 or installed-plugin changes are required for ordinary verification.

@@ -36,3 +36,11 @@ The former `$tafwid:tafwid` entry becomes `$tafwid:delegate`. Use
 runtime moves from `skills/tafwid` to `skills/delegate`; resolve paths from the
 loaded delegate skill rather than retaining an old cache path. Existing task
 state and history do not move. Already-running workers retain their instructions.
+
+## From Tafwid 0.2
+
+Version 0.3 adds `$tafwid:account` and task-local connection pools. Upgrade and
+start a new task to load both skills. An existing enabled switch is read as a
+pool containing Claude; an off switch stays off. Old Claude run summaries remain
+readable. Named GPT accounts require separate visible sign-in and confirmation;
+Tafwid does not import or copy the ordinary Codex login.
