@@ -132,7 +132,7 @@ work meets the task’s requirements; `completed` alone does not prove this.
 
 Reuse passing tests and reviews that apply to the final code. You do not
 need to repeat them yourself. Run or delegate only missing checks, failed
-checks, or checks affected by later changes. 
+checks, or checks affected by later changes.
 
 Inspect relevant code or diffs when the evidence is insufficient or a finding needs investigation. Avoid adding another review when an existing review already satisfies the task’s requirements.
 
