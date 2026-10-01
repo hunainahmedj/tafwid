@@ -15,7 +15,7 @@ class AccountTests(unittest.TestCase):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
         self.home = Path(self.tmp.name) / "normal"
-        self.patch = mock.patch.dict(os.environ, {"CODEX_HOME": str(self.home)})
+        self.patch = mock.patch.dict(os.environ, {"CODEX_HOME": str(self.home), "TAFWID_HOME": str(self.home / "tafwid"), "TAFWID_HOST": "codex"})
         self.patch.start()
         self.addCleanup(self.patch.stop)
 

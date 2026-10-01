@@ -50,6 +50,7 @@ class GPTDelegationTests(unittest.TestCase):
         fake.chmod(0o700)
         self.calls = self.root / "calls.json"
         self.env = {**os.environ, "CODEX_HOME": str(self.root / "normal"),
+                    "TAFWID_HOME": str(self.root / "normal" / "tafwid"), "TAFWID_HOST": "codex",
                     "CODEX_THREAD_ID": TASK, "PATH": str(self.bin), "CALLS": str(self.calls)}
         with mock.patch.dict(os.environ, self.env):
             self.account = accounts.create("work", "business")

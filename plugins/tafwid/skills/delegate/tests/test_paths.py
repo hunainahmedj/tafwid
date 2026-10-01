@@ -18,7 +18,8 @@ class StatePathsTests(unittest.TestCase):
         temp = tempfile.TemporaryDirectory()
         self.addCleanup(temp.cleanup)
         self.home = Path(temp.name)
-        env = patch.dict(os.environ, {"CODEX_HOME": str(self.home)})
+        env = patch.dict(os.environ, {"CODEX_HOME": str(self.home), "TAFWID_HOME": str(self.home / "tafwid"),
+                                      "TAFWID_HOST": "codex"})
         env.start()
         self.addCleanup(env.stop)
 
@@ -85,7 +86,7 @@ class StatePathsTests(unittest.TestCase):
                     directory = home / name
                     directory.mkdir(parents=True)
                     (directory / "settings.json").write_text(name)
-                with patch.dict(os.environ, {"CODEX_HOME": str(home)}):
+                with patch.dict(os.environ, {"CODEX_HOME": str(home), "TAFWID_HOME": str(home / "tafwid")}):
                     with self.assertRaisesRegex(ValueError, "state directories"):
                         registry.state_root()
                     with self.assertRaises(ValueError):

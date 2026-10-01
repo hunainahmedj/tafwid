@@ -23,7 +23,8 @@ class CompletionHookTests(unittest.TestCase):
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
         self.root = Path(temporary.name)
-        environment = patch.dict(os.environ, {"CODEX_HOME": str(self.root), "CODEX_THREAD_ID": TASK})
+        environment = patch.dict(os.environ, {"CODEX_HOME": str(self.root), "CODEX_THREAD_ID": TASK,
+                                              "TAFWID_HOME": str(self.root / "tafwid"), "TAFWID_HOST": "codex"})
         environment.start()
         self.addCleanup(environment.stop)
         available = patch.object(completion_hook, "hook_status", return_value={"active": True})

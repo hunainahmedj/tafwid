@@ -74,6 +74,8 @@ class DelegationTests(unittest.TestCase):
         self.env = {k: v for k, v in os.environ.items() if k not in OVERRIDES}
         self.env["PATH"] = str(self.bin) + os.pathsep + self.env["PATH"]
         self.env["CODEX_HOME"] = str(self.root / "codex")
+        self.env["TAFWID_HOME"] = str(self.root / "codex" / "tafwid")
+        self.env["TAFWID_HOST"] = "codex"
         self.env["CLAUDE_CONFIG_DIR"] = str(self.root / "claude-config")
         self.env["CODEX_THREAD_ID"] = "00000000-0000-4000-8000-000000000001"
         self.env.pop("CODEX_SESSION_ID", None)

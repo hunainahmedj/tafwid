@@ -24,7 +24,8 @@ class WaitTests(unittest.TestCase):
         temp = tempfile.TemporaryDirectory()
         self.addCleanup(temp.cleanup)
         self.root = Path(temp.name).resolve()
-        env = patch.dict(os.environ, {"CODEX_HOME": str(self.root), "CODEX_THREAD_ID": TASK})
+        env = patch.dict(os.environ, {"CODEX_HOME": str(self.root), "CODEX_THREAD_ID": TASK,
+                                      "TAFWID_HOME": str(self.root / "tafwid"), "TAFWID_HOST": "codex"})
         env.start()
         self.addCleanup(env.stop)
 

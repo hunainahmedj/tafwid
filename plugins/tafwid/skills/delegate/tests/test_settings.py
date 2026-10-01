@@ -18,7 +18,8 @@ class SettingsTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
-        self.env = patch.dict(os.environ, {'CODEX_HOME': self.temp.name})
+        self.env = patch.dict(os.environ, {'CODEX_HOME': self.temp.name, 'TAFWID_HOST': 'codex',
+                                          'TAFWID_HOME': str(Path(self.temp.name) / 'tafwid')})
         self.env.start()
         self.addCleanup(self.env.stop)
 

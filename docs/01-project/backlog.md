@@ -1,12 +1,12 @@
 # Backlog (TAF)
 
-Next ID: TAF-6
+Next ID: TAF-7
 
 Position is status. This file is the tracker; other documents link here.
 
 ## Now
 
-No active implementation items.
+- TAF-6 Make Claude Code a full coordinator alongside Codex: host adapter, neutral state home, shared hooks, Claude Code packaging. See the [spec](../superpowers/specs/2026-10-02-claude-code-coordinator-design.md).
 
 ## Next
 

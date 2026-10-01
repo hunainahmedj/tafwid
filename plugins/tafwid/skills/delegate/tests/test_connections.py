@@ -19,7 +19,7 @@ class ConnectionTests(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.home = Path(self.temp.name) / "codex"
-        patch = mock.patch.dict(os.environ, {"CODEX_HOME": str(self.home)})
+        patch = mock.patch.dict(os.environ, {"CODEX_HOME": str(self.home), "TAFWID_HOME": str(self.home / "tafwid"), "TAFWID_HOST": "codex"})
         patch.start()
         self.addCleanup(patch.stop)
 
