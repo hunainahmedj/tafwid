@@ -46,7 +46,7 @@ def main(argv: list[str] | None = None) -> int:
     actions = parser.add_subparsers(dest="action", required=True)
     add = actions.add_parser("add", help="Create a pending account and open Codex sign-in")
     add.add_argument("provider", choices=("gpt",))
-    add.add_argument("type", nargs="?", choices=("business",), default="personal")
+    add.add_argument("type", nargs="?", choices=("business",))
     add.add_argument("--name", required=True, help="Unique short account name")
     add.add_argument("--device-auth", action="store_true", help="Use Codex device-code login")
     login = actions.add_parser("login", help="Retry sign-in; account stays pending until confirmed again")
@@ -60,7 +60,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     try:
         if args.action == "add":
-            row = accounts.create(args.name, args.type)
+            row = accounts.create(args.name, args.type or "personal")
             _login(row, args.device_auth)
             result = accounts.check(row)
         elif args.action == "login":

@@ -78,6 +78,7 @@ class AccountCLITests(unittest.TestCase):
         before = auth.read_bytes()
         result = self.call("add", "gpt", "--name", "second")
         self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(json.loads(result.stdout)["kind"], "personal")
         self.assertEqual(auth.read_bytes(), before)
         self.assertNotEqual(json.loads(result.stdout)["home"], str(ordinary))
 

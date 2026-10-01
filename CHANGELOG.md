@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Fix personal GPT account setup on Python 3.10 when the optional account type is omitted.
 - Add named personal and Business GPT worker accounts with private Codex homes,
   visible sign-in, and user confirmation.
 - Let each task enable Claude and multiple GPT connections, with exact routing
