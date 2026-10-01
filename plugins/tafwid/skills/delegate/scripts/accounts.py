@@ -12,6 +12,7 @@ import shutil
 import subprocess
 import uuid
 
+import host
 import paths
 
 NAME = re.compile(r"[a-z][a-z0-9_-]{0,31}\Z")
@@ -122,7 +123,8 @@ def isolated_env(home: Path, base=None) -> dict[str, str]:
     """Select one CLI home and drop inherited identity or billing overrides."""
     source = os.environ if base is None else base
     env = {key: value for key, value in source.items()
-           if not (key.startswith("OPENAI_") or key.startswith("CODEX_"))}
+           if not (key.startswith("OPENAI_") or key.startswith("CODEX_")
+                   or key in host.IDENTITY_VARIABLES)}
     for key in ("OPENAI_CERT_FILE", "OPENAI_CA_BUNDLE", "CODEX_CERT_FILE"):
         if key in source:
             env[key] = source[key]

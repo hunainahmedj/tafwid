@@ -8,25 +8,18 @@ import argparse
 import json
 import os
 import sys
-import uuid
+import host
 import paths
 import settings
 import connections
 
 
 def current_task_id():
-    """Return the host's task UUID, or None when no task identity is available.
+    """Return the coordinator's task UUID, or None when no identity is available.
 
-    Prefer CODEX_THREAD_ID over the legacy CODEX_SESSION_ID. Reject malformed
-    values with ValueError so they cannot select an unintended state file.
+    Malformed values raise ValueError so they cannot select an unintended state file.
     """
-    value = os.environ.get("CODEX_THREAD_ID") or os.environ.get("CODEX_SESSION_ID")
-    if not value:
-        return None
-    try:
-        return str(uuid.UUID(value))
-    except ValueError:
-        raise ValueError("Invalid Codex task identity; cannot select delegation state") from None
+    return host.task_id()
 
 
 def state_path(task_id):
@@ -47,7 +40,7 @@ def set_enabled(enabled, harness=None):
     """Add or remove a task connection, checking readiness before enabling."""
     task_id = current_task_id()
     if task_id is None:
-        raise ValueError("No Codex task identity; cannot save a session switch. Use an explicit one-shot task instead.")
+        raise ValueError("No task identity from the coordinator; cannot save a session switch. Use an explicit one-shot task instead.")
     if enabled:
         selected = harness or settings.read(task_id, initialize=False)["harness"]
         connections.enable(task_id, selected)

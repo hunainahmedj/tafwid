@@ -22,6 +22,7 @@ import run_state
 import settings as worker_settings
 import routing
 import harnesses
+import host
 import connections
 import accounts
 import codex_cli
@@ -375,7 +376,7 @@ def run(args):
                 if active["id"] != "claude:default":
                     raise ValueError("Claude connection changed before launch; no worker started")
             proc = subprocess.Popen(command, cwd=cwd, stdin=stdin, stdout=stdout, stderr=stderr,
-                                    start_new_session=True)
+                                    env=host.worker_env(), start_new_session=True)
             tracker.running(proc.pid)
             try:
                 print(json.dumps({"event": "started", "run_id": tracker.id,

@@ -25,7 +25,8 @@ if "auth" in sys.argv:
                       "apiProvider": "firstParty", "subscriptionType": "max"}))
     sys.exit(0)
 prompt = sys.stdin.read()
-Path("received.json").write_text(json.dumps({"args": sys.argv[1:], "prompt": prompt}))
+Path("received.json").write_text(json.dumps({"args": sys.argv[1:], "prompt": prompt,
+    "identity": {k: os.environ.get(k) for k in ("CODEX_THREAD_ID", "CODEX_SESSION_ID", "CLAUDE_CODE_SESSION_ID", "TAFWID_HOST")}}))
 time.sleep(float(os.environ.get("FIXTURE_DELAY", "0")))
 if case == "timeout":
     time.sleep(30)
@@ -85,6 +86,13 @@ class DelegationTests(unittest.TestCase):
             "--prompt-file", str(self.prompt), "--output-dir", str(self.out),
             *(["--once"] if once else []), *extra],
             env={**self.env, "FIXTURE_CASE": case}, text=True, capture_output=True, timeout=15)
+
+    def test_worker_environment_has_no_coordinator_identity(self):
+        self.env["CLAUDE_CODE_SESSION_ID"] = "00000000-0000-4000-8000-000000000009"
+        result = self.run_cli()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        identity = json.loads((self.cwd / "received.json").read_text())["identity"]
+        self.assertEqual(set(identity.values()), {None})
 
     def test_removed_provider_options_fail_before_launch(self):
         for extra in (("--backend", "opencode"), ("--allow-command", "python *"),

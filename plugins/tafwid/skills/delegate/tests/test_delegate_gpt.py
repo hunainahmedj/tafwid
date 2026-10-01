@@ -23,6 +23,7 @@ if args[:2] == ["login", "status"]:
 if args[0] != "exec":
     sys.exit(9)
 pathlib.Path(os.environ["CALLS"]).write_text(json.dumps({"args": args, "home": os.environ["CODEX_HOME"],
+    "identity": {k: os.environ.get(k) for k in ("CODEX_THREAD_ID", "CLAUDE_CODE_SESSION_ID", "TAFWID_HOST")},
     "prompt": sys.stdin.read(), "workspace": os.getcwd()}))
 output = pathlib.Path(args[args.index("-o") + 1])
 case = os.environ.get("CASE", "success")
@@ -83,6 +84,12 @@ class GPTDelegationTests(unittest.TestCase):
         resumed = self.launch("--resume-from", str(previous), "--mode", "edit")
         self.assertEqual(resumed.returncode, 0, resumed.stderr)
         self.assertIn("resume", json.loads(self.calls.read_text())["args"])
+
+    def test_worker_environment_has_no_coordinator_identity(self):
+        self.env["CLAUDE_CODE_SESSION_ID"] = "00000000-0000-4000-8000-000000000009"
+        result = self.launch()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(set(json.loads(self.calls.read_text())["identity"].values()), {None})
 
     def test_failed_worker_never_falls_back(self):
         result = self.launch(case="quota")
