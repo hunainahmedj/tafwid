@@ -1,0 +1,38 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${PLUGIN_ROOT}/skills/delegate/scripts/completion_hook.py\" hook",
+            "timeout": 1800,
+            "statusMessage": "Waiting for a Tafwid worker"
+          }
+        ]
+      }
+    ],
+    "Interrupt": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${PLUGIN_ROOT}/skills/delegate/scripts/completion_hook.py\" disarm",
+            "timeout": 2
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${PLUGIN_ROOT}/skills/delegate/scripts/completion_hook.py\" disarm",
+            "timeout": 2
+          }
+        ]
+      }
+    ]
+  }
+}

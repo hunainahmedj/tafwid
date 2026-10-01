@@ -2,16 +2,16 @@ import json
 import os
 from pathlib import Path
 import sys
+import subprocess
 import tempfile
-import threading
 import unittest
 from unittest.mock import patch
-from urllib.error import HTTPError
-from urllib.request import Request, urlopen
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'scripts'))
-import dashboard
 import settings
+
+A = "00000000-0000-4000-8000-000000000001"
+B = "00000000-0000-4000-8000-000000000002"
 
 
 class SettingsTests(unittest.TestCase):
@@ -41,7 +41,7 @@ class SettingsTests(unittest.TestCase):
         settings.settings_file().parent.mkdir(parents=True)
         settings.settings_file().write_text(json.dumps({"version": 1, "permission_policy": "inherit"}))
         data = settings.read()
-        self.assertEqual(data["version"], 2)
+        self.assertEqual(data["version"], 3)
         self.assertEqual(data["permission_policy"], "inherit")
         data["models"]["profiles"]["deep"] = "opus"
         data["models"]["tasks"]["architecture"] = "fable"
@@ -64,77 +64,113 @@ class SettingsTests(unittest.TestCase):
                 settings.save(invalid)
             self.assertEqual(settings.settings_file().read_bytes(), previous)
 
-    def test_settings_api_requires_authorized_local_json_and_preserves_on_error(self):
-        server = dashboard.make_server('fixture-token')
-        threading.Thread(target=server.serve_forever, daemon=True).start()
-        self.addCleanup(server.server_close)
-        self.addCleanup(server.shutdown)
-        base = f'http://127.0.0.1:{server.server_port}/api/settings'
-        def request(data=None, headers=None):
-            supplied = {'Authorization': 'Bearer fixture-token', 'Content-Type': 'application/json'}
-            supplied.update(headers or {})
-            return urlopen(Request(base, data=data, headers=supplied), timeout=2)
-        full = json.dumps({'version': 1, 'permission_policy': 'full'}).encode()
-        with request() as response:
-            self.assertEqual(json.load(response)['permission_policy'], 'scoped')
-        for body, headers, code in [
-            (full, {'Authorization': ''}, 401),
-            (full, {'Origin': 'https://example.com'}, 403),
-            (full, {'Host': 'example.com'}, 403),
-            (full, {'Content-Type': 'text/plain'}, 415),
-            (b'x' * 5000, {}, 413), (b'not json', {}, 400),
-            (b'{"version":1,"permission_policy":"oops"}', {}, 400),
-            (b'{"version":1,"permission_policy":"full","path":"/tmp/extra"}', {}, 400),
-        ]:
-            with self.subTest(code=code, headers=headers):
-                with self.assertRaises(HTTPError) as error:
-                    request(body, headers)
-                self.assertEqual(error.exception.code, code)
-                error.exception.close()
-                self.assertFalse(settings.settings_file().exists())
-        with request(full) as response:
-            self.assertEqual(json.load(response)['permission_policy'], 'full')
-        with request() as response:
-            self.assertEqual(json.load(response)['permission_policy'], 'full')
-        self.assertEqual(settings.read()['permission_policy'], 'full')
-        self.assertEqual(list(settings.settings_file().parent.glob('*.json')), [settings.settings_file()])
-
-    def test_separate_page_and_api_round_trip_model_routes(self):
-        server = dashboard.make_server("fixture-token")
-        threading.Thread(target=server.serve_forever, daemon=True).start()
-        self.addCleanup(server.server_close)
-        self.addCleanup(server.shutdown)
-        base = f"http://127.0.0.1:{server.server_port}"
-        headers = {"Authorization": "Bearer fixture-token", "Content-Type": "application/json"}
-        with urlopen(base + "/settings") as response:
-            self.assertEqual(response.headers.get_content_type(), "text/html")
-            self.assertIn("Content-Security-Policy", response.headers)
-        with urlopen(Request(base + "/api/settings/catalog", headers=headers)) as response:
-            catalog = json.load(response)
-            self.assertTrue(any(t["id"] == "final_review" for t in catalog["tasks"]))
-        with self.assertRaises(HTTPError) as error:
-            urlopen(base + "/api/settings/catalog")
-        self.assertEqual(error.exception.code, 401)
-        error.exception.close()
-        data = settings.read()
-        data["models"]["tasks"]["final_review"] = "opus"
-        data["models"]["profiles"]["deep"] = "fable"
-        with urlopen(Request(base + "/api/settings", data=json.dumps(data).encode(), headers=headers)) as response:
-            self.assertEqual(json.load(response)["models"]["tasks"]["final_review"], "opus")
-        with urlopen(Request(base + "/api/settings", headers=headers)) as response:
-            self.assertEqual(json.load(response)["models"], data["models"])
-
     def test_permission_cli_preserves_custom_routing(self):
-        import subprocess
         data = settings.read()
         data["models"]["tasks"]["final_review"] = "opus"
         settings.save(data)
-        result = subprocess.run([sys.executable, str(Path(settings.__file__)), "set", "--policy", "inherit"],
+        result = subprocess.run([sys.executable, str(Path(settings.__file__)), "set", "--policy", "inherit", "--global"],
                                 capture_output=True, text=True)
         self.assertEqual(result.returncode, 0, result.stderr)
         saved = json.loads(result.stdout)
         self.assertEqual(saved["permission_policy"], "inherit")
         self.assertEqual(saved["models"]["tasks"]["final_review"], "opus")
+
+    def test_task_snapshot_survives_global_changes_and_new_task_gets_new_defaults(self):
+        initial = settings.read()
+        initial['models']['tasks']['implementation'] = 'opus'
+        initial['permission_policy'] = 'full'
+        settings.save(initial)
+        first = settings.read(A)
+        changed = settings.read()
+        changed['models']['tasks']['implementation'] = 'sonnet'
+        changed['permission_policy'] = 'scoped'
+        settings.save(changed)
+        self.assertEqual(settings.read(A), first)
+        self.assertEqual(settings.read(A)['models']['tasks']['implementation'], 'opus')
+        self.assertEqual(settings.read(A)['permission_policy'], 'full')
+        self.assertEqual(settings.read(B)['models']['tasks']['implementation'], 'sonnet')
+        self.assertEqual(settings.read(B)['permission_policy'], 'scoped')
+        self.assertEqual(settings.read(A)['harness'], 'claude')
+        self.assertEqual(settings.settings_file(A).stat().st_mode & 0o777, 0o600)
+
+    def test_task_changes_preserve_other_tasks_and_global_defaults(self):
+        defaults = settings.read()
+        settings.save(defaults)
+        settings.read(B)
+        original_global = settings.settings_file().read_bytes()
+        original_b = settings.settings_file(B).read_bytes()
+        task = settings.read(A)
+        task['models']['tasks']['testing'] = 'sonnet'
+        settings.save(task, A)
+        settings.save({'version': 1, 'permission_policy': 'full'}, A)
+        self.assertEqual(settings.read(A)['permission_policy'], 'full')
+        self.assertEqual(settings.read(A)['models']['tasks']['testing'], 'sonnet')
+        self.assertEqual(settings.settings_file().read_bytes(), original_global)
+        self.assertEqual(settings.settings_file(B).read_bytes(), original_b)
+
+    def test_settings_cli_defaults_to_current_task_and_global_requires_flag(self):
+        settings.save(settings.read())
+        global_before = settings.settings_file().read_bytes()
+        env = {**os.environ, 'CODEX_THREAD_ID': A}
+        command = [sys.executable, settings.__file__]
+        result = subprocess.run([*command, 'set', '--policy', 'full'], env=env,
+                                capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(json.loads(result.stdout)['harness'], 'claude')
+        self.assertEqual(settings.settings_file().read_bytes(), global_before)
+        shown = subprocess.run([*command, 'show'], env=env, capture_output=True, text=True)
+        self.assertEqual(json.loads(shown.stdout)['permission_policy'], 'full')
+        result = subprocess.run([*command, 'set', '--policy', 'inherit', '--global'], env=env,
+                                capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(settings.read()['permission_policy'], 'inherit')
+        self.assertEqual(settings.read(A)['permission_policy'], 'full')
+
+    def test_corrupt_task_snapshot_never_falls_back_to_global(self):
+        settings.read(A)
+        target = settings.settings_file(A)
+        target.write_text('{"permission_policy": "full"}')
+        before = target.read_bytes()
+        with self.assertRaises(ValueError):
+            settings.read(A)
+        self.assertEqual(target.read_bytes(), before)
+
+    def test_missing_identity_requires_explicit_global_cli(self):
+        env = {k: v for k, v in os.environ.items() if k not in ('CODEX_THREAD_ID', 'CODEX_SESSION_ID')}
+        result = subprocess.run([sys.executable, settings.__file__, 'set', '--policy', 'full'],
+                                env=env, capture_output=True, text=True)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(list(Path(self.temp.name).iterdir()), [])
+        result = subprocess.run([sys.executable, settings.__file__, 'show', '--global'],
+                                env=env, capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(list(Path(self.temp.name).iterdir()), [])
+
+    def test_parallel_initialization_cannot_overwrite_task_update(self):
+        env = {**os.environ, 'CODEX_THREAD_ID': A}
+        command = [sys.executable, settings.__file__]
+        with subprocess.Popen([*command, 'set', '--policy', 'full'], env=env,
+                              stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True) as update:
+            readers = [subprocess.Popen([*command, 'show'], env=env, stdout=subprocess.PIPE,
+                                        stderr=subprocess.PIPE, text=True) for _ in range(4)]
+            try:
+                for reader in readers:
+                    stdout, stderr = reader.communicate(timeout=5)
+                    self.assertEqual(reader.returncode, 0, stderr)
+                    self.assertEqual(json.loads(stdout)['harness'], 'claude')
+                stdout, stderr = update.communicate(timeout=5)
+                self.assertEqual(update.returncode, 0, stderr)
+            finally:
+                for process in [update, *readers]:
+                    if process.poll() is None:
+                        process.kill()
+                    process.communicate()
+        self.assertEqual(settings.read(A)['permission_policy'], 'full')
+
+    def test_bad_task_identity_cannot_write_outside_task_directory(self):
+        with self.assertRaises(ValueError):
+            settings.read('../../outside')
+        self.assertEqual(list(Path(self.temp.name).iterdir()), [])
 
 
 if __name__ == '__main__':

@@ -1,102 +1,146 @@
 # Delegation workflow
 
-Codex owns task selection, acceptance, review and communication. Delegate substantial bounded work to the selected harness; small tasks may cost less natively. Honor explicitly requested backends.
+Follow this workflow to prepare worker assignments, launch or continue
+workers, wait for completion, and accept their results.
 
-Claude Code is the default backend. For explicitly requested OpenCode with OpenRouter, Zen, LM Studio or vLLM work, use [the OpenCode adapter](opencode.md) instead of the Claude selection/launch sections; the common task, waiting and acceptance rules still apply. `TAFWID_SKILL_DIR` is the directory of the delegate entry point, one level above this reference. Before dispatch, run `python3 "${TAFWID_SKILL_DIR}/scripts/session.py" status` with the current process task identity. An explicit one-shot request permits `--once`; automatic delegation requires an enabled switch.
+For Claude-specific tools and permissions, see
+[the Claude Code guide](claude-code.md).
 
-## Workflow and instruction handoff
+## Prepare the task
 
-Preserve the user's workflow; no plugin is required. Select worker-relevant skill/role files with `--instructions-file`; do not also paste or reload them. The launcher resolves equivalent Claude skills and deduplicates supplied/resumed instructions. Manifests stay on disk; [delivery details](instructions.md) are for troubleshooting. Claude's hooks remain independent. Only for an active Superpowers workflow, read [its optional adapter](superpowers.md) and preserve its review/verification stages.
+Write a brief containing:
 
-## Prepare a bounded task
+- The goal and what a successful result must satisfy.
+- The workspace and files the worker may change.
+- Relevant context, project rules and constraints.
+- The checks the worker should run and the results it should report.
 
-- Inspect only enough context to define the deliverable. Let Claude do the detailed investigation.
-- Brief: objective/acceptance criteria; workspace/owned files; instruction paths/user constraints; authorized actions; check owners/commands; expected report. Assign focused checks to the worker, acceptance to Codex, and any final broad suite to one owner after review corrections. Claude does not inherit this chat.
-- Include applicable user, parent, and repository `AGENTS.md`/`CLAUDE.md` paths. Claude loads its normal configuration, but does not inherit Codex's chat, plugin installation, or tools. Forward exact browser/environment preferences and known capability gaps in the brief. Use trusted workspaces: normal Claude startup hooks run.
-- Record existing changes before editing. Use a separate worktree when workers or people could touch the same files. A worktree starts from a commit; explicitly provide relevant uncommitted context. Serial work in the current checkout is suitable when ownership is clear.
-- Keep briefs and run artifacts outside the repository in a private temporary directory or local cache. Every invocation needs a new output directory.
+Workers do not inherit this chat. Include the information they need
+to complete their assignment.
 
-## Select a Claude worker
+A task can enable Claude and several named GPT accounts. Name one enabled connection for every worker assignment. Use `--connection claude` or `--connection gpt:NAME` when launching. If the user's allocation is unclear, ask which connection should do each assignment. Never reroute a failed assignment. Use separate worktrees when workers could edit the same files.
 
-Codex chooses the task type and role for each worker. Read [model selection](model-selection.md) and inspect `python3 "${TAFWID_SKILL_DIR}/scripts/settings.py" show` to learn the current user choices. Prefer `--task-type` so the launcher applies the saved model for that kind of work. Pass `--role` and a brief `--selection-reason`, and announce the resolved model before dispatch. Role labels describe the assignment; they do not select a named Claude plugin agent. Supply a role template when the selected workflow requires one.
+Assign each check to one owner. Keep briefs and run records outside Git.
 
-The Settings page has editable Fast / Standard / Deep defaults and per-task model overrides. Initial defaults are Sonnet / Opus / Fable; never treat these names as fixed once the user changes settings. Task overrides take precedence over their tier default. Use `--profile` for a deliberate tier choice or escalation, and `--model` for an explicitly requested alias or exact model ID. Explain intentional departures from the saved task route; do not silently discard the user's override. Keep Codex as controller and use fresh Claude sessions for independent reviews.
+## Configure the worker
 
-## Launch Claude
-
-Use the bundled [launcher](../scripts/delegate.py) (Python 3, macOS/Linux). For example, after writing the brief:
+Read this chat’s saved settings:
 
 ```bash
-python3 "${TAFWID_SKILL_DIR}/scripts/delegate.py" \
-  --once \
-  --cwd /absolute/path/to/worktree \
+python3 scripts/settings.py show
+```
+
+Claude assignments can use the saved task-type or profile model routes below. GPT assignments use the selected account's Codex CLI default unless the user requests a specific GPT model with `--model`.
+
+- `--task-type`: use the saved model route for this kind of task.
+- `--profile`: choose a saved tier, such as Fast, Standard or Deep.
+- `--model`: use a model explicitly requested by the user.
+
+Honor the user’s saved choices and tell them which model you will launch.
+Use `--effort` if the assignment requires a different reasoning effort
+and the model supports it.
+
+Use `--role` to label the worker’s assignment and `--selection-reason`
+to record why you selected its model. Describe the actual responsibilities in the task brief.
+
+Use the saved permission policy. Override it with `--permissions` only
+when the user authorizes a different policy for this run. Do not increase permissions automatically after a denial.
+
+## Launch a worker
+
+Check this chat’s delegation setting:
+
+```bash
+python3 scripts/session.py status
+```
+
+Automatic delegation requires it to be enabled. If the user explicitly
+requests a one-time assignment while delegation is off, add `--once`.
+This does not change the chat’s delegation setting.
+
+Launch the worker with the brief and the options selected above:
+
+```bash
+python3 scripts/delegate.py \
+  --cwd /absolute/path/to/workspace \
   --prompt-file /absolute/path/to/brief.md \
   --output-dir /absolute/path/to/run-1 \
-  --title "Implement the requested feature" \
-  --task-type implementation --role implementer \
-  --selection-reason 'Implementation from a prose specification' \
-  --mode edit \
-  --allow-tool 'Bash(python3 -m unittest *)'
+  --task-type implementation \
+  --mode edit
 ```
 
-Default `--mode read` exposes built-in file inspection, Skill, and ToolSearch. `edit` adds Edit/Write. Add scoped `--allow-tool 'Bash(command ...)'` rules only for authorized shell actions in edit mode; under Scoped, Bash is unavailable otherwise. Exact MCP tool names can also be allowed, for example `--allow-tool mcp__server__tool`, using names actually discovered in Claude. Existing Claude/plugin permissions remain in effect; read mode is not a sandbox for plugin hooks or external tools. With the default Scoped policy, the launcher does not broadly preapprove shell or MCP tools. The permission settings below can enable Claude’s full-access mode; parent execution and organization restrictions still apply.
+The three path arguments are required:
 
-The example is an explicitly requested one-shot task. Omit `--once` for automatic delegation while this task's switch is on; the launcher checks state before starting Claude. A resumed worker must belong to the same Codex task and workspace.
+- `--cwd`: an existing workspace where the worker will operate.
+- `--prompt-file`: the file containing its assignment.
+- `--output-dir`: a new directory for this run’s reports and records.
 
-Task types and profiles resolve saved settings to explicit Claude model flags; `--model` selects an alias or exact model ID instead. The three selectors are mutually exclusive. `--effort` can override the profile's effort where supported. Legacy calls with no selector preserve Claude's default, but skill-driven dispatch must select explicitly. A resume with no task/model/profile selector preserves its recorded model and effort even after settings change; pass a selector explicitly to reroute it. The launcher checks subscription login and rejects API/provider environment overrides without printing their values. Do not use `--bare`, extract OAuth credentials, or fall back to API billing. Existing account-level extra usage settings can still affect billing; this launcher does not change them or guarantee a spending cap.
+Use `--mode read` for inspection or `--mode edit` when the worker needs
+to change files. Follow the harness guide for tool permissions.
 
-Keep the asynchronous process handle and output directory. Default timeout is 900 seconds; adjust with `--timeout`. Do not duplicate quiet runs.
+Keep the process handle and output directory for waiting and follow-up
+work. Do not launch another worker just because the first is quiet.
 
-## Wait for workers
+The default timeout is 900 seconds. Use `--timeout` to change it.
 
-After dispatch, do independent useful work or wait for a result. For one run with a retained process handle, use the host's completion wait; with `exec_command` / `write_stdin`, use a 30-second initial yield when nothing else is ready, then 60-second waits (`yield_time_ms: 60000`). A short initial yield is useful to obtain a handle for independent work, not a reason to keep polling every second. Respect any shorter host limit. Do not replace waiting with repeated log reads, process inspection, or dashboard checks unless there is a concrete diagnostic question.
+## Continue a worker
 
-For several runs or recovery after compaction, read [completion waiting](monitoring.md) and use `scripts/wait.py` with the exact output directories. It waits locally for any selected run to finish or need attention, returning compact evidence. Wait at most 60 seconds per host call; a quiet wait is not a worker failure. Keep the user informed at the required cadence without reopening unchanged logs. The dashboard's heartbeat runs independently and needs no GPT supervision.
-
-On completion, inspect the reported outcome and relevant evidence, then perform the normal acceptance review below. On failure or `native_required`, handle that outcome immediately. Neither waiting nor a heartbeat proves tests are making progress. This adapter does not provide an unsolicited wake-up after a Codex turn ends; keep the task active while waiting. Never assume a notification subscription exists merely because a worker was launched.
-
-## Worker permission settings
-
-The user controls the default for future launches and resumes through **Settings → Worker permissions** in the dashboard, or the bundled CLI:
+Resume an existing worker when it needs to make corrections or continue
+the same assignment. Write a follow-up brief explaining the remaining work.
 
 ```bash
-python3 "${TAFWID_SKILL_DIR}/scripts/settings.py" show
-# Only change the policy when the user requests it:
-python3 "${TAFWID_SKILL_DIR}/scripts/settings.py" set --policy inherit
+python3 scripts/delegate.py \
+  --resume-from /absolute/path/to/run-1 \
+  --cwd /absolute/path/to/workspace \
+  --prompt-file /absolute/path/to/follow-up.md \
+  --output-dir /absolute/path/to/run-2 \
+  --mode edit
 ```
 
-- `scoped` (default): Claude `dontAsk` mode with the task's explicit allowances.
-- `full`: Claude `bypassPermissions` mode; edit workers get Bash without needing scoped command allowances. This removes Claude's normal approval prompts for available tools, including connected MCP tools, subject to host and organization restrictions.
-- `inherit` (**Follow Codex**): recheck the launch process's `CODEX_PERMISSION_PROFILE` every invocation. The currently supported full-access signal is exactly `:danger-full-access`. Anything else, including an absent signal, uses Scoped. Never infer access from old logs, the dashboard's environment, a copied task ID, or a worker brief. This is a conservative adapter for an observed Codex environment signal, not a stable public permissions API.
+- `--resume-from`: the previous run’s output directory.
+- `--cwd`: the same workspace the worker used before.
+- `--prompt-file`: the new instructions.
+- `--output-dir`: a new directory for this follow-up run’s records.
 
-Settings are private and global to this Codex home at `$CODEX_HOME/state/tafwid/settings.json`; they do not toggle delegation or modify running workers. Resuming a session re-evaluates the current policy instead of carrying forward its previous permission level. `--permissions scoped|full|inherit` is a per-run override; use it only for the user's explicit requested override. Never change the policy automatically to recover from a denial. Invalid saved settings stop a launch with an error.
+Pass the mode and tool allowances the worker still needs. The current
+saved permission policy applies.
 
-Full access preserves task scope, instructions, review/handoffs, subscription billing and host/managed restrictions. Read mode keeps inspection/skill/discovery tools; full-access edit adds Bash. Read mode does not sandbox plugins/MCP. Inspect `permissions` in request/summary/registry metadata; older runs show Not recorded.
+Claude keeps its previous model and reasoning effort unless you select different ones. GPT keeps its requested model or uses the selected account's CLI default.
 
-## Workers dashboard
+Start a fresh worker when an independent review is required.
 
-Give every launch a short, descriptive `--title`. The launcher automatically records each invocation in a local registry, including its task, role, selected model, heartbeat, outcome, and artifact location. The dashboard groups runs of the same Claude session within a conversation as one worker, with separate attempts and recorded exchanges in its history. Recording works even when the dashboard is closed.
+## Wait
 
-For viewing workers or changing preferences, use `$tafwid:dashboard` or `$tafwid:settings`.
+Keep the `run_id` from the `started` event.
 
-## Review and continue
+Before ending the turn, run `python3 scripts/completion_hook.py arm --run-id RUN_ID`
+for each pending worker. If it reports `unavailable`, use `wait.py` instead.
 
-Read compact JSON; open `report.md`, `result.json` or logs as needed. Checks: command/cwd/environment, result, tested revision+dirty-diff reference, later edits, unresolved failures/next owner. Link private evidence in follow-ups; missing evidence is unknown, not a pass.
+If Tafwid confirms its completion hook is active for this chat, do any
+independent work that is useful. When you need a worker's result, give a
+short waiting update and end the turn. The hook waits and resumes you
+when a worker finishes or needs attention. Do not start a monitoring
+agent or poll the worker.
 
-Reuse checks only when relevant code/environment still match; HEAD alone misses dirty changes. Inspect the diff and perform acceptance review. Relevant edits or dependency/environment changes require reassessing checks. Preserve required CI/workflow gates and requested independent verification. For optional retries, state the change, diagnostic hypothesis or transient evidence; otherwise report the blocker. `completed` is not acceptance.
+If the hook is unavailable, use `wait.py` with the pending run IDs.
+When it returns `waiting`, repeat with only `pending_run_ids`.
 
-Check `model_selection` in the request/summary and `models_used` in the summary. The latter lists usage metadata, which can include helper models; it does not identify spawned agents or prove which model performed the main work. When verifying routing, inspect assistant model fields only in the exact worker session's transcript. Record intended and observed models separately; investigate unexpected substitutions before claiming a routing test passed.
+## Accept the result
 
-When status is `native_required` (exit code 3), read `handoff_file` and follow [the native handoff procedure](native-handoff.md). Codex performs the authorized unavailable step with its own tools, records the evidence, and resumes the same Claude worker with the result. This does not turn delegation off. Do not mark the whole task complete while a handoff is pending. `blocked` means the worker reported another unresolved blocker; `needs_review` covers permission denials or invalid structured reports.
+Read the worker’s compact report and check results. Confirm that the
+work meets the task’s requirements; `completed` alone does not prove this.
 
-For corrections, write a short follow-up brief and invoke the launcher with the same workspace and `--resume-from /absolute/path/to/run-1`, using a new `--output-dir`. Reapply the task's mode and, for Scoped, shell allowances; permissions are re-evaluated from current settings. Never use global `--continue`, which can select another conversation.
+Reuse passing tests and reviews that apply to the final code. You do not
+need to repeat them yourself. Run or delegate only missing checks, failed
+checks, or checks affected by later changes.
 
-On `needs_review`, inspect the recorded permission denials. On errors, quota limits, or authentication failures, report the blocker; do not repeatedly retry or switch billing. `auth status` can report a stored login while a real request fails; an expired session needs `claude auth login` in the user's terminal. After timeouts or interruption, inspect partial changes before deciding whether to resume or start again.
+Inspect relevant code or diffs when the evidence is insufficient or a finding needs investigation. Avoid adding another review when an existing review already satisfies the task’s requirements.
 
-Return the outcome, verification, and remaining limitations to the user. Keep worker transcripts out of Codex context; delegate whole tasks and review concise evidence to preserve the usage savings.
+Send needed corrections to the existing worker. After corrections, reuse evidence that remains valid and verify the affected behavior.
 
-## Maintenance
+For `needs_review`, determine what caused the warning and whether it
+prevented completion. After a timeout or interruption, inspect partial
+work before continuing.
 
-Run `python3 -m unittest discover -s tests -v` from this skill directory for offline launcher checks, and `node --test tests/dashboard-view.test.mjs` for dashboard filtering and sorting. A live read/edit/resume exercise in a temporary workspace is needed to verify the current Claude login and CLI integration. Model/effort flags and profile routing were verified on Claude Code 2.1.273; check `claude --help` on older installations.
-
-References: [programmatic CLI](https://code.claude.com/docs/en/headless), [subscription usage notice](https://support.claude.com/en/articles/15036540-use-the-claude-agent-sdk-with-your-claude-plan). Billing rules may change; recheck when diagnosing billing.
+Tell the user what was completed, verified, and remains unresolved.
+Keep long worker transcripts out of your context.

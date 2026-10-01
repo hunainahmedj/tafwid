@@ -1,0 +1,4 @@
+interface:
+  display_name: "Tafwid Account"
+  short_description: "Set up and check GPT worker accounts"
+  default_prompt: "Use $tafwid:account to set up a named GPT worker account."

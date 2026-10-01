@@ -9,4 +9,12 @@ dist/
 .artifacts/
 .playwright-cli/
 .claude/
+.remember/
 .venv/
+
+.worktrees/
+
+# Local office prototype
+node_modules/
+test-results/
+playwright-report/

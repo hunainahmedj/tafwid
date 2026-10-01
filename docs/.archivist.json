@@ -1,0 +1,14 @@
+{
+  "project": "Tafwid",
+  "layout": "embedded",
+  "repos": [
+    {
+      "path": ".",
+      "role": "Codex delegation plugin, runtime, and local dashboard prototype"
+    }
+  ],
+  "tracker": {
+    "type": "self",
+    "prefix": "TAF"
+  }
+}
