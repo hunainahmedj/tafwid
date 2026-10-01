@@ -1,15 +1,14 @@
 #!/usr/bin/env python3
-"""Arm a one-time Codex Stop hook to wait for this chat's Tafwid workers.
+"""Arm a one-time Stop hook to wait for this chat's Tafwid workers.
 
 CLI: completion_hook.py {status,arm,hook,disarm} [--run-id UUID ...].
 `status` checks that this installed plugin's Stop hook is enabled and trusted.
 `arm` records selected runs for the next Stop event; it never launches workers.
-The hook waits locally and resumes Codex only for completion or attention.
+The hook waits locally and resumes the coordinator only for completion or attention.
 """
 
 import argparse
 import json
-import os
 from pathlib import Path
 import select
 import subprocess
@@ -17,6 +16,7 @@ import sys
 import time
 import uuid
 
+import host
 import paths
 import run_state
 import session
@@ -53,7 +53,17 @@ def _send(process, value):
 
 
 def hook_status():
-    """Return whether this installed plugin's Stop hook is enabled and trusted."""
+    """Return whether this chat's completion hooks can resume the coordinator."""
+    if host.detect() == "claude":
+        if host.seen(host.task_id()):
+            return {"active": True}
+        return {"active": False, "reason": "Tafwid hooks have not run in this Claude Code session; "
+                "check that the plugin is enabled and hooks are not disabled"}
+    return _codex_hook_status()
+
+
+def _codex_hook_status():
+    """Return whether this installed plugin's Stop hook is enabled and trusted in Codex."""
     process = subprocess.Popen(["codex", "app-server", "--stdio"],
                                stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                                stderr=subprocess.DEVNULL, text=True, bufsize=1)
@@ -99,7 +109,7 @@ def arm(run_ids):
     """Validate worker ownership and hook readiness before arming a Stop wait."""
     task_id = session.current_task_id()
     if not task_id:
-        raise ValueError("No Codex chat identity")
+        raise ValueError("No chat identity from the coordinator")
     if not run_ids:
         raise ValueError("At least one --run-id is required")
     state = hook_status()
@@ -119,13 +129,15 @@ def arm(run_ids):
 
 
 def disarm(event):
-    """Clear this chat's pending handoff after a user interruption."""
+    """Clear this chat's pending handoff; on Claude Code, record that hooks run."""
     task_id = event.get("session_id")
     try:
         task_id = str(uuid.UUID(task_id))
     except (TypeError, ValueError):
         return
     arm_path(task_id).unlink(missing_ok=True)
+    if host.for_hook() == "claude":
+        host.record_seen(task_id, event.get("permission_mode"))
 
 
 def on_stop(event):
@@ -145,11 +157,10 @@ def on_stop(event):
             or time.time() - state.get("armed_at", 0) > ARM_MAX_AGE_SECONDS):
         marker.unlink(missing_ok=True)
         return {}
-    os.environ["CODEX_THREAD_ID"] = task_id
     deadline = time.monotonic() + HOOK_WAIT_SECONDS
     pending = state["run_ids"]
     while pending:
-        result = wait.wait_for_runs(run_ids=pending,
+        result = wait.wait_for_runs(run_ids=pending, task_id=task_id,
                                     timeout=min(wait.MAX_WAIT_SECONDS, max(0, deadline - time.monotonic())))
         if result["ready"] or result["errors"]:
             marker.unlink(missing_ok=True)
@@ -168,7 +179,7 @@ def on_stop(event):
 
 
 def main():
-    """Dispatch the CLI action and print compact JSON for Codex."""
+    """Dispatch the CLI action and print compact JSON for the coordinator."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("action", choices=("status", "arm", "hook", "disarm"))
     parser.add_argument("--run-id", action="append", default=[],

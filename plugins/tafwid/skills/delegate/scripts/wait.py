@@ -44,19 +44,20 @@ def completion(record):
     }
 
 
-def wait_for_runs(run_dirs=(), timeout=MAX_WAIT_SECONDS, *, run_ids=(), watch_keys=None):
+def wait_for_runs(run_dirs=(), timeout=MAX_WAIT_SECONDS, *, run_ids=(), watch_keys=None, task_id=None):
     """Wait for any selected run to finish, without launching or stopping workers.
 
     Prefer run_ids for direct registry lookup. Legacy run_dirs require discovery
     by output directory. Selectors cannot be mixed. A foreign run requires its
     observation key in watch_keys, mapped by run ID. Keys grant no worker control.
     Return compact evidence and identifiers still pending, without the keys.
+    Hook processes pass task_id because they carry no task environment.
     """
     if not math.isfinite(timeout) or not 0 <= timeout <= MAX_WAIT_SECONDS:
         raise ValueError(f"--timeout must be between 0 and {MAX_WAIT_SECONDS} seconds")
-    task_id = session.current_task_id()
+    task_id = task_id or session.current_task_id()
     if not task_id:
-        raise ValueError("No Codex task identity; use the original launcher process handle")
+        raise ValueError("No task identity from the coordinator; use the original launcher process handle")
     if run_dirs and run_ids:
         raise ValueError("Use --run-id or --run-dir, not both")
     by_id = bool(run_ids)
