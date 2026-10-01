@@ -1,8 +1,10 @@
 """Coordinator detection must be explicit and never guess between hosts."""
+import json
 import os
 from pathlib import Path
 import sys
 import tempfile
+import time
 import unittest
 from unittest.mock import patch
 
@@ -80,6 +82,17 @@ class HookSeenTests(unittest.TestCase):
         host.seen_path(A).write_text('{"version": 1, "thread_id": "other"}')
         self.assertIsNone(host.seen(A))
         host.seen_path(A).write_text("not json")
+        self.assertIsNone(host.seen(A))
+
+    def test_old_marker_no_longer_proves_hooks_or_full_access(self):
+        host.record_seen(A, "bypassPermissions")
+        marker = json.loads(host.seen_path(A).read_text())
+        marker["seen_at"] = time.time() - host.MAX_SEEN_AGE_SECONDS - 1
+        host.seen_path(A).write_text(json.dumps(marker))
+        self.assertIsNone(host.seen(A))
+        self.assertFalse(host.full_access({"CLAUDE_CODE_SESSION_ID": A}))
+        marker["seen_at"] = "yesterday"
+        host.seen_path(A).write_text(json.dumps(marker))
         self.assertIsNone(host.seen(A))
 
     def test_full_access_signal_per_host(self):

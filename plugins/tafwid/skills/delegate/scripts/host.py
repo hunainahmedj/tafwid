@@ -16,6 +16,8 @@ NAMES = {"codex": "Codex", "claude": "Claude Code"}
 SIGNALS = {"codex": ("CODEX_THREAD_ID", "CODEX_SESSION_ID"),
            "claude": ("CLAUDE_CODE_SESSION_ID",)}
 IDENTITY_VARIABLES = SIGNALS["codex"] + SIGNALS["claude"] + ("TAFWID_HOST",)
+# A marker older than this no longer proves that hooks run or what mode the session is in.
+MAX_SEEN_AGE_SECONDS = 24 * 60 * 60
 
 
 def _signal(name, env):
@@ -90,7 +92,7 @@ def record_seen(task_id, permission_mode):
 
 
 def seen(task_id):
-    """Return this task's hooks-seen marker, or None when missing or invalid."""
+    """Return this task's recent hooks-seen marker, or None when missing, old or invalid."""
     if not task_id:
         return None
     try:
@@ -98,6 +100,9 @@ def seen(task_id):
     except (OSError, ValueError):
         return None
     if not isinstance(data, dict) or data.get("version") != 1 or data.get("thread_id") != task_id:
+        return None
+    seen_at = data.get("seen_at")
+    if type(seen_at) not in (int, float) or time.time() - seen_at > MAX_SEEN_AGE_SECONDS:
         return None
     return data
 

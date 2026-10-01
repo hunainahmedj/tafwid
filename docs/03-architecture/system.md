@@ -51,7 +51,9 @@ hooks are unavailable, `wait.py` remains the fallback.
 
 On Claude Code the hooks-seen marker also records the session's permission mode,
 which is how the `inherit` permission policy learns that the coordinator has full
-access. Codex reports that through its permission profile.
+access. Codex reports that through its permission profile. A marker older than
+24 hours proves neither. Hook actions always exit successfully, so a state or
+input error can never reject a prompt or keep the coordinator from stopping.
 
 Task switches, settings and run records live in a host-neutral state directory,
 `~/.tafwid/state` (`TAFWID_HOME` overrides `~/.tafwid`), shared by both

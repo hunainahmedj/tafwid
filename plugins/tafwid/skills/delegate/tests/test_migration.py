@@ -102,6 +102,52 @@ class MigrationTests(unittest.TestCase):
         self.assertEqual(self.snapshot(self.legacy), before)
         self.assertFalse(self.neutral.exists())
 
+    def test_failure_while_rewriting_accounts_restores_the_source(self):
+        self.legacy_install()
+        before = self.snapshot(self.legacy)
+        with patch.object(migration.paths, "atomic_json", side_effect=OSError("disk full")):
+            with self.assertRaisesRegex(ValueError, "restored"):
+                migration.migrate()
+        self.assertEqual(self.snapshot(self.legacy), before)
+        self.assertFalse(self.neutral.exists())
+
+    def test_malformed_registry_rows_are_refused_before_anything_moves(self):
+        self.legacy_install()
+        registry = self.legacy / "accounts" / "registry.json"
+        for content in ('{"version": 1, "accounts": ["row"]}', '{"version": 1, "accounts": [{"name": "x"}]}', "[]"):
+            registry.write_text(content)
+            with self.assertRaisesRegex(ValueError, "registry"):
+                migration.migrate()
+            self.assertTrue(self.legacy.exists())
+            self.assertFalse(self.neutral.exists())
+
+    def test_account_home_spelled_differently_is_still_rewritten(self):
+        self.legacy_install()
+        registry = self.legacy / "accounts" / "registry.json"
+        data = json.loads(registry.read_text())
+        data["accounts"][0]["home"] = self.account["home"].replace("/tafwid/state/", "/tafwid/./state/")
+        registry.write_text(json.dumps(data))
+        self.assertEqual(migration.migrate()["event"], "migrated")
+        row = accounts.get("work")
+        self.assertEqual(accounts.validate_home(row), self.neutral / "accounts" / "homes" / self.account["id"])
+
+    def test_failed_cross_filesystem_copy_leaves_no_partial_destination(self):
+        self.legacy_install()
+        before = self.snapshot(self.legacy)
+
+        def partial(source, destination, **kwargs):
+            Path(destination).mkdir(parents=True)
+            (Path(destination) / "half").write_text("partial")
+            raise OSError("copy interrupted")
+
+        with patch.object(migration.os, "rename", side_effect=OSError(errno.EXDEV, "cross-device")), \
+                patch.object(migration.shutil, "copytree", side_effect=partial):
+            with self.assertRaises(OSError):
+                migration.migrate()
+        self.assertFalse(self.neutral.exists())
+        self.assertEqual(self.snapshot(self.legacy), before)
+        self.assertEqual(paths.state_root(), self.legacy)
+
     def test_redirected_source_is_refused(self):
         real = self.root / "elsewhere"
         real.mkdir()

@@ -153,6 +153,30 @@ class ClaudeHookTests(unittest.TestCase):
             self.assertEqual(result["decision"], "block")
             self.assertIn(worker.id, result["reason"])
 
+    def test_hook_failures_never_block_a_prompt_or_stop(self):
+        (self.root / "tafwid" / "state").mkdir(parents=True)
+        (self.root / "state" / "tafwid").mkdir(parents=True)  # conflicting state roots
+        script = str(Path(completion_hook.__file__))
+        for action in ("disarm", "hook"):
+            with self.subTest(action=action):
+                run = subprocess.run([sys.executable, script, action], text=True, capture_output=True,
+                                     input=json.dumps(self.prompt_event()), timeout=10,
+                                     env={**os.environ, "CLAUDE_PLUGIN_ROOT": str(PLUGIN)})
+                self.assertEqual(run.returncode, 0, run.stderr)
+                self.assertEqual(json.loads(run.stdout), {})
+                self.assertIn("state directories", run.stderr)
+        run = subprocess.run([sys.executable, script, "hook"], text=True, capture_output=True,
+                             input="not json", timeout=10)
+        self.assertEqual((run.returncode, json.loads(run.stdout)), (0, {}))
+
+    def test_unreadable_wait_marker_is_discarded(self):
+        marker = completion_hook.arm_path(TASK)
+        marker.parent.mkdir(parents=True)
+        for content in ("[]", "{broken"):
+            marker.write_text(content)
+            self.assertEqual(completion_hook.on_stop({"session_id": TASK}), {})
+            self.assertFalse(marker.exists())
+
     def test_packaged_hook_command_runs_with_either_plugin_root_variable(self):
         commands = json.loads((PLUGIN / "hooks" / "hooks.json").read_text())["hooks"]
         command = commands["UserPromptSubmit"][0]["hooks"][0]["command"]

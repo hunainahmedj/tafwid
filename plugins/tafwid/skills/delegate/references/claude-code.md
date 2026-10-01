@@ -34,7 +34,8 @@ The `delegate.py` argument `--permissions` controls Claude’s approval policy:
 A Codex coordinator reports full access through its permission profile. A Claude Code
 coordinator reports it when the session was in bypass-permissions mode at the user's
 last prompt; this needs Tafwid's hooks enabled, and a mode change mid-turn takes
-effect at the next prompt. Without a confirmed signal, `inherit` uses `scoped`.
+effect at the next prompt. The signal lapses 24 hours after the last prompt.
+Without a confirmed signal, `inherit` uses `scoped`.
 
 Full access remains subject to host and organization restrictions.
 

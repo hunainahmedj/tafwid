@@ -152,7 +152,9 @@ def on_stop(event):
         state = json.loads(marker.read_text(encoding="utf-8"))
     except FileNotFoundError:
         return {}
-    if (state.get("version") != 1 or state.get("thread_id") != task_id
+    except ValueError:
+        state = None
+    if (not isinstance(state, dict) or state.get("version") != 1 or state.get("thread_id") != task_id
             or not isinstance(state.get("run_ids"), list)
             or time.time() - state.get("armed_at", 0) > ARM_MAX_AGE_SECONDS):
         marker.unlink(missing_ok=True)
@@ -190,11 +192,16 @@ def main():
             result = hook_status()
         elif args.action == "arm":
             result = arm(args.run_id)
-        elif args.action == "hook":
-            result = on_stop(json.load(sys.stdin))
         else:
-            disarm(json.load(sys.stdin))
-            result = {}
+            # A hook failure must never reject the user's prompt or keep the coordinator from stopping.
+            try:
+                event = json.load(sys.stdin)
+                if not isinstance(event, dict):
+                    raise ValueError("Hook input is not a JSON object")
+                result = on_stop(event) if args.action == "hook" else (disarm(event) or {})
+            except Exception as exc:
+                print(json.dumps({"event": "error", "error": str(exc)}), file=sys.stderr)
+                result = {}
         print(json.dumps(result, ensure_ascii=False))
         return 0
     except (OSError, ValueError, TypeError, KeyError, TimeoutError) as exc:
