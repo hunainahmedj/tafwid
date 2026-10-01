@@ -270,7 +270,8 @@ def run_gpt(args, *, task_id, cwd, prompt, previous, selected):
         (out / "report.md").write_text(report + "\n", encoding="utf-8")
         summary = {"status": status, "backend": "gpt", "connection_id": selected["id"],
                    "connection": selected["selector"], "account_kind": selected["kind"],
-                   "session_id": session_id, "codex_thread_id": task_id, "cwd": str(cwd),
+                   "session_id": session_id, "coordinator_task_id": task_id,
+                   "coordinator_host": host.detect(), "cwd": str(cwd),
                    "mode": args.mode, "requested_model": model, "model_selection": selection,
                    "run_id": tracker.id, "models_used": [], "permissions": permissions,
                    "codex_exit_code": code, "report_file": str(out / "report.md"),
@@ -314,8 +315,8 @@ def run(args):
         previous = json.loads((args.resume_from.expanduser() / "summary.json").read_text())
         if previous.get("backend", "claude") not in ("claude", "gpt"):
             raise ValueError("Only Claude Code workers can be resumed; this run belongs to a retired backend")
-        if "codex_thread_id" not in previous or previous["codex_thread_id"] != task_id:
-            raise ValueError("Resume has missing or different Codex task ownership; start a fresh worker")
+        if not run_state.owner(previous) or run_state.owner(previous) != task_id:
+            raise ValueError("Resume has missing or different task ownership; start a fresh worker")
         if Path(previous["cwd"]).resolve() != cwd:
             raise ValueError("Resume workspace differs from the original run")
         session = str(uuid.UUID(previous["session_id"]))
@@ -418,7 +419,8 @@ def run(args):
         (out / "report.md").write_text(report + "\n", encoding="utf-8")
         summary = {"status": status, "backend": "claude", "connection_id": "claude:default",
                    "session_id": session, "cwd": str(cwd),
-                   "codex_thread_id": task_id, "model_selection": selection, "run_id": tracker.id,
+                   "coordinator_task_id": task_id, "coordinator_host": host.detect(),
+                   "model_selection": selection, "run_id": tracker.id,
                    "models_used": models_used, "permissions": permissions,
                    "subscription_type": subscription, "claude_exit_code": code,
                    "permission_denials": denials, "report_file": str(out / "report.md"),

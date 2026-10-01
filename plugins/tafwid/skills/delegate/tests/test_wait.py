@@ -194,7 +194,7 @@ class WaitTests(unittest.TestCase):
                 self.assertEqual(self.run_wait(run_ids=[tracker.id],
                     watch_keys={tracker.id: tracker.watch_key})["event"], "ready")
             self.assertEqual(tracker.path.read_bytes(), before)
-            self.assertEqual(json.loads(before)["codex_thread_id"], TASK)
+            self.assertEqual(json.loads(before)["coordinator_task_id"], TASK)
             self.assertFalse((paths.state_root() / "tasks").exists())
 
     def test_invalid_monitor_key_arguments_do_not_reveal_supplied_keys(self):

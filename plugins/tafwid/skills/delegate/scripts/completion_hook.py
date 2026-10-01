@@ -109,7 +109,7 @@ def arm(run_ids):
     selected = []
     for run_id in dict.fromkeys(run_ids):
         record = run_state.load_record(run_id)
-        if record.get("codex_thread_id") != task_id:
+        if run_state.owner(record) != task_id:
             raise ValueError("Cannot arm another chat's worker")
         selected.append(run_id)
     paths.atomic_json(arm_path(task_id), {

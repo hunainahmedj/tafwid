@@ -8,6 +8,7 @@ import sys
 import threading
 import time
 import uuid
+import host
 import paths
 
 ACTIVE = {"starting", "running"}
@@ -38,12 +39,17 @@ def load_record(run_id):
     return effective(record)
 
 
+def owner(record):
+    """Return the coordinating task that owns a run, reading older records too."""
+    return record.get("coordinator_task_id") or record.get("codex_thread_id")
+
+
 def list_runs(thread_id=None):
     rows = []
     for path in (state_root() / "workers").glob("*.json"):
         try:
             row = load_record(path.stem)
-            if thread_id and row.get("codex_thread_id") != thread_id:
+            if thread_id and owner(row) != thread_id:
                 continue
             rows.append(row)
         except (OSError, ValueError, TypeError):
@@ -77,7 +83,8 @@ class Tracker:
         now = time.time()
         self.record = {"version": 1, "id": self.id, "title": title, "status": "starting", "backend": backend,
                        "connection_id": connection_id,
-                       "session_id": session_id, "codex_thread_id": task_id,
+                       "session_id": session_id, "coordinator_task_id": task_id,
+                       "coordinator_host": host.detect(),
                        "watch_key_hash": hashlib.sha256(self.watch_key.encode("ascii")).hexdigest(),
                        "model_selection": selection, "models_used": [], "cwd": cwd,
                        "permissions": permissions,

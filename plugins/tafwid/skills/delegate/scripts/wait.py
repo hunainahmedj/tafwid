@@ -111,7 +111,7 @@ def wait_for_runs(run_dirs=(), timeout=MAX_WAIT_SECONDS, *, run_ids=(), watch_ke
                         pending.append({**identity, "status": "awaiting_registration"})
                     continue
                 path = str(Path(record["output_dir"]).resolve())
-                if record.get("codex_thread_id") != task_id and not registry.can_watch(record, watch_keys.get(record["id"])):
+                if registry.owner(record) != task_id and not registry.can_watch(record, watch_keys.get(record["id"])):
                     raise ValueError("Run belongs to another task; its monitoring key is required")
                 if not by_id and path != target:
                     raise ValueError("Run output directory changed")

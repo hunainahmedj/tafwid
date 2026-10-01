@@ -94,6 +94,18 @@ class DelegationTests(unittest.TestCase):
         identity = json.loads((self.cwd / "received.json").read_text())["identity"]
         self.assertEqual(set(identity.values()), {None})
 
+    def test_resume_accepts_a_legacy_ownership_field(self):
+        first = self.run_cli()
+        self.assertEqual(first.returncode, 0, first.stderr)
+        path = self.out / "summary.json"
+        summary = json.loads(path.read_text())
+        summary["codex_thread_id"] = summary.pop("coordinator_task_id")
+        summary.pop("coordinator_host")
+        path.write_text(json.dumps(summary))
+        previous, self.out = self.out, self.root / "resumed-legacy"
+        resumed = self.run_cli("--resume-from", str(previous))
+        self.assertEqual(resumed.returncode, 0, resumed.stderr)
+
     def test_removed_provider_options_fail_before_launch(self):
         for extra in (("--backend", "opencode"), ("--allow-command", "python *"),
                       ("--instructions-file", "/unused/role.md")):
@@ -176,7 +188,8 @@ class DelegationTests(unittest.TestCase):
         self.assertEqual(observed.returncode, 0, observed.stderr)
         data = json.loads(observed.stdout)
         self.assertEqual(data["ready"][0]["status"], "completed", data)
-        self.assertEqual(json.loads(stdout)["codex_thread_id"], self.env["CODEX_THREAD_ID"])
+        self.assertEqual(json.loads(stdout)["coordinator_task_id"], self.env["CODEX_THREAD_ID"])
+        self.assertEqual(json.loads(stdout)["coordinator_host"], "codex")
         record_path = Path(self.env["CODEX_HOME"]) / "tafwid/state/workers" / (started["run_id"] + ".json")
         for content in (stdout, observed.stdout, record_path.read_text(),
                         *(p.read_text() for p in self.out.iterdir() if p.is_file()),
@@ -361,7 +374,7 @@ class DelegationTests(unittest.TestCase):
         self.assertEqual(self.run_cli().returncode, 0)
         previous = self.out
         summary = self.summary()
-        del summary["codex_thread_id"]
+        del summary["coordinator_task_id"]
         (previous / "summary.json").write_text(json.dumps(summary))
         self.out = self.root / "legacy-resume"
         (self.cwd / "received.json").unlink()
@@ -396,7 +409,7 @@ class DelegationTests(unittest.TestCase):
         self.assertEqual(record["title"], "Review fixture")
         self.assertEqual(record["status"], "completed")
         self.assertEqual(record["session_id"], summary["session_id"])
-        self.assertEqual(record["codex_thread_id"], self.env["CODEX_THREAD_ID"])
+        self.assertEqual(record["coordinator_task_id"], self.env["CODEX_THREAD_ID"])
         self.assertEqual(record["model_selection"]["requested_model"], "opus")
         self.assertIn("Done.", record["report_excerpt"])
         self.assertEqual(path.stat().st_mode & 0o777, 0o600)
