@@ -1,0 +1,18 @@
+{
+  "name": "tafwid",
+  "owner": {
+    "name": "hunainahmedj",
+    "url": "https://github.com/hunainahmedj"
+  },
+  "metadata": {
+    "description": "Tafwid: delegate work, keep control."
+  },
+  "plugins": [
+    {
+      "name": "tafwid",
+      "source": "./plugins/tafwid",
+      "description": "Delegate bounded work to Claude Code or named GPT accounts while your coordinator orchestrates and reviews.",
+      "category": "productivity"
+    }
+  ]
+}

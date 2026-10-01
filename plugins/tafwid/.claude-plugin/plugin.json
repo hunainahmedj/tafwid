@@ -1,0 +1,18 @@
+{
+  "name": "tafwid",
+  "version": "0.4.0",
+  "description": "Delegate bounded work to coding agents while your coordinator orchestrates and reviews.",
+  "author": {
+    "name": "hunainahmedj",
+    "url": "https://github.com/hunainahmedj"
+  },
+  "homepage": "https://github.com/hunainahmedj/tafwid",
+  "repository": "https://github.com/hunainahmedj/tafwid",
+  "license": "MIT",
+  "keywords": [
+    "delegation",
+    "coding-agents",
+    "claude-code",
+    "codex"
+  ]
+}
