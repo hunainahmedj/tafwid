@@ -33,7 +33,11 @@ def status():
     Return thread_id, enabled, and connections. Missing identity or state means off;
     malformed saved state raises ValueError instead of being treated as enabled.
     """
-    return connections.describe(current_task_id())
+    result = connections.describe(current_task_id())
+    notice = paths.migration_notice()
+    if notice:
+        result["migration"] = notice
+    return result
 
 
 def set_enabled(enabled, harness=None):

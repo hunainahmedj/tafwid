@@ -178,6 +178,8 @@ Success prints JSON and exits 0; settings errors exit 1; argument errors exit 2.
                 raise ValueError("No Codex task identity; use --global for global defaults")
         result = (read(task_id) if args.action == "show" else
                   update(task_id, policy=args.policy, harness=args.harness))
+        if args.action == "show" and paths.migration_notice():
+            result = {**result, "migration": paths.migration_notice()}
         print(json.dumps(result))
         return 0
     except (OSError, ValueError, TypeError) as exc:

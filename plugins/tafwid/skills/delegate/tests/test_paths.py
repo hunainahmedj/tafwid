@@ -8,6 +8,7 @@ import unittest
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
+import paths
 import session
 import settings
 import run_state as registry
@@ -93,6 +94,39 @@ class StatePathsTests(unittest.TestCase):
                         session.state_path("task")
                 for name in pair:
                     self.assertEqual((home / name / "settings.json").read_text(), name)
+
+    def test_default_home_is_neutral_and_independent_of_codex_home(self):
+        user = self.home / "user"
+        with patch.dict(os.environ, {"HOME": str(user), "CODEX_HOME": str(self.home / "codex")}):
+            os.environ.pop("TAFWID_HOME")
+            self.assertEqual(paths.state_root(), user / ".tafwid" / "state")
+            self.assertIsNone(paths.legacy_in_use())
+            self.assertIsNone(paths.migration_notice())
+        self.assertFalse(user.exists())
+
+    def test_single_legacy_directory_is_used_in_place_with_a_notice(self):
+        user, codex = self.home / "user", self.home / "codex"
+        legacy = codex / "tafwid" / "state"
+        legacy.mkdir(parents=True)
+        (user / ".tafwid").mkdir(parents=True)  # exists without a state directory
+        with patch.dict(os.environ, {"HOME": str(user), "CODEX_HOME": str(codex)}):
+            os.environ.pop("TAFWID_HOME")
+            self.assertEqual(paths.state_root(), legacy)
+            self.assertEqual(paths.legacy_in_use(), legacy)
+            notice = paths.migration_notice()
+            self.assertEqual(notice["from"], str(legacy))
+            self.assertEqual(notice["to"], str(user / ".tafwid" / "state"))
+            self.assertIn("settings.py migrate", notice["command"])
+        self.assertFalse((user / ".tafwid" / "state").exists())
+
+    def test_neutral_and_legacy_together_fail_without_picking(self):
+        user, codex = self.home / "user", self.home / "codex"
+        (codex / "state" / "tafwid").mkdir(parents=True)
+        (user / ".tafwid" / "state").mkdir(parents=True)
+        with patch.dict(os.environ, {"HOME": str(user), "CODEX_HOME": str(codex)}):
+            os.environ.pop("TAFWID_HOME")
+            with self.assertRaisesRegex(ValueError, "state directories"):
+                paths.state_root()
 
 
 if __name__ == "__main__":
