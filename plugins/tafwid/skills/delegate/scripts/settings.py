@@ -30,7 +30,7 @@ def settings_file(task_id=None):
     try:
         task_id = str(uuid.UUID(task_id))
     except (ValueError, TypeError, AttributeError):
-        raise ValueError("Invalid Codex task identity; cannot select settings") from None
+        raise ValueError("Invalid task identity; cannot select settings") from None
     return paths.state_root() / "tasks" / task_id / "settings.json"
 
 
@@ -157,7 +157,7 @@ def main():
   python3 scripts/settings.py migrate --dry-run
   python3 scripts/settings.py migrate
 
-Without --global, use the current Codex task identity from the host environment.
+Without --global, use the current task identity from the coordinator's environment.
 First use saves a task snapshot; later global edits do not affect it. No task
 identity is required for --global. Settings do not modify already-running workers.
 Success prints JSON and exits 0; settings errors exit 1; argument errors exit 2.
@@ -191,7 +191,7 @@ Success prints JSON and exits 0; settings errors exit 1; argument errors exit 2.
             from session import current_task_id
             task_id = current_task_id()
             if task_id is None:
-                raise ValueError("No Codex task identity; use --global for global defaults")
+                raise ValueError("No task identity from the coordinator; use --global for global defaults")
         result = (read(task_id) if args.action == "show" else
                   update(task_id, policy=args.policy, harness=args.harness))
         if args.action == "show" and paths.migration_notice():

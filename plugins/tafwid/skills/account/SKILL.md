@@ -10,6 +10,6 @@ Use Tafwid to add and check named GPT accounts. `add gpt` means a personal accou
 The account script is `../delegate/scripts/account.py` relative to this skill. Resolve its absolute path before running it. Use `--help` for arguments and exit codes.
 
 1. `What short name should Tafwid use for this GPT account?`
-2. `I'll open Codex sign-in for the {personal|Business} account named {name}. Your current Codex login will stay signed in.`
+2. `I'll open Codex sign-in for the {personal|Business} account named {name}. Your own Codex login, if you have one, will stay signed in.`
 3. `Did you sign in to the intended {personal|Business} account and workspace?` Choices: `Yes, use this account`, `Retry sign-in`, `Cancel`.
 4. For a missing destination: `No GPT account named {name} is ready. Set it up now?` Choices: `Set up account`, `Cancel`.

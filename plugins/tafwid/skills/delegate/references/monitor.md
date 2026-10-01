@@ -14,6 +14,11 @@ yield for the enclosing call and each process wait; use the host's longest
 supported wait if shorter. Do not start another `wait.py` process while the
 first is running or poll its handle every 30 seconds.
 
+In Claude Code, run `wait.py` with the Bash tool and a tool timeout of at least
+310 seconds, so the script's own five-minute limit ends the call. If it returns
+`waiting`, run it again with only `pending_run_ids`. Do not run it in the
+background and poll its output.
+
 When `wait.py` returns, notify the coordinator of completed runs or errors with
 their run IDs, statuses, and report paths. If it returns `waiting`, or other runs
 remain pending, run it again with only `pending_run_ids` and their matching keys.

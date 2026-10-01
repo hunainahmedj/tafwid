@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Read or change this Codex task's pool of worker connections.
+"""Read or change this task's pool of worker connections.
 
 CLI: session.py on [claude|gpt NAME], off [claude|gpt NAME], or status.
 Run session.py --help for examples, task identity, output and exit codes.
@@ -59,7 +59,7 @@ def main():
     """Parse the session action and report its result."""
     os.umask(0o077)
     parser = argparse.ArgumentParser(
-        description="Read or change automatic delegation for the current Codex chat.",
+        description="Read or change automatic delegation for the current chat.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""Examples:
   python3 session.py status   Read the setting without changing it.
@@ -70,8 +70,9 @@ def main():
   python3 session.py off      Disable new dispatches; running workers continue.
 
 Task identity:
-  Read from CODEX_THREAD_ID, falling back to CODEX_SESSION_ID.
-  Use the identity provided by Codex; there is no chat-ID argument.
+  Codex: CODEX_THREAD_ID, falling back to CODEX_SESSION_ID.
+  Claude Code: CLAUDE_CODE_SESSION_ID.
+  Use the identity provided by the coordinator; there is no chat-ID argument.
   With no identity, status reports disabled with thread_id: null;
   on/off fail. A chat with no saved setting defaults to disabled.
 

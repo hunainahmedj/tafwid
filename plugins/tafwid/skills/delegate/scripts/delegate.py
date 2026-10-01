@@ -30,9 +30,9 @@ import codex_cli
 # Profiles pick a model and its effort. They grant no tool, permission, or budget.
 PROFILES = routing.PROFILES
 EFFORTS = ("low", "medium", "high", "xhigh", "max")
-CONTRACT = """You are a Claude Code worker for a bounded Codex task.
+CONTRACT = """You are a Claude Code worker for a bounded task assigned by a coordinator.
 Follow the task brief and applicable workspace rules.
-Codex owns planning/dispatch; no replanning or nested workers unless requested.
+The coordinator owns planning/dispatch; no replanning or nested workers unless requested.
 Stay in scope. Commits, pushes, deploys, messaging and account/tool configuration changes
 require explicit brief authorization. Report denied steps; never evade permissions.
 If a required capability is unavailable, finish independent work and report blocked
@@ -43,7 +43,7 @@ Follow assigned check ownership; preserve required gates. Reuse checks for uncha
 code/environment. For optional retries state the relevant change, new diagnostic hypothesis or transient evidence.
 Report (~250 words): outcome, files/findings with locations, risks/unverified work, and Checks: command/cwd/environment,
 result, tested revision+dirty-diff reference, later edits, unresolved failures/next owner; link long logs.
-No checks: say so. Passing earlier checks does not verify later edits; Codex retains acceptance review.
+No checks: say so. Passing earlier checks does not verify later edits; The coordinator retains acceptance review.
 
 TASK BRIEF:
 """
@@ -294,7 +294,7 @@ def run(args):
     """
     task_id = delegation_session.current_task_id()
     if not args.once and not connections.read(task_id)["enabled"]:
-        raise ValueError("Delegation is off for this Codex task. Enable it with session.py on, or use --once for an explicit one-shot request.")
+        raise ValueError("Delegation is off for this task. Enable it with session.py on, or use --once for an explicit one-shot request.")
     cwd = args.cwd.expanduser().resolve(strict=True)
     if not cwd.is_dir():
         raise ValueError("--cwd must be a directory")

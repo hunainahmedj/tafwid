@@ -29,7 +29,12 @@ The `delegate.py` argument `--permissions` controls Claude’s approval policy:
 |---|---|
 | `scoped` | Preapproves the enabled inspection and editing tools. Shell commands and MCP tools need explicit allowances. |
 | `full` | Uses Claude’s `bypassPermissions` mode for available tools. Edit workers get Bash without individual command allowances. |
-| `inherit` | Uses `full` when Codex currently reports full access; otherwise uses `scoped`. |
+| `inherit` | Uses `full` when the coordinator currently reports full access; otherwise uses `scoped`. |
+
+A Codex coordinator reports full access through its permission profile. A Claude Code
+coordinator reports it when the session was in bypass-permissions mode at the user's
+last prompt; this needs Tafwid's hooks enabled, and a mode change mid-turn takes
+effect at the next prompt. Without a confirmed signal, `inherit` uses `scoped`.
 
 Full access remains subject to host and organization restrictions.
 

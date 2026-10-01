@@ -86,7 +86,7 @@ def wait_for_runs(run_dirs=(), timeout=MAX_WAIT_SECONDS, *, run_ids=(), watch_ke
     known = {target: target for target in targets} if by_id else {}
     while True:
         # Discover late registration after auth/startup. Once found, read only the
-        # selected IDs; heartbeats and unrelated runs do not wake GPT.
+        # selected IDs; heartbeats and unrelated runs do not wake the coordinator.
         if not by_id and len(known) < len(targets):
             for record in registry.list_runs(task_id):
                 path = str(Path(record["output_dir"]).resolve())
@@ -143,7 +143,7 @@ def main():
   python3 scripts/wait.py --run-id <run-uuid> --watch-key <run-uuid>=<watch-key>
   python3 scripts/wait.py --run-dir /private/run-1  # Legacy directory selection
 
-Uses the current Codex chat identity from the environment. A different task needs
+Uses the current chat identity from the coordinator's environment. A different task needs
 that run's watch_key from delegate.py's started event. Repeat --watch-key RUN_ID=KEY
 for multiple foreign runs. Keys allow observation only and are never returned.
 Without a key, only the current task's runs can be observed. Legacy directory
