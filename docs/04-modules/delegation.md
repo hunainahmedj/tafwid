@@ -2,7 +2,7 @@
 
 ## What is it?
 
-The part of Tafwid that lets a Codex coordinator assign a bounded task to
+The part of Tafwid that lets a Codex or Claude Code coordinator assign a bounded task to
 a supported worker, follow its completion, and inspect the result.
 
 ## Why was it built?
@@ -33,10 +33,13 @@ measured costs and limitations. No model requests are needed for ordinary
 
 Existing behavior predates this decision log. Historical rationale remains
 in the [mixed-account spec](../superpowers/specs/2026-09-29-multiple-gpt-accounts-design.md).
+[ADR-0004](../05-decisions/0004-host-adapter-and-neutral-state.md) records the host
+adapter and the shared state home.
 
 ## Tracker
 
 [TAF-1](../01-project/backlog.md) captures initial documentation.
+[TAF-6](../01-project/backlog.md) adds Claude Code as a coordinator.
 
 ## Ownership
 

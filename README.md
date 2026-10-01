@@ -4,8 +4,8 @@
 
 **Delegate work. Keep control.**
 
-Tafwid lets Codex delegate bounded tasks to Claude Code or named GPT accounts. Codex coordinates the
-work and accepts the result using concise reports and relevant checks.
+Tafwid lets Codex or Claude Code delegate bounded tasks to Claude Code or named GPT accounts. The
+coordinator directs the work and accepts the result using concise reports and relevant checks.
 
 ## What it does
 
@@ -13,17 +13,19 @@ work and accepts the result using concise reports and relevant checks.
 - Choose a Claude model explicitly or use saved task-based routing.
 - Launch a worker and resume it with corrections.
 - Wait for completion without repeatedly loading worker logs.
-- Keep permissions explicit: Scoped, Full access, or Follow Codex.
+- Keep permissions explicit: Scoped, Full access, or Follow coordinator.
 - Save private briefs, raw results and compact reports for each run.
 
-Delegation does not guarantee lower Codex usage. Planning, task briefs and
-acceptance checks still consume tokens.
+Delegation does not guarantee lower coordinator usage. Planning, task briefs and
+acceptance checks still consume tokens. A Claude Code coordinator and its Claude
+workers share one Claude subscription; delegation there saves coordinator context,
+not allowance.
 See [benchmark findings](docs/benchmarks.md) for measured coordinator, worker and
 waiting costs across three task types.
 
 ## Requirements
 
-- Codex with plugin support.
+- Codex or Claude Code with plugin support, as the coordinator.
 - macOS or Linux and Python 3.10 or newer. No third-party Python packages required.
 - Claude Code on `PATH`, signed in through `claude auth login` with a supported
   Claude subscription. API-key and alternate-provider overrides are rejected.
@@ -33,28 +35,42 @@ waiting costs across three task types.
 
 ## Install
 
+### Codex
+
 ```sh
 codex plugin marketplace add hunainahmedj/tafwid
 codex plugin add tafwid@tafwid
 ```
 
-Start a new Codex task and select a skill from the `$` menu:
+Start a new Codex task and select a skill from the `$` menu.
+
+### Claude Code
+
+```text
+/plugin marketplace add hunainahmedj/tafwid
+/plugin install tafwid@tafwid
+```
+
+Start a new session and invoke a skill with `/`.
+
+### Skills
 
 | Skill | Purpose | Example |
 | --- | --- | --- |
-| `$tafwid:delegate` | Assign work or manage this task's switch | `$tafwid:delegate on` |
-| `$tafwid:account` | Add and check named GPT accounts | `$tafwid:account add gpt business` |
+| `$tafwid:delegate` or `/tafwid:delegate` | Assign work or manage this task's switch | `$tafwid:delegate on` |
+| `$tafwid:account` or `/tafwid:account` | Add and check named GPT accounts | `$tafwid:account add gpt business` |
 
-A bare `$tafwid:delegate` reports status. Delegation starts off. Turning it off
+Invoking the delegate skill with no arguments reports status. Delegation starts off. Turning it off
 prevents new automatic dispatches; running workers continue. An explicit one-time
 assignment is also supported without changing the switch.
 
-For updates, run `codex plugin marketplace upgrade tafwid`, reinstall the plugin,
-and start a new task. See [migration](docs/migration.md) for existing installations.
+For updates in Codex, run `codex plugin marketplace upgrade tafwid`, reinstall the plugin,
+and start a new task. In Claude Code, run `/plugin marketplace update tafwid` and start a
+new session. See [migration](docs/migration.md) for existing installations.
 
 ## How to use it
 
-Codex writes a brief with the goal, workspace, constraints and acceptance criteria.
+The coordinator writes a brief with the goal, workspace, constraints and acceptance criteria.
 The launcher starts the selected worker and returns a compact result. Corrections resume the
 same worker; an independent review, when needed, uses a separate worker.
 
@@ -65,12 +81,18 @@ Each public script supports `--help`.
 
 To let Tafwid resume Codex when a worker finishes, review and trust Tafwid's
 hooks in Codex (`/hooks` in the CLI). Without hook trust, the workflow uses
-`wait.py` instead.
+`wait.py` instead. Claude Code runs plugin hooks without a trust step; if hooks
+are disabled, the workflow uses `wait.py` there too.
 
 Claude worker permissions default to Scoped. `settings.py show` shows its saved
 model routes and can change its permissions. GPT workers use read-only or
 workspace-write sandboxes. Use `--model` for an explicit model choice.
 Tafwid does not silently change billing providers when a model is unavailable.
+
+Switches, settings, named accounts and run records are kept in `~/.tafwid/state`
+and shared by both coordinators. An installation from before 0.4 keeps using its
+directory under the Codex home until you run `settings.py migrate`; see
+[migration](docs/migration.md).
 
 Run artifacts stay in the caller's private output directory. Tafwid does not
 fetch account allowances. Keep private evidence outside Git. Worker prompts are

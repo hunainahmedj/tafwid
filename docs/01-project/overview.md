@@ -2,7 +2,7 @@
 
 ## What problem does this solve?
 
-Tafwid helps a Codex user delegate bounded work to Claude Code or named
+Tafwid helps a Codex or Claude Code user delegate bounded work to Claude Code or named
 GPT Codex CLI accounts while retaining control of permissions, routing,
 and acceptance. The [runtime module](../04-modules/delegation.md) describes
 how the existing product works.

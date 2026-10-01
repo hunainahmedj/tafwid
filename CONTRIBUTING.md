@@ -23,12 +23,23 @@ CODEX_HOME="$test_home" codex plugin marketplace add "$PWD"
 CODEX_HOME="$test_home" codex plugin add tafwid@tafwid
 ```
 
-Use a separate test home for runtime checks as well. A live Claude test uses
+For Claude Code, load the plugin for one session without installing it, and
+validate both manifests before a release:
+
+```sh
+TAFWID_HOME="$test_home/tafwid" claude --plugin-dir "$PWD/plugins/tafwid"
+claude plugin validate . && claude plugin validate plugins/tafwid
+```
+
+Validation reports one expected warning: the `Interrupt` hook is a Codex event
+that Claude Code ignores.
+
+Use a separate test home, including `TAFWID_HOME`, for runtime checks as well. A live Claude test uses
 the account's quota and should be requested explicitly; ordinary CI never does this.
 
 ## Releases
 
-Update VERSION, the plugin manifest version, and CHANGELOG.md. Run `make test`,
+Update VERSION, both plugin manifest versions, and CHANGELOG.md. Run `make test`,
 review the staged file list for private material, and commit. Pushing a matching
 `v<VERSION>` tag runs CI before publishing a source archive and SHA256 checksum.
 Never create a release from private local runtime state.

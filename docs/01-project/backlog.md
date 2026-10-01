@@ -6,7 +6,7 @@ Position is status. This file is the tracker; other documents link here.
 
 ## Now
 
-- TAF-6 Make Claude Code a full coordinator alongside Codex: host adapter, neutral state home, shared hooks, Claude Code packaging. See the [spec](../superpowers/specs/2026-10-02-claude-code-coordinator-design.md).
+No active implementation items.
 
 ## Next
 
@@ -18,6 +18,10 @@ Position is status. This file is the tracker; other documents link here.
 - TAF-5 Design invitations, shared presence, and workspace visibility.
 
 ## Done
+
+- TAF-6 Make Claude Code a full coordinator alongside Codex. Offline suite and
+  package checks pass; live acceptance steps are listed in the
+  [plan](../superpowers/plans/2026-10-02-claude-code-coordinator.md).
 
 - TAF-2 Build and independently review the office dashboard prototype; completed
   four critique rounds and verified the narrow-screen correction. See

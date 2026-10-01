@@ -1,7 +1,16 @@
 # Changelog
 
-## Unreleased
+## 0.4.0
 
+- Support Claude Code as a coordinator alongside Codex, with Claude Code marketplace
+  and plugin manifests.
+- Keep state in a host-neutral home, `~/.tafwid/state`, shared by both coordinators.
+  Existing state under the Codex home is used in place until `settings.py migrate`.
+- Share one hooks file between hosts; on Claude Code the prompt hook records that
+  hooks are active and the session's permission mode.
+- Record run ownership as `coordinator_task_id` and `coordinator_host`; older
+  records remain readable.
+- Rename the `codex_full_access` permission result field to `coordinator_full_access`.
 - Fix personal GPT account setup on Python 3.10 when the optional account type is omitted.
 - Add named personal and Business GPT worker accounts with private Codex homes,
   visible sign-in, and user confirmation.

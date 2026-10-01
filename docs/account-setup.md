@@ -23,7 +23,8 @@ assignment with `--connection gpt:NAME` or `--connection claude`. Separate
 assignments may run at the same time; Tafwid does not split or balance work
 automatically. A failed assignment stays on its chosen connection.
 
-The coordinating Codex task still receives the user's request and reviews the
-worker's result. For Business-only data, start that coordinating task while
-signed into the Business account. The `business` label is user-confirmed metadata,
+The coordinating task, in Codex or Claude Code, still receives the user's request
+and reviews the worker's result. For Business-only data under a Codex coordinator,
+start that coordinating task while signed into the Business account. A Claude Code
+coordinator sends the request to your Claude account instead. The `business` label is user-confirmed metadata,
 not proof of any workspace policy or contract.

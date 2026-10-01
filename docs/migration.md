@@ -24,8 +24,8 @@ State lookup is shared by the switch, settings and launcher:
 - Both exist: stop with a conflict error. Back up and reconcile the directories;
   Tafwid will not guess which permissions, task switches or history should win.
 
-Do not move a live state directory or remove active run artifacts. A later
-release may provide an explicit migration command; v0.1 deliberately reuses the
+Do not move a live state directory or remove active run artifacts. Version 0.4
+adds an explicit migration command; v0.1 deliberately reuses the
 legacy state instead of silently relocating it.
 
 ## From Tafwid 0.1
@@ -44,3 +44,23 @@ start a new task to load both skills. An existing enabled switch is read as a
 pool containing Claude; an off switch stays off. Old Claude run summaries remain
 readable. Named GPT accounts require separate visible sign-in and confirmation;
 Tafwid does not import or copy the ordinary Codex login.
+
+## From Tafwid 0.3
+
+Version 0.4 adds Claude Code as a coordinator and a host-neutral state home,
+`~/.tafwid/state` (`TAFWID_HOME` overrides `~/.tafwid`). Upgrade and start a new task.
+
+An existing installation keeps using its directory under the Codex home; nothing
+moves on its own. `session.py status` and `settings.py show` report a `migration`
+field while that is the case. To move it, finish or pause running workers, then:
+
+    python3 scripts/settings.py migrate --dry-run
+    python3 scripts/settings.py migrate
+
+Named GPT accounts move with the directory and stay signed in. If the neutral
+directory and a legacy directory both exist, scripts stop with a conflict error;
+back up and reconcile them. Run records now name their owner as
+`coordinator_task_id`; older records are still read.
+
+A Codex task and a Claude Code session are different tasks. Accounts, global
+defaults and run history are shared; the on/off switch and task settings are not.
