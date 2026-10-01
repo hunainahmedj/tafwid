@@ -15,6 +15,7 @@ import sys
 import uuid
 
 import harnesses
+import host
 import paths
 import routing
 
@@ -126,20 +127,21 @@ def update(task_id=None, *, policy=None, harness=None):
 
 
 def resolve(override=None, config=None):
-    """Map the selected policy to Claude permissions using the live host signal."""
+    """Map the selected policy to worker permissions using the coordinator's live signal."""
     policy = override if override is not None else (config if config is not None else read())["permission_policy"]
     if policy not in POLICIES:
         raise ValueError("Invalid worker permission policy")
-    parent_full = os.environ.get("CODEX_PERMISSION_PROFILE") == ":danger-full-access"
+    parent_full = host.full_access()
+    name = host.display_name()
     effective = "full" if policy == "full" or (policy == "inherit" and parent_full) else "scoped"
     reason = {"full": "Full access selected by the user", "scoped": "Scoped command allowances selected"}.get(policy)
     if policy == "inherit":
-        reason = ("Current Codex process reports full access" if parent_full else
-                  "Codex full access is not confirmed; using scoped allowances")
+        reason = (f"{name} currently reports full access" if parent_full else
+                  f"Full access is not confirmed by {name}; using scoped allowances")
     return {"policy": policy, "effective": effective,
             "claude_mode": "bypassPermissions" if effective == "full" else "dontAsk",
             "source": "override" if override is not None else "settings",
-            "codex_full_access": parent_full, "reason": reason}
+            "coordinator_full_access": parent_full, "reason": reason}
 
 
 def main():
