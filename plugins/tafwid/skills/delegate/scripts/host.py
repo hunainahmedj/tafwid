@@ -67,10 +67,13 @@ def display_name(env=None):
         return "the coordinator"
 
 
-def for_hook(env=None):
-    """Identify the host inside a hook process, which lacks task variables."""
+def for_hook(task_id, env=None):
+    """Identify the host inside a hook: Claude Code exports the event's own session ID.
+
+    CLAUDE_PLUGIN_ROOT cannot decide this, because Codex exports it too.
+    """
     env = os.environ if env is None else env
-    return "claude" if env.get("CLAUDE_PLUGIN_ROOT") else "codex"
+    return "claude" if env.get("CLAUDE_CODE_SESSION_ID") == task_id else "codex"
 
 
 def worker_env(base=None):

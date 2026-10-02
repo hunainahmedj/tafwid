@@ -52,10 +52,11 @@ class HostTests(unittest.TestCase):
         self.assertEqual(host.display_name({"CLAUDE_CODE_SESSION_ID": A}), "Claude Code")
         self.assertEqual(host.display_name({}), "the coordinator")
 
-    def test_hook_host_uses_the_plugin_root_variable(self):
-        self.assertEqual(host.for_hook({"CLAUDE_PLUGIN_ROOT": "/plugin"}), "claude")
-        self.assertEqual(host.for_hook({"PLUGIN_ROOT": "/plugin"}), "codex")
-        self.assertEqual(host.for_hook({}), "codex")
+    def test_hook_host_matches_the_claude_session_to_the_event(self):
+        self.assertEqual(host.for_hook(A, {"CLAUDE_CODE_SESSION_ID": A}), "claude")
+        # Codex also exports CLAUDE_PLUGIN_ROOT; a Claude session it was started from has another ID.
+        self.assertEqual(host.for_hook(A, {"CLAUDE_PLUGIN_ROOT": "/plugin", "PLUGIN_ROOT": "/plugin"}), "codex")
+        self.assertEqual(host.for_hook(A, {"CLAUDE_CODE_SESSION_ID": B}), "codex")
 
     def test_worker_environment_drops_every_identity_variable(self):
         base = {"PATH": "/bin", "CODEX_THREAD_ID": A, "CODEX_SESSION_ID": A,

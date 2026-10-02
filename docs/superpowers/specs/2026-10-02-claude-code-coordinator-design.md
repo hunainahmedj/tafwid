@@ -60,7 +60,7 @@ Add `scripts/host.py`. It is the only module that reads coordinator-identity sig
   - Otherwise Codex is detected from `CODEX_THREAD_ID` or the legacy `CODEX_SESSION_ID`, and Claude Code from `CLAUDE_CODE_SESSION_ID`.
   - If both hosts' signals are present it raises `ValueError` with a message naming `TAFWID_HOST`. It never guesses.
   - If neither is present it returns `None`. Missing identity keeps today's meaning: status reports off, and commands that need a task fail with a clear message.
-  - Inside a hook process, `host.for_hook()` returns `"claude"` when `CLAUDE_PLUGIN_ROOT` is set and `"codex"` otherwise, because hook processes do not reliably carry the task variables.
+  - Inside a hook process, `host.for_hook(task_id)` returns `"claude"` when `CLAUDE_CODE_SESSION_ID` equals the event's `session_id` and `"codex"` otherwise. `CLAUDE_PLUGIN_ROOT` cannot decide this, because Codex 0.155 exports it too.
 - `task_id()` returns the canonical UUID string for the detected host, or `None` when there is no valid identity, matching today's `session.current_task_id()` contract.
 - `display_name()` returns `"Codex"` or `"Claude Code"` for messages, and `"the coordinator"` when no host is detected.
 - `full_access()` returns whether the coordinator currently reports full access (see Permissions).

@@ -138,7 +138,7 @@ def disarm(event):
     except (TypeError, ValueError):
         return
     arm_path(task_id).unlink(missing_ok=True)
-    if host.for_hook() == "claude":
+    if host.for_hook(task_id) == "claude":
         host.record_seen(task_id, event.get("permission_mode"))
 
 

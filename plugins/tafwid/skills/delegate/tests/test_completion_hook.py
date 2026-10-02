@@ -147,13 +147,14 @@ class ClaudeHookTests(unittest.TestCase):
             self.assertEqual(result["event"], "unavailable")
             self.assertIn("Claude Code", result["reason"])
             self.assertFalse(completion_hook.arm_path(TASK).exists())
-            with patch.dict(os.environ, {"CLAUDE_PLUGIN_ROOT": str(PLUGIN)}):
-                completion_hook.disarm(self.prompt_event("acceptEdits"))
+            completion_hook.disarm(self.prompt_event("acceptEdits"))
             self.assertEqual(host.seen(TASK)["permission_mode"], "acceptEdits")
             self.assertEqual(completion_hook.arm([worker.id])["event"], "active")
 
     def test_codex_prompt_hook_records_no_marker(self):
-        completion_hook.disarm(self.prompt_event())  # no CLAUDE_PLUGIN_ROOT: a Codex hook process
+        codex_hook = {"CLAUDE_PLUGIN_ROOT": str(PLUGIN), "CLAUDE_CODE_SESSION_ID": OTHER}
+        with patch.dict(os.environ, codex_hook):
+            completion_hook.disarm(self.prompt_event())
         self.assertIsNone(host.seen(TASK))
 
     def test_stop_resumes_a_claude_session_without_codex_identity(self):
@@ -195,10 +196,12 @@ class ClaudeHookTests(unittest.TestCase):
         commands = json.loads((PLUGIN / "hooks" / "hooks.json").read_text())["hooks"]
         command = commands["UserPromptSubmit"][0]["hooks"][0]["command"]
         base = {k: v for k, v in os.environ.items() if k not in host.IDENTITY_VARIABLES}
-        for variable, expected in (("CLAUDE_PLUGIN_ROOT", "default"), ("PLUGIN_ROOT", None)):
-            with self.subTest(variable=variable):
+        claude = {"CLAUDE_PLUGIN_ROOT": str(PLUGIN), "CLAUDE_CODE_SESSION_ID": TASK}
+        codex = {"PLUGIN_ROOT": str(PLUGIN), "CLAUDE_PLUGIN_ROOT": str(PLUGIN)}
+        for name, hook_env, expected in (("claude", claude, "default"), ("codex", codex, None)):
+            with self.subTest(host=name):
                 host.seen_path(TASK).unlink(missing_ok=True)
-                run = subprocess.run(command, shell=True, env={**base, variable: str(PLUGIN)},
+                run = subprocess.run(command, shell=True, env={**base, **hook_env},
                                      input=json.dumps(self.prompt_event()), text=True,
                                      capture_output=True, timeout=10)
                 self.assertEqual(run.returncode, 0, run.stderr)
