@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Read or change this Codex task's pool of worker connections.
+"""Read or change this task's pool of worker connections.
 
 CLI: session.py on [claude|gpt NAME], off [claude|gpt NAME], or status.
 Run session.py --help for examples, task identity, output and exit codes.
@@ -8,25 +8,18 @@ import argparse
 import json
 import os
 import sys
-import uuid
+import host
 import paths
 import settings
 import connections
 
 
 def current_task_id():
-    """Return the host's task UUID, or None when no task identity is available.
+    """Return the coordinator's task UUID, or None when no identity is available.
 
-    Prefer CODEX_THREAD_ID over the legacy CODEX_SESSION_ID. Reject malformed
-    values with ValueError so they cannot select an unintended state file.
+    Malformed values raise ValueError so they cannot select an unintended state file.
     """
-    value = os.environ.get("CODEX_THREAD_ID") or os.environ.get("CODEX_SESSION_ID")
-    if not value:
-        return None
-    try:
-        return str(uuid.UUID(value))
-    except ValueError:
-        raise ValueError("Invalid Codex task identity; cannot select delegation state") from None
+    return host.task_id()
 
 
 def state_path(task_id):
@@ -40,14 +33,18 @@ def status():
     Return thread_id, enabled, and connections. Missing identity or state means off;
     malformed saved state raises ValueError instead of being treated as enabled.
     """
-    return connections.describe(current_task_id())
+    result = connections.describe(current_task_id())
+    notice = paths.migration_notice()
+    if notice:
+        result["migration"] = notice
+    return result
 
 
 def set_enabled(enabled, harness=None):
     """Add or remove a task connection, checking readiness before enabling."""
     task_id = current_task_id()
     if task_id is None:
-        raise ValueError("No Codex task identity; cannot save a session switch. Use an explicit one-shot task instead.")
+        raise ValueError("No task identity from the coordinator; cannot save a session switch. Use an explicit one-shot task instead.")
     if enabled:
         selected = harness or settings.read(task_id, initialize=False)["harness"]
         connections.enable(task_id, selected)
@@ -62,7 +59,7 @@ def main():
     """Parse the session action and report its result."""
     os.umask(0o077)
     parser = argparse.ArgumentParser(
-        description="Read or change automatic delegation for the current Codex chat.",
+        description="Read or change automatic delegation for the current chat.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""Examples:
   python3 session.py status   Read the setting without changing it.
@@ -73,8 +70,9 @@ def main():
   python3 session.py off      Disable new dispatches; running workers continue.
 
 Task identity:
-  Read from CODEX_THREAD_ID, falling back to CODEX_SESSION_ID.
-  Use the identity provided by Codex; there is no chat-ID argument.
+  Codex: CODEX_THREAD_ID, falling back to CODEX_SESSION_ID.
+  Claude Code: CLAUDE_CODE_SESSION_ID.
+  Use the identity provided by the coordinator; there is no chat-ID argument.
   With no identity, status reports disabled with thread_id: null;
   on/off fail. A chat with no saved setting defaults to disabled.
 

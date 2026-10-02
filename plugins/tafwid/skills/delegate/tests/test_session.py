@@ -42,6 +42,8 @@ class SessionTests(unittest.TestCase):
         self.home = Path(self.temp.name) / "codex"
         self.env = {k: v for k, v in os.environ.items() if k not in ("CODEX_THREAD_ID", "CODEX_SESSION_ID")}
         self.env["CODEX_HOME"] = str(self.home)
+        self.env["TAFWID_HOME"] = str(self.home / "tafwid")
+        self.env["TAFWID_HOST"] = "codex"
         self.bin = Path(self.temp.name) / "bin"
         self.bin.mkdir()
         self.claude = self.bin / "claude"

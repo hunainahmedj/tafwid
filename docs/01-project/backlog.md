@@ -1,6 +1,6 @@
 # Backlog (TAF)
 
-Next ID: TAF-6
+Next ID: TAF-7
 
 Position is status. This file is the tracker; other documents link here.
 
@@ -18,6 +18,10 @@ No active implementation items.
 - TAF-5 Design invitations, shared presence, and workspace visibility.
 
 ## Done
+
+- TAF-6 Make Claude Code a full coordinator alongside Codex. Offline suite and
+  package checks pass; live acceptance steps are listed in the
+  [plan](../superpowers/plans/2026-10-02-claude-code-coordinator.md).
 
 - TAF-2 Build and independently review the office dashboard prototype; completed
   four critique rounds and verified the narrow-screen correction. See

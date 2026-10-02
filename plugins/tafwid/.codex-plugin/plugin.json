@@ -1,7 +1,7 @@
 {
   "name": "tafwid",
-  "version": "0.3.0",
-  "description": "Delegate bounded work to coding agents while Codex orchestrates and reviews.",
+  "version": "0.4.0",
+  "description": "Delegate bounded work to coding agents while your coordinator orchestrates and reviews.",
   "author": {
     "name": "hunainahmedj",
     "url": "https://github.com/hunainahmedj"
@@ -10,7 +10,7 @@
   "interface": {
     "displayName": "Tafwid",
     "shortDescription": "Delegate work. Keep control.",
-    "longDescription": "Delegate bounded tasks to Claude Code with task-local switches, model selection, explicit permissions and compact reports.",
+    "longDescription": "Delegate bounded tasks to Claude Code or named GPT accounts with task-local switches, model selection, explicit permissions and compact reports.",
     "developerName": "hunainahmedj",
     "category": "Productivity",
     "capabilities": [],
@@ -31,6 +31,7 @@
   "keywords": [
     "delegation",
     "coding-agents",
+    "claude-code",
     "codex"
   ]
 }

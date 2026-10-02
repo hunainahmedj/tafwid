@@ -1,6 +1,6 @@
 ---
 name: delegate
-description: Use when the user manages Tafwid delegation, assigns work to Claude Code or a named GPT account, or continues with delegation enabled.
+description: Use when the user manages Tafwid delegation, assigns work to Claude Code or a named GPT account, or continues with delegation enabled. Works when Codex or Claude Code is the coordinator.
 ---
 
 # Tafwid delegation
@@ -14,7 +14,7 @@ rather than repeating their work.
 
 ## Scripts
 
-You have the a few scripts availible to you. The paths below are relative to the directory containing this `SKILL.md`. Use their absolute paths when running commands.
+You have a few scripts available. The paths below are relative to the directory containing this `SKILL.md`. Use their absolute paths when running commands.
 
 | Script | Purpose |
 |---|---|
@@ -41,12 +41,16 @@ python3 scripts/session.py status     # Read this chat's delegation setting.
 python3 scripts/session.py --help     # Show arguments and usage.
 ```
 
-A bare `$tafwid:delegate` invocation means status.
+Invoking the delegate skill with no arguments means status.
 
 The script identifies the current chat automatically and saves its setting
 on disk. Enabling delegation checks the harness's installation and
 authentication status. If the command fails, report the error instead of
 assuming delegation was enabled.
+
+If status or settings output contains a `migration` field, tell the user once
+that `scripts/settings.py migrate` can move saved state to the shared location,
+and continue.
 
 ## Settings
 
@@ -67,4 +71,4 @@ the worker, wait for completion, and accept the result.
 For Claude-specific tools and permissions, also read
 [the Claude Code guide](references/claude-code.md).
 
-Enable only the connections the user chooses for this task. Record one exact enabled connection for each worker assignment. If routing is unclear, ask the user. If a selected GPT account is unavailable, stop that assignment and offer `$tafwid:account` setup. Never substitute another connection. Follow [the GPT account guide](references/gpt-accounts.md) for sign-in and worker rules.
+Enable only the connections the user chooses for this task. Record one exact enabled connection for each worker assignment. If routing is unclear, ask the user. If a selected GPT account is unavailable, stop that assignment and offer setup through the `tafwid:account` skill. Never substitute another connection. Follow [the GPT account guide](references/gpt-accounts.md) for sign-in and worker rules.

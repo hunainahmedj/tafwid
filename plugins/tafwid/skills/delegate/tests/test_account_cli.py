@@ -36,6 +36,7 @@ class AccountCLITests(unittest.TestCase):
         cli.chmod(0o700)
         self.calls = self.root / "calls"
         self.env = {**os.environ, "CODEX_HOME": str(self.root / "ordinary"),
+                    "TAFWID_HOME": str(self.root / "ordinary" / "tafwid"), "TAFWID_HOST": "codex",
                     "PATH": str(bin_dir), "CALLS": str(self.calls)}
 
     def call(self, *args):

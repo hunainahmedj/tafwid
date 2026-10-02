@@ -37,6 +37,7 @@ class HarnessTests(unittest.TestCase):
         self.root = Path(home.name)
         env = patch.dict(os.environ, {
             "CODEX_HOME": str(self.root), "CODEX_THREAD_ID": TASK, "PATH": "",
+            "TAFWID_HOME": str(self.root / "tafwid"), "TAFWID_HOST": "codex",
         })
         env.start()
         self.addCleanup(env.stop)

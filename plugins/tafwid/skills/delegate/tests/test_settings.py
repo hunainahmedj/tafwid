@@ -8,6 +8,7 @@ import unittest
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'scripts'))
+import host
 import settings
 
 A = "00000000-0000-4000-8000-000000000001"
@@ -18,7 +19,8 @@ class SettingsTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
-        self.env = patch.dict(os.environ, {'CODEX_HOME': self.temp.name})
+        self.env = patch.dict(os.environ, {'CODEX_HOME': self.temp.name, 'TAFWID_HOST': 'codex',
+                                          'TAFWID_HOME': str(Path(self.temp.name) / 'tafwid')})
         self.env.start()
         self.addCleanup(self.env.stop)
 
@@ -171,6 +173,23 @@ class SettingsTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             settings.read('../../outside')
         self.assertEqual(list(Path(self.temp.name).iterdir()), [])
+
+    def test_inherit_follows_each_coordinator(self):
+        config = {**settings.defaults(), 'permission_policy': 'inherit'}
+        with patch.dict(os.environ, {'CODEX_THREAD_ID': A, 'CODEX_PERMISSION_PROFILE': ':danger-full-access'}):
+            result = settings.resolve(config=config)
+            self.assertEqual((result['effective'], result['coordinator_full_access']), ('full', True))
+            self.assertIn('Codex', result['reason'])
+            self.assertNotIn('codex_full_access', result)
+        claude = {'TAFWID_HOST': 'claude', 'CLAUDE_CODE_SESSION_ID': B}
+        with patch.dict(os.environ, claude):
+            self.assertEqual(settings.resolve(config=config)['effective'], 'scoped')  # hooks never ran
+            host.record_seen(B, 'acceptEdits')
+            self.assertEqual(settings.resolve(config=config)['effective'], 'scoped')
+            host.record_seen(B, 'bypassPermissions')
+            result = settings.resolve(config=config)
+            self.assertEqual((result['effective'], result['claude_mode']), ('full', 'bypassPermissions'))
+            self.assertIn('Claude Code', result['reason'])
 
 
 if __name__ == '__main__':

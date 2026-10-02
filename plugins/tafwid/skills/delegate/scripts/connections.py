@@ -11,7 +11,7 @@ import paths
 def _path(task_id: str):
     """Select one validated task's private switch file."""
     if not task_id or "/" in task_id or ".." in task_id:
-        raise ValueError("Invalid Codex task identity")
+        raise ValueError("Invalid task identity")
     return paths.state_root() / (task_id + ".json")
 
 
@@ -136,5 +136,5 @@ def resolve(task_id: str | None, selector: str | None, *, once: bool = False) ->
     if len(rows) == 1:
         return rows[0]
     if not rows:
-        raise ValueError("Delegation is off for this Codex task")
+        raise ValueError("Delegation is off for this task")
     raise ValueError("Several connections are enabled; specify --connection for this assignment")

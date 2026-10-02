@@ -44,19 +44,20 @@ def completion(record):
     }
 
 
-def wait_for_runs(run_dirs=(), timeout=MAX_WAIT_SECONDS, *, run_ids=(), watch_keys=None):
+def wait_for_runs(run_dirs=(), timeout=MAX_WAIT_SECONDS, *, run_ids=(), watch_keys=None, task_id=None):
     """Wait for any selected run to finish, without launching or stopping workers.
 
     Prefer run_ids for direct registry lookup. Legacy run_dirs require discovery
     by output directory. Selectors cannot be mixed. A foreign run requires its
     observation key in watch_keys, mapped by run ID. Keys grant no worker control.
     Return compact evidence and identifiers still pending, without the keys.
+    Hook processes pass task_id because they carry no task environment.
     """
     if not math.isfinite(timeout) or not 0 <= timeout <= MAX_WAIT_SECONDS:
         raise ValueError(f"--timeout must be between 0 and {MAX_WAIT_SECONDS} seconds")
-    task_id = session.current_task_id()
+    task_id = task_id or session.current_task_id()
     if not task_id:
-        raise ValueError("No Codex task identity; use the original launcher process handle")
+        raise ValueError("No task identity from the coordinator; use the original launcher process handle")
     if run_dirs and run_ids:
         raise ValueError("Use --run-id or --run-dir, not both")
     by_id = bool(run_ids)
@@ -85,7 +86,7 @@ def wait_for_runs(run_dirs=(), timeout=MAX_WAIT_SECONDS, *, run_ids=(), watch_ke
     known = {target: target for target in targets} if by_id else {}
     while True:
         # Discover late registration after auth/startup. Once found, read only the
-        # selected IDs; heartbeats and unrelated runs do not wake GPT.
+        # selected IDs; heartbeats and unrelated runs do not wake the coordinator.
         if not by_id and len(known) < len(targets):
             for record in registry.list_runs(task_id):
                 path = str(Path(record["output_dir"]).resolve())
@@ -111,7 +112,7 @@ def wait_for_runs(run_dirs=(), timeout=MAX_WAIT_SECONDS, *, run_ids=(), watch_ke
                         pending.append({**identity, "status": "awaiting_registration"})
                     continue
                 path = str(Path(record["output_dir"]).resolve())
-                if record.get("codex_thread_id") != task_id and not registry.can_watch(record, watch_keys.get(record["id"])):
+                if registry.owner(record) != task_id and not registry.can_watch(record, watch_keys.get(record["id"])):
                     raise ValueError("Run belongs to another task; its monitoring key is required")
                 if not by_id and path != target:
                     raise ValueError("Run output directory changed")
@@ -142,7 +143,7 @@ def main():
   python3 scripts/wait.py --run-id <run-uuid> --watch-key <run-uuid>=<watch-key>
   python3 scripts/wait.py --run-dir /private/run-1  # Legacy directory selection
 
-Uses the current Codex chat identity from the environment. A different task needs
+Uses the current chat identity from the coordinator's environment. A different task needs
 that run's watch_key from delegate.py's started event. Repeat --watch-key RUN_ID=KEY
 for multiple foreign runs. Keys allow observation only and are never returned.
 Without a key, only the current task's runs can be observed. Legacy directory

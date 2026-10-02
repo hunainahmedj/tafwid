@@ -3,6 +3,7 @@
 import json
 import os
 from pathlib import Path
+import subprocess
 import sys
 import tempfile
 import threading
@@ -12,6 +13,7 @@ from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 import completion_hook
+import host
 import run_state
 
 TASK = "00000000-0000-4000-8000-000000000001"
@@ -23,7 +25,8 @@ class CompletionHookTests(unittest.TestCase):
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
         self.root = Path(temporary.name)
-        environment = patch.dict(os.environ, {"CODEX_HOME": str(self.root), "CODEX_THREAD_ID": TASK})
+        environment = patch.dict(os.environ, {"CODEX_HOME": str(self.root), "CODEX_THREAD_ID": TASK,
+                                              "TAFWID_HOME": str(self.root / "tafwid"), "TAFWID_HOST": "codex"})
         environment.start()
         self.addCleanup(environment.stop)
         available = patch.object(completion_hook, "hook_status", return_value={"active": True})
@@ -85,6 +88,20 @@ class CompletionHookTests(unittest.TestCase):
             self.assertIn(second.id, result["reason"])
             self.assertEqual(completion_hook.on_stop(self.event()), {})
 
+    def test_arm_survives_a_slow_end_of_turn(self):
+        # A coordinator can take minutes to finish its turn after arming; the hook must still wait.
+        with self.worker() as worker:
+            worker.running(123)
+            completion_hook.arm([worker.id])
+            marker = completion_hook.arm_path(TASK)
+            saved = json.loads(marker.read_text())
+            saved["armed_at"] = time.time() - 240
+            marker.write_text(json.dumps(saved))
+            worker.finish({"status": "completed"})
+            result = completion_hook.on_stop(self.event())
+            self.assertEqual(result.get("decision"), "block")
+            self.assertIn(worker.id, result["reason"])
+
     def test_stale_arm_and_interrupt_do_not_wait(self):
         with self.worker() as worker:
             worker.running(123)
@@ -98,6 +115,98 @@ class CompletionHookTests(unittest.TestCase):
             completion_hook.arm([worker.id])
             completion_hook.disarm(self.event())
             self.assertFalse(marker.exists())
+
+
+PLUGIN = Path(__file__).resolve().parents[3]
+
+
+class ClaudeHookTests(unittest.TestCase):
+    def setUp(self):
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        self.root = Path(temporary.name)
+        self.env = {"CODEX_HOME": str(self.root), "TAFWID_HOME": str(self.root / "tafwid"),
+                    "TAFWID_HOST": "claude", "CLAUDE_CODE_SESSION_ID": TASK}
+        environment = patch.dict(os.environ, self.env)
+        environment.start()
+        self.addCleanup(environment.stop)
+        os.environ.pop("CODEX_THREAD_ID", None)
+
+    def worker(self, name="worker", task=TASK):
+        output = self.root / name
+        output.mkdir()
+        return run_state.Tracker(output, task, "session", name, {}, str(self.root))
+
+    def prompt_event(self, mode="default"):
+        return {"session_id": TASK, "hook_event_name": "UserPromptSubmit", "permission_mode": mode}
+
+    def test_arm_is_unavailable_until_the_prompt_hook_has_run(self):
+        with self.worker() as worker:
+            worker.running(123)
+            result = completion_hook.arm([worker.id])
+            self.assertEqual(result["event"], "unavailable")
+            self.assertIn("Claude Code", result["reason"])
+            self.assertFalse(completion_hook.arm_path(TASK).exists())
+            completion_hook.disarm(self.prompt_event("acceptEdits"))
+            self.assertEqual(host.seen(TASK)["permission_mode"], "acceptEdits")
+            self.assertEqual(completion_hook.arm([worker.id])["event"], "active")
+
+    def test_codex_prompt_hook_records_no_marker(self):
+        codex_hook = {"CLAUDE_PLUGIN_ROOT": str(PLUGIN), "CLAUDE_CODE_SESSION_ID": OTHER}
+        with patch.dict(os.environ, codex_hook):
+            completion_hook.disarm(self.prompt_event())
+        self.assertIsNone(host.seen(TASK))
+
+    def test_stop_resumes_a_claude_session_without_codex_identity(self):
+        host.record_seen(TASK, "default")
+        with self.worker() as worker:
+            worker.finish({"status": "completed"})
+            self.assertEqual(completion_hook.arm([worker.id])["event"], "active")
+            hook_env = {k: v for k, v in os.environ.items() if k not in host.IDENTITY_VARIABLES}
+            with patch.dict(os.environ, {**hook_env, "CLAUDE_PLUGIN_ROOT": str(PLUGIN)}, clear=True):
+                result = completion_hook.on_stop({"session_id": TASK, "stop_hook_active": False})
+            self.assertEqual(result["decision"], "block")
+            self.assertIn(worker.id, result["reason"])
+
+    def test_hook_failures_never_block_a_prompt_or_stop(self):
+        (self.root / "tafwid" / "state").mkdir(parents=True)
+        (self.root / "state" / "tafwid").mkdir(parents=True)  # conflicting state roots
+        script = str(Path(completion_hook.__file__))
+        for action in ("disarm", "hook"):
+            with self.subTest(action=action):
+                run = subprocess.run([sys.executable, script, action], text=True, capture_output=True,
+                                     input=json.dumps(self.prompt_event()), timeout=10,
+                                     env={**os.environ, "CLAUDE_PLUGIN_ROOT": str(PLUGIN)})
+                self.assertEqual(run.returncode, 0, run.stderr)
+                self.assertEqual(json.loads(run.stdout), {})
+                self.assertIn("state directories", run.stderr)
+        run = subprocess.run([sys.executable, script, "hook"], text=True, capture_output=True,
+                             input="not json", timeout=10)
+        self.assertEqual((run.returncode, json.loads(run.stdout)), (0, {}))
+
+    def test_unreadable_wait_marker_is_discarded(self):
+        marker = completion_hook.arm_path(TASK)
+        marker.parent.mkdir(parents=True)
+        for content in ("[]", "{broken"):
+            marker.write_text(content)
+            self.assertEqual(completion_hook.on_stop({"session_id": TASK}), {})
+            self.assertFalse(marker.exists())
+
+    def test_packaged_hook_command_runs_with_either_plugin_root_variable(self):
+        commands = json.loads((PLUGIN / "hooks" / "hooks.json").read_text())["hooks"]
+        command = commands["UserPromptSubmit"][0]["hooks"][0]["command"]
+        base = {k: v for k, v in os.environ.items() if k not in host.IDENTITY_VARIABLES}
+        claude = {"CLAUDE_PLUGIN_ROOT": str(PLUGIN), "CLAUDE_CODE_SESSION_ID": TASK}
+        codex = {"PLUGIN_ROOT": str(PLUGIN), "CLAUDE_PLUGIN_ROOT": str(PLUGIN)}
+        for name, hook_env, expected in (("claude", claude, "default"), ("codex", codex, None)):
+            with self.subTest(host=name):
+                host.seen_path(TASK).unlink(missing_ok=True)
+                run = subprocess.run(command, shell=True, env={**base, **hook_env},
+                                     input=json.dumps(self.prompt_event()), text=True,
+                                     capture_output=True, timeout=10)
+                self.assertEqual(run.returncode, 0, run.stderr)
+                marker = host.seen(TASK)
+                self.assertEqual(marker and marker["permission_mode"], expected)
 
 
 if __name__ == "__main__":

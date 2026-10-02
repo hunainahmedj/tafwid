@@ -8,7 +8,8 @@ Codex CLI workers and check whether those destinations are ready.
 ## Why was it built?
 
 A coordinator needs to choose an exact account deliberately and retain
-that choice when continuing work.
+that choice when continuing work. Accounts are shared by Codex and Claude Code
+coordinators on the same machine.
 
 ## When is it used?
 
@@ -32,7 +33,8 @@ a fixture or documentation example.
 ## Decisions
 
 See the [mixed-account design](../superpowers/specs/2026-09-29-multiple-gpt-accounts-design.md)
-for historical rationale.
+for historical rationale, and
+[ADR-0004](../05-decisions/0004-host-adapter-and-neutral-state.md) for the shared state home.
 
 ## Tracker
 

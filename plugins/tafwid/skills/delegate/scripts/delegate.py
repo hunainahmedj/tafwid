@@ -22,6 +22,7 @@ import run_state
 import settings as worker_settings
 import routing
 import harnesses
+import host
 import connections
 import accounts
 import codex_cli
@@ -29,9 +30,9 @@ import codex_cli
 # Profiles pick a model and its effort. They grant no tool, permission, or budget.
 PROFILES = routing.PROFILES
 EFFORTS = ("low", "medium", "high", "xhigh", "max")
-CONTRACT = """You are a Claude Code worker for a bounded Codex task.
+CONTRACT = """You are a Claude Code worker for a bounded task assigned by a coordinator.
 Follow the task brief and applicable workspace rules.
-Codex owns planning/dispatch; no replanning or nested workers unless requested.
+The coordinator owns planning/dispatch; no replanning or nested workers unless requested.
 Stay in scope. Commits, pushes, deploys, messaging and account/tool configuration changes
 require explicit brief authorization. Report denied steps; never evade permissions.
 If a required capability is unavailable, finish independent work and report blocked
@@ -42,7 +43,7 @@ Follow assigned check ownership; preserve required gates. Reuse checks for uncha
 code/environment. For optional retries state the relevant change, new diagnostic hypothesis or transient evidence.
 Report (~250 words): outcome, files/findings with locations, risks/unverified work, and Checks: command/cwd/environment,
 result, tested revision+dirty-diff reference, later edits, unresolved failures/next owner; link long logs.
-No checks: say so. Passing earlier checks does not verify later edits; Codex retains acceptance review.
+No checks: say so. Passing earlier checks does not verify later edits; The coordinator retains acceptance review.
 
 TASK BRIEF:
 """
@@ -269,7 +270,8 @@ def run_gpt(args, *, task_id, cwd, prompt, previous, selected):
         (out / "report.md").write_text(report + "\n", encoding="utf-8")
         summary = {"status": status, "backend": "gpt", "connection_id": selected["id"],
                    "connection": selected["selector"], "account_kind": selected["kind"],
-                   "session_id": session_id, "codex_thread_id": task_id, "cwd": str(cwd),
+                   "session_id": session_id, "coordinator_task_id": task_id,
+                   "coordinator_host": host.detect(), "cwd": str(cwd),
                    "mode": args.mode, "requested_model": model, "model_selection": selection,
                    "run_id": tracker.id, "models_used": [], "permissions": permissions,
                    "codex_exit_code": code, "report_file": str(out / "report.md"),
@@ -292,7 +294,7 @@ def run(args):
     """
     task_id = delegation_session.current_task_id()
     if not args.once and not connections.read(task_id)["enabled"]:
-        raise ValueError("Delegation is off for this Codex task. Enable it with session.py on, or use --once for an explicit one-shot request.")
+        raise ValueError("Delegation is off for this task. Enable it with session.py on, or use --once for an explicit one-shot request.")
     cwd = args.cwd.expanduser().resolve(strict=True)
     if not cwd.is_dir():
         raise ValueError("--cwd must be a directory")
@@ -313,8 +315,8 @@ def run(args):
         previous = json.loads((args.resume_from.expanduser() / "summary.json").read_text())
         if previous.get("backend", "claude") not in ("claude", "gpt"):
             raise ValueError("Only Claude Code workers can be resumed; this run belongs to a retired backend")
-        if "codex_thread_id" not in previous or previous["codex_thread_id"] != task_id:
-            raise ValueError("Resume has missing or different Codex task ownership; start a fresh worker")
+        if not run_state.owner(previous) or run_state.owner(previous) != task_id:
+            raise ValueError("Resume has missing or different task ownership; start a fresh worker")
         if Path(previous["cwd"]).resolve() != cwd:
             raise ValueError("Resume workspace differs from the original run")
         session = str(uuid.UUID(previous["session_id"]))
@@ -375,7 +377,7 @@ def run(args):
                 if active["id"] != "claude:default":
                     raise ValueError("Claude connection changed before launch; no worker started")
             proc = subprocess.Popen(command, cwd=cwd, stdin=stdin, stdout=stdout, stderr=stderr,
-                                    start_new_session=True)
+                                    env=host.worker_env(), start_new_session=True)
             tracker.running(proc.pid)
             try:
                 print(json.dumps({"event": "started", "run_id": tracker.id,
@@ -417,7 +419,8 @@ def run(args):
         (out / "report.md").write_text(report + "\n", encoding="utf-8")
         summary = {"status": status, "backend": "claude", "connection_id": "claude:default",
                    "session_id": session, "cwd": str(cwd),
-                   "codex_thread_id": task_id, "model_selection": selection, "run_id": tracker.id,
+                   "coordinator_task_id": task_id, "coordinator_host": host.detect(),
+                   "model_selection": selection, "run_id": tracker.id,
                    "models_used": models_used, "permissions": permissions,
                    "subscription_type": subscription, "claude_exit_code": code,
                    "permission_denials": denials, "report_file": str(out / "report.md"),

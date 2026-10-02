@@ -12,6 +12,7 @@ import shutil
 import subprocess
 import uuid
 
+import host
 import paths
 
 NAME = re.compile(r"[a-z][a-z0-9_-]{0,31}\Z")
@@ -42,15 +43,23 @@ def _save(rows):
     paths.atomic_json(registry_path(), {"version": 1, "accounts": rows})
 
 
+def _reject_redirected_root():
+    """Stop when the state directory or its Tafwid parents are symlinks."""
+    root = paths.state_root()
+    parts = [root, root.parent]
+    if root.parent.parent != Path.home():
+        parts.append(root.parent.parent)
+    if any(part.is_symlink() for part in parts):
+        raise ValueError("Tafwid state path is redirected; account setup stopped")
+
+
 def _safe_home(home):
     """Reject redirected or group-accessible account-home components."""
     root = paths.state_root() / "accounts"
     home = Path(home)
     if home.parent.parent != root or not home.name:
         raise ValueError("Account home is outside the private registry")
-    base = Path(os.environ.get("CODEX_HOME") or Path.home() / ".codex").expanduser()
-    if base.is_symlink() or (base / "tafwid").is_symlink() or (base / "state").is_symlink():
-        raise ValueError("Codex state path is redirected; account setup stopped")
+    _reject_redirected_root()
     for part in (root, home.parent, home):
         if part.is_symlink() or not part.is_dir():
             raise ValueError("Account home is missing or redirected; repair setup before use")
@@ -67,9 +76,7 @@ def create(name: str, kind: str) -> dict:
         raise ValueError("Use a unique lowercase account name starting with a letter (up to 32 characters)")
     if kind not in KINDS:
         raise ValueError("Account type must be personal or business")
-    base = Path(os.environ.get("CODEX_HOME") or Path.home() / ".codex").expanduser()
-    if any(part.is_symlink() for part in (base, base / "tafwid", base / "state")):
-        raise ValueError("Codex state path is redirected; account setup stopped")
+    _reject_redirected_root()
     rows = _rows()
     if any(row.get("name") == name for row in rows):
         raise ValueError("That GPT account name already exists")
@@ -122,7 +129,8 @@ def isolated_env(home: Path, base=None) -> dict[str, str]:
     """Select one CLI home and drop inherited identity or billing overrides."""
     source = os.environ if base is None else base
     env = {key: value for key, value in source.items()
-           if not (key.startswith("OPENAI_") or key.startswith("CODEX_"))}
+           if not (key.startswith("OPENAI_") or key.startswith("CODEX_")
+                   or key in host.IDENTITY_VARIABLES)}
     for key in ("OPENAI_CERT_FILE", "OPENAI_CA_BUNDLE", "CODEX_CERT_FILE"):
         if key in source:
             env[key] = source[key]

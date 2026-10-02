@@ -5,7 +5,7 @@ Run from any directory with Python 3.10 or newer:
     python3 /path/to/tafwid/scripts/check_package.py
 
 No arguments are required. The repository root is resolved from this file.
-Checks cover metadata consistency, required files, local documentation links,
+Checks cover Codex and Claude Code metadata consistency, required files, local documentation links,
 PNG assets, and recognizable private data. Files are read but never changed;
 no workers are launched and no network requests are made.
 
@@ -63,6 +63,17 @@ def check():
     assert len(entries) == 1 and entries[0]["name"] == "tafwid"
     assert entries[0]["source"] == {"source": "local", "path": "./plugins/tafwid"}
 
+    # Claude Code packaging mirrors the Codex identity and version.
+    claude = json.loads((plugin / ".claude-plugin/plugin.json").read_text())
+    assert claude["name"] == "tafwid", "Claude manifest name mismatch"
+    assert claude["version"] == version, "Claude manifest/version mismatch"
+    assert claude["license"] == "MIT"
+    claude_market = json.loads((ROOT / ".claude-plugin/marketplace.json").read_text())
+    assert claude_market["name"] == "tafwid" and claude_market["owner"]["name"]
+    entries = claude_market["plugins"]
+    assert len(entries) == 1 and entries[0]["name"] == "tafwid"
+    assert entries[0]["source"] == "./plugins/tafwid"
+
     # Skill entry points and local documentation links.
     entries = {p.parent.name: p for p in (plugin / "skills").glob("*/SKILL.md")}
     assert set(entries) == {"delegate", "account"}, (
@@ -103,6 +114,8 @@ def check():
         "scripts/delegate.py",
         "scripts/completion_hook.py",
         "scripts/paths.py",
+        "scripts/host.py",
+        "scripts/migration.py",
         "scripts/session.py",
         "scripts/account.py",
         "scripts/accounts.py",
@@ -113,8 +126,14 @@ def check():
         "references/claude-code.md",
     ):
         assert (skill / name).is_file(), f"Missing {name}"
-    hooks = json.loads((plugin / "hooks/hooks.json").read_text())
-    assert hooks["hooks"]["Stop"], "Missing Stop hook"
+    hooks = json.loads((plugin / "hooks/hooks.json").read_text())["hooks"]
+    assert hooks["Stop"] and hooks["UserPromptSubmit"], "Missing completion hooks"
+    prefix = ("bash -c 'exec python3 \"${CLAUDE_PLUGIN_ROOT:-${PLUGIN_ROOT}}"
+              "/skills/delegate/scripts/completion_hook.py\" ")
+    for event, groups in hooks.items():
+        for group in groups:
+            for hook in group["hooks"]:
+                assert hook["command"].startswith(prefix), f"Hook is not host-neutral: {event}"
 
     # Scan source files for invalid assets and recognizable private data.
     excluded = {".git", ".remember", "__pycache__", "dist", ".venv", "node_modules"}

@@ -5,7 +5,8 @@ Adjacent personal projects are outside this documentation scope.
 
 | Path | Role |
 | --- | --- |
-| `plugins/tafwid/` | Distributable Codex plugin, including manifests, skills, hooks, and brand assets |
+| `plugins/tafwid/` | Distributable plugin for Codex and Claude Code, including both hosts' manifests, skills, hooks, and brand assets |
+| `.agents/plugins/marketplace.json`, `.claude-plugin/marketplace.json` | Marketplace entries for Codex and Claude Code |
 | `plugins/tafwid/skills/delegate/` | Python worker runtime, backend references, and isolated offline tests |
 | `plugins/tafwid/skills/account/` | Named-account user-facing skill entry point |
 | `scripts/check_package.py` | Source/package integrity validation |

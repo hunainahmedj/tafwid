@@ -1,15 +1,14 @@
 #!/usr/bin/env python3
-"""Arm a one-time Codex Stop hook to wait for this chat's Tafwid workers.
+"""Arm a one-time Stop hook to wait for this chat's Tafwid workers.
 
 CLI: completion_hook.py {status,arm,hook,disarm} [--run-id UUID ...].
 `status` checks that this installed plugin's Stop hook is enabled and trusted.
 `arm` records selected runs for the next Stop event; it never launches workers.
-The hook waits locally and resumes Codex only for completion or attention.
+The hook waits locally and resumes the coordinator only for completion or attention.
 """
 
 import argparse
 import json
-import os
 from pathlib import Path
 import select
 import subprocess
@@ -17,6 +16,7 @@ import sys
 import time
 import uuid
 
+import host
 import paths
 import run_state
 import session
@@ -26,7 +26,9 @@ import wait
 PLUGIN_ROOT = Path(__file__).resolve().parents[3]
 HOOK_FILE = PLUGIN_ROOT / "hooks" / "hooks.json"
 HOOK_WAIT_SECONDS = 1700
-ARM_MAX_AGE_SECONDS = 120
+# The next prompt (and Codex's Interrupt) clears a leftover arm. This bound only discards
+# markers from abandoned sessions; it must outlast a slow end of turn after arming.
+ARM_MAX_AGE_SECONDS = 24 * 60 * 60
 
 
 def _response(process, request_id, timeout=5):
@@ -53,7 +55,17 @@ def _send(process, value):
 
 
 def hook_status():
-    """Return whether this installed plugin's Stop hook is enabled and trusted."""
+    """Return whether this chat's completion hooks can resume the coordinator."""
+    if host.detect() == "claude":
+        if host.seen(host.task_id()):
+            return {"active": True}
+        return {"active": False, "reason": "Tafwid hooks have not run in this Claude Code session; "
+                "check that the plugin is enabled and hooks are not disabled"}
+    return _codex_hook_status()
+
+
+def _codex_hook_status():
+    """Return whether this installed plugin's Stop hook is enabled and trusted in Codex."""
     process = subprocess.Popen(["codex", "app-server", "--stdio"],
                                stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                                stderr=subprocess.DEVNULL, text=True, bufsize=1)
@@ -99,7 +111,7 @@ def arm(run_ids):
     """Validate worker ownership and hook readiness before arming a Stop wait."""
     task_id = session.current_task_id()
     if not task_id:
-        raise ValueError("No Codex chat identity")
+        raise ValueError("No chat identity from the coordinator")
     if not run_ids:
         raise ValueError("At least one --run-id is required")
     state = hook_status()
@@ -109,7 +121,7 @@ def arm(run_ids):
     selected = []
     for run_id in dict.fromkeys(run_ids):
         record = run_state.load_record(run_id)
-        if record.get("codex_thread_id") != task_id:
+        if run_state.owner(record) != task_id:
             raise ValueError("Cannot arm another chat's worker")
         selected.append(run_id)
     paths.atomic_json(arm_path(task_id), {
@@ -119,13 +131,15 @@ def arm(run_ids):
 
 
 def disarm(event):
-    """Clear this chat's pending handoff after a user interruption."""
+    """Clear this chat's pending handoff; on Claude Code, record that hooks run."""
     task_id = event.get("session_id")
     try:
         task_id = str(uuid.UUID(task_id))
     except (TypeError, ValueError):
         return
     arm_path(task_id).unlink(missing_ok=True)
+    if host.for_hook(task_id) == "claude":
+        host.record_seen(task_id, event.get("permission_mode"))
 
 
 def on_stop(event):
@@ -140,16 +154,17 @@ def on_stop(event):
         state = json.loads(marker.read_text(encoding="utf-8"))
     except FileNotFoundError:
         return {}
-    if (state.get("version") != 1 or state.get("thread_id") != task_id
+    except ValueError:
+        state = None
+    if (not isinstance(state, dict) or state.get("version") != 1 or state.get("thread_id") != task_id
             or not isinstance(state.get("run_ids"), list)
             or time.time() - state.get("armed_at", 0) > ARM_MAX_AGE_SECONDS):
         marker.unlink(missing_ok=True)
         return {}
-    os.environ["CODEX_THREAD_ID"] = task_id
     deadline = time.monotonic() + HOOK_WAIT_SECONDS
     pending = state["run_ids"]
     while pending:
-        result = wait.wait_for_runs(run_ids=pending,
+        result = wait.wait_for_runs(run_ids=pending, task_id=task_id,
                                     timeout=min(wait.MAX_WAIT_SECONDS, max(0, deadline - time.monotonic())))
         if result["ready"] or result["errors"]:
             marker.unlink(missing_ok=True)
@@ -168,7 +183,7 @@ def on_stop(event):
 
 
 def main():
-    """Dispatch the CLI action and print compact JSON for Codex."""
+    """Dispatch the CLI action and print compact JSON for the coordinator."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("action", choices=("status", "arm", "hook", "disarm"))
     parser.add_argument("--run-id", action="append", default=[],
@@ -179,11 +194,16 @@ def main():
             result = hook_status()
         elif args.action == "arm":
             result = arm(args.run_id)
-        elif args.action == "hook":
-            result = on_stop(json.load(sys.stdin))
         else:
-            disarm(json.load(sys.stdin))
-            result = {}
+            # A hook failure must never reject the user's prompt or keep the coordinator from stopping.
+            try:
+                event = json.load(sys.stdin)
+                if not isinstance(event, dict):
+                    raise ValueError("Hook input is not a JSON object")
+                result = on_stop(event) if args.action == "hook" else (disarm(event) or {})
+            except Exception as exc:
+                print(json.dumps({"event": "error", "error": str(exc)}), file=sys.stderr)
+                result = {}
         print(json.dumps(result, ensure_ascii=False))
         return 0
     except (OSError, ValueError, TypeError, KeyError, TimeoutError) as exc:

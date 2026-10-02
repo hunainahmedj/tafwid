@@ -4,6 +4,7 @@
 CLI: show; set --policy scoped|full|inherit and/or --harness claude.
 A task copies global defaults on first use, then keeps its own settings on disk.
 Model routes are preserved; delegate.py --model overrides them for one worker.
+migrate [--dry-run] moves a legacy state directory to the host-neutral home.
 Output is JSON. --help does not read or write settings.
 """
 import argparse
@@ -15,6 +16,7 @@ import sys
 import uuid
 
 import harnesses
+import host
 import paths
 import routing
 
@@ -28,7 +30,7 @@ def settings_file(task_id=None):
     try:
         task_id = str(uuid.UUID(task_id))
     except (ValueError, TypeError, AttributeError):
-        raise ValueError("Invalid Codex task identity; cannot select settings") from None
+        raise ValueError("Invalid task identity; cannot select settings") from None
     return paths.state_root() / "tasks" / task_id / "settings.json"
 
 
@@ -126,20 +128,21 @@ def update(task_id=None, *, policy=None, harness=None):
 
 
 def resolve(override=None, config=None):
-    """Map the selected policy to Claude permissions using the live host signal."""
+    """Map the selected policy to worker permissions using the coordinator's live signal."""
     policy = override if override is not None else (config if config is not None else read())["permission_policy"]
     if policy not in POLICIES:
         raise ValueError("Invalid worker permission policy")
-    parent_full = os.environ.get("CODEX_PERMISSION_PROFILE") == ":danger-full-access"
+    parent_full = host.full_access()
+    name = host.display_name()
     effective = "full" if policy == "full" or (policy == "inherit" and parent_full) else "scoped"
     reason = {"full": "Full access selected by the user", "scoped": "Scoped command allowances selected"}.get(policy)
     if policy == "inherit":
-        reason = ("Current Codex process reports full access" if parent_full else
-                  "Codex full access is not confirmed; using scoped allowances")
+        reason = (f"{name} currently reports full access" if parent_full else
+                  f"Full access is not confirmed by {name}; using scoped allowances")
     return {"policy": policy, "effective": effective,
             "claude_mode": "bypassPermissions" if effective == "full" else "dontAsk",
             "source": "override" if override is not None else "settings",
-            "codex_full_access": parent_full, "reason": reason}
+            "coordinator_full_access": parent_full, "reason": reason}
 
 
 def main():
@@ -151,14 +154,19 @@ def main():
   python3 scripts/settings.py set --policy scoped
   python3 scripts/settings.py show --global
   python3 scripts/settings.py set --policy inherit --global
+  python3 scripts/settings.py migrate --dry-run
+  python3 scripts/settings.py migrate
 
-Without --global, use the current Codex task identity from the host environment.
+Without --global, use the current task identity from the coordinator's environment.
 First use saves a task snapshot; later global edits do not affect it. No task
 identity is required for --global. Settings do not modify already-running workers.
 Success prints JSON and exits 0; settings errors exit 1; argument errors exit 2.
 """,
     )
-    parser.add_argument("action", choices=("show", "set"), help="read or update settings")
+    parser.add_argument("action", choices=("show", "set", "migrate"),
+                        help="read or update settings, or move legacy state to the neutral home")
+    parser.add_argument("--dry-run", action="store_true",
+                        help="with migrate: report what would move without changing anything")
     parser.add_argument("--global", dest="global_defaults", action="store_true",
                         help="read or change defaults for new tasks, instead of this task")
     parser.add_argument("--policy", choices=POLICIES, help="permission policy to save")
@@ -168,16 +176,26 @@ Success prints JSON and exits 0; settings errors exit 1; argument errors exit 2.
         parser.error("set requires --policy or --harness")
     if args.action == "show" and (args.policy is not None or args.harness is not None):
         parser.error("show does not accept --policy or --harness")
+    if args.action == "migrate" and (args.policy is not None or args.harness is not None or args.global_defaults):
+        parser.error("migrate accepts only --dry-run")
+    if args.dry_run and args.action != "migrate":
+        parser.error("--dry-run applies to migrate")
     try:
+        if args.action == "migrate":
+            import migration
+            print(json.dumps(migration.migrate(dry_run=args.dry_run)))
+            return 0
         task_id = None
         if not args.global_defaults:
             # Import here to keep the settings store independent of session writes.
             from session import current_task_id
             task_id = current_task_id()
             if task_id is None:
-                raise ValueError("No Codex task identity; use --global for global defaults")
+                raise ValueError("No task identity from the coordinator; use --global for global defaults")
         result = (read(task_id) if args.action == "show" else
                   update(task_id, policy=args.policy, harness=args.harness))
+        if args.action == "show" and paths.migration_notice():
+            result = {**result, "migration": paths.migration_notice()}
         print(json.dumps(result))
         return 0
     except (OSError, ValueError, TypeError) as exc:

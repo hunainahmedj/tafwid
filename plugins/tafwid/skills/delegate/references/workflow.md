@@ -81,6 +81,11 @@ to change files. Follow the harness guide for tool permissions.
 Keep the process handle and output directory for waiting and follow-up
 work. Do not launch another worker just because the first is quiet.
 
+In Claude Code, launch `delegate.py` with the Bash tool's `run_in_background`
+option. A foreground Bash call ends at its own timeout, before most workers
+finish. Read the `started` event from the background command's output to get
+the `run_id`.
+
 The default timeout is 900 seconds. Use `--timeout` to change it.
 
 ## Continue a worker

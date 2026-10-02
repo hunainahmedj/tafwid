@@ -2,7 +2,7 @@ Before non-trivial work, read docs/AGENTS.md (project briefing) and the relevant
 
 # Tafwid contributor instructions
 
-Tafwid is a Codex plugin. The distributable plugin is under `plugins/tafwid`;
+Tafwid is a plugin for Codex and Claude Code. The distributable plugin is under `plugins/tafwid`;
 its skill, Python runtime, references and offline tests are under
 `plugins/tafwid/skills/delegate`. Read README.md before changing behavior.
 
@@ -13,4 +13,5 @@ its skill, Python runtime, references and offline tests are under
   model requests or change the developer's installed plugin during ordinary tests.
 - Run `make test` for runtime changes, and `python3 scripts/check_package.py` for
   packaging changes.
-- Use release versions in both manifests consistently; preserve license notices.
+- Only `scripts/host.py` reads coordinator identity variables; other scripts call it.
+- Use release versions in VERSION and both plugin manifests consistently; preserve license notices.
