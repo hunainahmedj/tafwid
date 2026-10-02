@@ -126,7 +126,7 @@ The explicit `bash -c` makes the command independent of whether a host substitut
 | `UserPromptSubmit` | `disarm` | Clears the armed marker | Clears it and records the hooks-seen marker |
 | `Interrupt` | `disarm` | Clears the armed marker | Not a Claude Code event; ignored with a validation warning |
 
-Claude Code fires no hook when the user interrupts a turn, and `Stop` does not run on an interrupt. A leftover armed marker is harmless: `ARM_MAX_AGE_SECONDS` expires it after 120 seconds, and the next prompt clears it.
+Claude Code fires no hook when the user interrupts a turn, and `Stop` does not run on an interrupt. A leftover armed marker is harmless because the next prompt clears it. `ARM_MAX_AGE_SECONDS` (24 hours) only discards markers from abandoned sessions; a shorter limit let a slow end of turn expire a valid arm, so the coordinator was never resumed.
 
 ### Stop hook
 

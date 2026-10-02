@@ -11,6 +11,8 @@
 - Record run ownership as `coordinator_task_id` and `coordinator_host`; older
   records remain readable.
 - Hook actions no longer exit with a blocking status when state is unreadable.
+- Keep an armed completion hook valid until the turn ends; a slow final reply no longer
+  expires it after two minutes and silently skips the resume.
 - Rename the `codex_full_access` permission result field to `coordinator_full_access`.
 - Fix personal GPT account setup on Python 3.10 when the optional account type is omitted.
 - Add named personal and Business GPT worker accounts with private Codex homes,

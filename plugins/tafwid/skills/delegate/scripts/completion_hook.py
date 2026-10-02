@@ -26,7 +26,9 @@ import wait
 PLUGIN_ROOT = Path(__file__).resolve().parents[3]
 HOOK_FILE = PLUGIN_ROOT / "hooks" / "hooks.json"
 HOOK_WAIT_SECONDS = 1700
-ARM_MAX_AGE_SECONDS = 120
+# The next prompt (and Codex's Interrupt) clears a leftover arm. This bound only discards
+# markers from abandoned sessions; it must outlast a slow end of turn after arming.
+ARM_MAX_AGE_SECONDS = 24 * 60 * 60
 
 
 def _response(process, request_id, timeout=5):

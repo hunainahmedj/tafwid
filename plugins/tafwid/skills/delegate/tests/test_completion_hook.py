@@ -88,6 +88,20 @@ class CompletionHookTests(unittest.TestCase):
             self.assertIn(second.id, result["reason"])
             self.assertEqual(completion_hook.on_stop(self.event()), {})
 
+    def test_arm_survives_a_slow_end_of_turn(self):
+        # A coordinator can take minutes to finish its turn after arming; the hook must still wait.
+        with self.worker() as worker:
+            worker.running(123)
+            completion_hook.arm([worker.id])
+            marker = completion_hook.arm_path(TASK)
+            saved = json.loads(marker.read_text())
+            saved["armed_at"] = time.time() - 240
+            marker.write_text(json.dumps(saved))
+            worker.finish({"status": "completed"})
+            result = completion_hook.on_stop(self.event())
+            self.assertEqual(result.get("decision"), "block")
+            self.assertIn(worker.id, result["reason"])
+
     def test_stale_arm_and_interrupt_do_not_wait(self):
         with self.worker() as worker:
             worker.running(123)
