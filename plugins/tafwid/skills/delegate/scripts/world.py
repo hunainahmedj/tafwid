@@ -9,14 +9,12 @@ world/events-YYYY-MM-DD.jsonl (local date, mode 0600, pruned after 7 days).
 Raw ids are never stored: hash_id keeps the first 16 hex characters of
 HMAC-SHA256 under a private random salt in world/salt.
 """
-import argparse
 import hashlib
 import hmac
 import json
 import os
 from pathlib import Path
 import sys
-import tempfile
 import time
 
 RETENTION_SECONDS = 7 * 86400
@@ -90,6 +88,13 @@ def _salt():
     """
     directory = _ensure_dir()
     path = directory / "salt"
+    try:
+        salt = path.read_bytes()
+        if len(salt) == SALT_BYTES:
+            return salt
+    except OSError:
+        pass
+    import tempfile  # lazy: only first use and repair need it
     descriptor, temp = tempfile.mkstemp(prefix=".salt-", dir=directory)
     try:
         try:
@@ -148,6 +153,7 @@ def log_error(msg):
     Messages are capped at 500 characters. Each writer uses its own temp file.
     """
     try:
+        import tempfile  # lazy: error logging is rare
         path = _ensure_dir() / "hook-errors.log"
         entry = "%s %s" % (time.strftime("%Y-%m-%dT%H:%M:%S"),
                            " ".join(str(msg).split())[:ERROR_MESSAGE_CHARS])
@@ -172,6 +178,7 @@ def log_error(msg):
 
 
 def main():
+    import argparse  # lazy: only the command line needs it
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("command", choices=("on", "off", "status"))

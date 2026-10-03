@@ -155,7 +155,7 @@ class WorldTests(unittest.TestCase):
         world.log_error("x" * 5000)
         lines = log.read_text(errors="replace").splitlines()
         self.assertLessEqual(len(lines[-1]), 20 + 1 + 500)
-        with patch.object(world.tempfile, "mkstemp", side_effect=OSError("disk full")):
+        with patch.object(tempfile, "mkstemp", side_effect=OSError("disk full")):
             world.log_error("never raises")
 
     def test_cli_status_json(self):

@@ -154,7 +154,7 @@ def check():
               "/skills/delegate/scripts/completion_hook.py\" ")
     # The opt-in activity observer is the only other accepted command; it must be async.
     observer = ("bash -c '[ -f \"${TAFWID_HOME:-$HOME/.tafwid}/state/world/enabled\" ] || exit 0; "
-                "exec python3 \"${CLAUDE_PLUGIN_ROOT:-${PLUGIN_ROOT}}"
+                "exec python3 -S \"${CLAUDE_PLUGIN_ROOT:-${PLUGIN_ROOT}}"
                 "/skills/delegate/scripts/world_hook.py\"'")
     for event, groups in hooks.items():
         for group in groups:

@@ -16,9 +16,10 @@
 - After updating, Codex asks to trust Tafwid's hooks once more, because Codex re-prompts
   whenever `hooks.json` changes (`/hooks` in the CLI). Until you trust them, the
   `wait.py` fallback applies. Claude Code needs no trust step.
-- Measured on an M5 Max, 50 runs of the registered hook command with a Claude PreToolUse
-  payload: median 4.4 ms with the log off and 39.5 ms with it on. The hooks run
-  asynchronously, so neither adds wait time to a turn.
+- Measured on an M5 Max, 150 runs of the registered hook command with a Claude PreToolUse
+  payload: median 4.7 ms with the log off and 29.8 ms with it on. The hooks run
+  asynchronously, so neither adds wait time to a turn. They start Python with `-S`
+  (stdlib only) and import modules lazily to stay within that budget.
 
 ## 0.4.0
 

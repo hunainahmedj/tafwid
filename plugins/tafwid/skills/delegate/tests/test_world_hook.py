@@ -491,7 +491,7 @@ class WorldHookTests(unittest.TestCase):
     def test_hooks_json_registers_async_guarded_observers(self):
         hooks = json.loads((SCRIPTS.parents[2] / "hooks" / "hooks.json").read_text())["hooks"]
         command = ("bash -c '[ -f \"${TAFWID_HOME:-$HOME/.tafwid}/state/world/enabled\" ] || exit 0; "
-                   "exec python3 \"${CLAUDE_PLUGIN_ROOT:-${PLUGIN_ROOT}}/skills/delegate/scripts/world_hook.py\"'")
+                   "exec python3 -S \"${CLAUDE_PLUGIN_ROOT:-${PLUGIN_ROOT}}/skills/delegate/scripts/world_hook.py\"'")
         events = ("SessionStart", "UserPromptSubmit", "PreToolUse", "PostToolUse", "PermissionRequest",
                   "SubagentStart", "SubagentStop", "Stop", "SessionEnd", "Notification")
         for event in events:
