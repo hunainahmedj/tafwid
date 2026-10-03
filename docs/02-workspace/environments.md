@@ -6,11 +6,16 @@ Local development and supported platform requirements are maintained in
 [the root README](../../README.md) and [contributing](../../CONTRIBUTING.md).
 Ordinary tests use temporary homes and fake worker executables.
 
-## Dashboard prototype
+## Dashboard prototypes
 
-[TAF-2](../01-project/backlog.md) specifies a browser application served on
-localhost with synthetic examples. No production or staging deployment is
-configured for it. Run commands live in the [prototype README](../../prototypes/agent-office/README.md).
+The [agent world](../../prototypes/agent-world/README.md)
+([TAF-7](../01-project/backlog.md)) is the current dashboard prototype. It
+is a browser application served on localhost with synthetic examples, and
+its README owns run commands. The dev server may also be exposed inside
+the user's tailnet with Tailscale Serve; nothing is deployed publicly, and
+there is no production or staging target. The first prototype,
+[agent office](../../prototypes/agent-office/README.md)
+([TAF-2](../01-project/backlog.md)), remains as a reference.
 
 ## Asset-authoring resources
 

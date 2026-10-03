@@ -75,6 +75,6 @@ or installed-plugin changes are required for ordinary verification.
 ## Proposed dashboard boundary
 
 The [dashboard module](../04-modules/dashboard.md) describes the prototype
-boundary. Its first iteration uses synthetic fixtures; it does not connect
-to the runtime or create workers. Future integration is tracked separately
+boundary. The prototypes use synthetic fixtures; they do not connect to the
+runtime or create workers. A read-only connection to real runs is tracked
 in [TAF-3](../01-project/backlog.md).

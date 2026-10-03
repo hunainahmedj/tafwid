@@ -55,7 +55,7 @@ holds that evidence.
 
 | Repo / package | Paths |
 | --- | --- |
-| Tafwid | `prototypes/agent-world/` (runtime, `art/` build scripts, `public/environments/`), `prototypes/agent-office/` (first prototype); both outside the distributable plugin |
+| Tafwid | `prototypes/agent-world/src/` (runtime), `prototypes/agent-world/art/` (Blender build scripts), `prototypes/agent-world/public/environments/` (packages), `prototypes/agent-office/` (first prototype); all outside the distributable plugin |
 
 ## Decisions
 
