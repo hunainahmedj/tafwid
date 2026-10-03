@@ -1,5 +1,5 @@
 import * as THREE from "three/webgpu";
-import { cos, float, instanceIndex, positionLocal, sin, time, uniform, vec3 } from "three/tsl";
+import { cos, modelWorldMatrix, positionLocal, sin, time, uniform, vec3, vec4 } from "three/tsl";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
 import type { EnvironmentManifest } from "../contract/manifest";
@@ -7,6 +7,7 @@ import { validateManifest } from "../contract/validate";
 import { parseWalkable } from "../contract/grid";
 import type { WalkGrid } from "./pathfinding";
 import { disposeAll } from "./dispose";
+import { isFoliage } from "./foliage";
 
 export interface LoadedEnvironment {
   manifest: EnvironmentManifest;
@@ -33,13 +34,19 @@ function swayingMaterial(source: THREE.MeshStandardMaterial): THREE.MeshStandard
   return m;
 }
 
+
 /** 1 for normal motion, 0 under reduced motion; scales all foliage sway. */
 export const motionScale = uniform(1);
 
-/** Height-weighted sway; the phase varies per instance and by position. */
+/**
+ * Height-weighted sway driven by world position, so it looks the same whether
+ * leaves arrive as separate kit pieces, instances, or joined baked meshes.
+ * (After instancing, positionLocal is already in the instanced mesh's space.)
+ */
 function swayNode() {
-  const phase = float(instanceIndex).mul(1.73).add(positionLocal.x.mul(0.6)).add(positionLocal.z.mul(0.4));
-  const height = positionLocal.y.max(0).min(4);
+  const world = modelWorldMatrix.mul(vec4(positionLocal, 1)).xyz;
+  const phase = world.x.mul(0.6).add(world.z.mul(0.4));
+  const height = world.y.max(0).min(4);
   return positionLocal.add(
     vec3(sin(time.mul(1.4).add(phase)).mul(0.03), 0, cos(time.mul(1.1).add(phase)).mul(0.022)).mul(height).mul(motionScale),
   );
@@ -56,7 +63,7 @@ function lightmappedMaterial(source: THREE.MeshStandardMaterial): THREE.MeshBasi
   m.lightMap = source.emissiveMap;
   m.lightMapIntensity = Number(source.userData.tafwid_lightmap_scale ?? 2) * Math.PI;
   m.name = source.name;
-  if (source.name.includes("leaf_")) m.positionNode = swayNode();
+  if (isFoliage(source.name)) m.positionNode = swayNode();
   return m;
 }
 
@@ -121,7 +128,7 @@ export async function loadEnvironment(baseUrl: string): Promise<LoadedEnvironmen
     if (!next) {
       if (source.name.endsWith("_lm")) next = lightmappedMaterial(source);
       else if (source.name.endsWith("_baked")) next = bakedMaterial(source);
-      else if (source.name.startsWith("leaf")) next = swayingMaterial(source);
+      else if (isFoliage(source.name)) next = swayingMaterial(source);
       else {
         source.flatShading = true;
         next = source;

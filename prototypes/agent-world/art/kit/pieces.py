@@ -5,7 +5,7 @@ material share one mesh, so pipeline A exports GPU instances; pipeline B
 joins and bakes the same objects.
 
 Material naming conventions read by the runtime and the bake:
-  leaf_*  sways in the wind at runtime
+  leaf_leaf_*  foliage from LEAF(); sways in the wind at runtime
   emit_*  emissive; never baked, always blooms
 """
 
