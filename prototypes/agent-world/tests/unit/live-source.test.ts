@@ -173,19 +173,111 @@ describe("createLiveSource", () => {
     expect(source.enabled()).toBe(false);
   });
 
-  it("keeps the last snapshot on an error and ignores malformed messages", () => {
+  it("ignores malformed messages and keeps the last snapshot", () => {
     const source = make();
     const es = FakeEventSource.instances[0];
     es.emit(message(true, state([team("t1", "alpha")], [agent("a", "t1", "alpha")])));
     const kept = source.current();
     const fn = vi.fn();
     source.subscribe(fn);
-    es.onerror?.({} as Event);
     es.emit("not json");
     es.emit({ enabled: true });
     expect(source.current()).toBe(kept);
     expect(source.enabled()).toBe(true);
     expect(fn).not.toHaveBeenCalled();
+  });
+
+  describe("when the stream drops", () => {
+    const live = () => {
+      vi.useFakeTimers();
+      const source = make();
+      const es = FakeEventSource.instances[0];
+      es.emit(message(true, state([team("t1", "alpha")], [agent("a", "t1", "alpha"), agent("b", "t1", "alpha", { status: "attention" })])));
+      return { source, es };
+    };
+
+    it("is connected until an error, then marks every agent uncertain and says so", () => {
+      const { source, es } = live();
+      expect(source.connected()).toBe(true);
+      const fn = vi.fn();
+      source.subscribe(fn);
+      es.onerror?.({} as Event);
+      expect(source.connected()).toBe(false);
+      expect(source.current().agents.map((a) => a.status)).toEqual(["uncertain", "uncertain"]);
+      expect(source.current().agents.map((a) => a.id).sort()).toEqual(["a", "b"]);
+      expect(source.enabled()).toBe(true);
+      expect(fn).toHaveBeenCalledTimes(1);
+      es.onerror?.({} as Event); // a second error from the same stream does not notify again
+      expect(fn).toHaveBeenCalledTimes(1);
+      source.stop();
+    });
+
+    it("reconnects after 1 s, doubling to a 30 s cap", () => {
+      const { source, es } = live();
+      es.onerror?.({} as Event);
+      expect(es.closed).toBe(true);
+      expect(FakeEventSource.instances).toHaveLength(1);
+      vi.advanceTimersByTime(999);
+      expect(FakeEventSource.instances).toHaveLength(1);
+      vi.advanceTimersByTime(1);
+      expect(FakeEventSource.instances).toHaveLength(2);
+      expect(FakeEventSource.instances[1].url).toBe("/api/world/stream");
+      const waits: number[] = [];
+      for (let i = 1; i <= 6; i++) {
+        FakeEventSource.instances[i].onerror?.({} as Event);
+        const before = FakeEventSource.instances.length;
+        let waited = 0;
+        while (FakeEventSource.instances.length === before) {
+          vi.advanceTimersByTime(500);
+          waited += 500;
+        }
+        waits.push(waited);
+      }
+      expect(waits).toEqual([2000, 4000, 8000, 16000, 30000, 30000]);
+      source.stop();
+    });
+
+    it("replaces the state on the next message and resets the backoff", () => {
+      const { source, es } = live();
+      es.onerror?.({} as Event);
+      vi.advanceTimersByTime(1000);
+      FakeEventSource.instances[1].onerror?.({} as Event);
+      vi.advanceTimersByTime(2000);
+      const fn = vi.fn();
+      source.subscribe(fn);
+      FakeEventSource.instances[2].emit(message(true, state([team("t2", "beta")], [agent("c", "t2", "beta")])));
+      expect(source.connected()).toBe(true);
+      expect(source.current().agents.map((a) => [a.id, a.status])).toEqual([["c", "working"]]);
+      expect(fn).toHaveBeenCalledTimes(1);
+      FakeEventSource.instances[2].onerror?.({} as Event);
+      vi.advanceTimersByTime(1000);
+      expect(FakeEventSource.instances).toHaveLength(4);
+      source.stop();
+    });
+
+    it("stop() cancels a pending reconnect", () => {
+      const { source, es } = live();
+      es.onerror?.({} as Event);
+      source.stop();
+      vi.advanceTimersByTime(60_000);
+      expect(FakeEventSource.instances).toHaveLength(1);
+    });
+
+    it("does not tick elapsed times while disconnected", () => {
+      vi.useFakeTimers();
+      let now = NOW;
+      const source = make(() => now);
+      const es = FakeEventSource.instances[0];
+      es.emit(message(true, state([team("t1", "alpha")], [agent("a", "t1", "alpha", { startedAt: NOW })])));
+      es.onerror?.({} as Event);
+      const fn = vi.fn();
+      source.subscribe(fn);
+      now = NOW + 600;
+      vi.advanceTimersByTime(30_000);
+      expect(fn).not.toHaveBeenCalled();
+      expect(source.current().agents[0].elapsedMinutes).toBe(0);
+      source.stop();
+    });
   });
 
   it("advance() does nothing", () => {

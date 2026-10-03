@@ -45,6 +45,58 @@ test("falls back to the sample day with the live-off notice and groups the roste
   await expect(page.locator(".roster-panel .agent-row")).toHaveCount(5);
 });
 
+const now = () => Date.now() / 1000;
+const liveBody = (enabled: boolean) =>
+  JSON.stringify({
+    enabled,
+    state: {
+      teams: { t1: { id: "t1", project: "late-project", host: "codex", accent: "#17bebb", lastEventAt: now() } },
+      agents: {
+        t1: { id: "t1", teamId: "t1", kind: "coordinator", role: "coordinator", name: "Lena", label: "late-project", action: "thinking", status: "working", host: "codex", project: "late-project", startedAt: now() - 60, lastEventAt: now(), statusSince: now() },
+      },
+      pendingSpawns: [],
+      ended: {},
+    },
+  });
+
+test("an unreachable bridge keeps the sample day and says so", async ({ page }) => {
+  await page.route("**/api/world/snapshot", (route) => route.abort());
+  await page.goto(`/?env=${ENV}&forceNoWebGL`);
+  await expect(page.locator(".live-notice")).toContainText("Live bridge not reachable");
+  await expect(page.locator(".live-notice")).not.toContainText("world.py");
+  await expect(page.getByRole("button", { name: "Sample", exact: true })).toHaveAttribute("aria-pressed", "true");
+});
+
+test("a slow bridge does not delay the page, and live takes over when it answers on", async ({ page }) => {
+  await page.route("**/api/world/snapshot", async (route) => {
+    await new Promise((r) => setTimeout(r, 2500));
+    await route.fulfill({ contentType: "application/json", body: liveBody(true) });
+  });
+  await page.route("**/api/world/stream", (route) =>
+    route.fulfill({ contentType: "text/event-stream", body: `data: ${liveBody(true)}\n\n` }),
+  );
+  await page.goto(`/?env=${ENV}&forceNoWebGL`);
+  await expect(rosterRow(page, "milo")).toBeVisible({ timeout: 2000 });
+  await expect(page.getByRole("button", { name: "Sample", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByRole("button", { name: "Live", exact: true })).toHaveAttribute("aria-pressed", "true", { timeout: 10_000 });
+  await expect(page.locator(".roster-panel .team-heading")).toContainText("late-project");
+});
+
+test("a late live answer does not override a source the user already picked", async ({ page }) => {
+  await page.route("**/api/world/snapshot", async (route) => {
+    await new Promise((r) => setTimeout(r, 2000));
+    await route.fulfill({ contentType: "application/json", body: liveBody(true) });
+  });
+  await page.route("**/api/world/stream", (route) =>
+    route.fulfill({ contentType: "text/event-stream", body: `data: ${liveBody(true)}\n\n` }),
+  );
+  await page.goto(`/?env=${ENV}&forceNoWebGL`);
+  await page.getByRole("button", { name: "Sample", exact: true }).click();
+  await page.waitForTimeout(3500);
+  await expect(page.getByRole("button", { name: "Sample", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await expect(rosterRow(page, "milo")).toBeVisible();
+});
+
 test("roster selection follows the agent and shows the follow card", async ({ page }) => {
   await open(page);
   await rosterRow(page, "noor").click();

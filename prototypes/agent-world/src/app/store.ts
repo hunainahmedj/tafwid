@@ -20,6 +20,7 @@ export function initialState(snapshot: Snapshot, overrides: Partial<AppState> = 
     worldError: null,
     source: "sample",
     liveEnabled: false,
+    liveReachable: true,
     projectFilter: null,
     ...overrides,
   };
@@ -45,8 +46,12 @@ function settle(s: AppState): AppState {
 
 function reduce(s: AppState, a: Action): AppState {
   switch (a.type) {
-    case "select":
+    case "select": {
+      // The world is not filtered, so picking an agent the filter hides is a request to see them.
+      const hidden = a.id !== null && s.projectFilter !== null && !visibleAgents(s.snapshot, s.projectFilter).some((x) => x.id === a.id) && s.snapshot.agents.some((x) => x.id === a.id);
+      if (hidden) return { ...s, selectedId: a.id, projectFilter: null };
       return s.selectedId === a.id ? s : { ...s, selectedId: a.id };
+    }
     case "setMode":
       if (!s.worldAvailable || s.mode === a.mode) return s;
       return { ...s, mode: a.mode };
@@ -60,6 +65,8 @@ function reduce(s: AppState, a: Action): AppState {
       return s.source === a.source && !a.snapshot ? s : settle({ ...s, source: a.source, snapshot: a.snapshot ?? s.snapshot });
     case "setLiveEnabled":
       return s.liveEnabled === a.enabled ? s : { ...s, liveEnabled: a.enabled };
+    case "setLiveReachable":
+      return s.liveReachable === a.reachable ? s : { ...s, liveReachable: a.reachable };
     case "setProjectFilter":
       return s.projectFilter === a.project ? s : settle({ ...s, projectFilter: a.project });
     case "setQuality":

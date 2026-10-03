@@ -173,7 +173,54 @@ describe("source and project filter", () => {
     expect(store.get().projectFilter).toBeNull();
   });
 
-  it("a snapshot that keeps the selected agent but not under the filter clears it", () => {
+  it("a snapshot that moves the selected agent out of the filtered project clears it", () => {
+    const store = fresh();
+    store.dispatch({ type: "snapshot", snapshot: liveSnapshot([liveAgent("a", "alpha"), liveAgent("b", "beta")]) });
+    store.dispatch({ type: "setProjectFilter", project: "alpha" });
+    store.dispatch({ type: "select", id: "a" });
+    store.dispatch({ type: "snapshot", snapshot: liveSnapshot([liveAgent("a", "beta"), liveAgent("b", "beta"), liveAgent("c", "alpha")]) });
+    expect(store.get().selectedId).toBeNull();
+  });
+
+  it("selecting an agent the project filter hides clears the filter and selects it", () => {
+    const store = fresh();
+    store.dispatch({ type: "snapshot", snapshot: liveSnapshot([liveAgent("a", "alpha"), liveAgent("b", "beta")]) });
+    store.dispatch({ type: "setProjectFilter", project: "alpha" });
+    store.dispatch({ type: "select", id: "b" });
+    expect(store.get().projectFilter).toBeNull();
+    expect(store.get().selectedId).toBe("b");
+  });
+
+  it("selecting a visible agent keeps the project filter", () => {
+    const store = fresh();
+    store.dispatch({ type: "snapshot", snapshot: liveSnapshot([liveAgent("a", "alpha"), liveAgent("b", "beta")]) });
+    store.dispatch({ type: "setProjectFilter", project: "alpha" });
+    store.dispatch({ type: "select", id: "a" });
+    expect(store.get().projectFilter).toBe("alpha");
+    store.dispatch({ type: "select", id: null });
+    expect(store.get().projectFilter).toBe("alpha");
+  });
+
+  it("selecting an agent the filter hides clears an empty-name filter too", () => {
+    const store = fresh();
+    store.dispatch({ type: "snapshot", snapshot: liveSnapshot([liveAgent("a", ""), liveAgent("b", "beta")]) });
+    store.dispatch({ type: "setProjectFilter", project: "" });
+    store.dispatch({ type: "select", id: "b" });
+    expect(store.get().projectFilter).toBeNull();
+  });
+
+  it("records whether the live bridge is reachable", () => {
+    const store = fresh();
+    expect(store.get().liveReachable).toBe(true);
+    store.dispatch({ type: "setLiveReachable", reachable: false });
+    expect(store.get().liveReachable).toBe(false);
+    const fn = vi.fn();
+    store.subscribe(fn);
+    store.dispatch({ type: "setLiveReachable", reachable: false });
+    expect(fn).not.toHaveBeenCalled();
+  });
+
+  it("a snapshot that still holds the selected agent under the filter keeps it", () => {
     const store = fresh();
     store.dispatch({ type: "snapshot", snapshot: liveSnapshot([liveAgent("a", "alpha"), liveAgent("b", "beta")]) });
     store.dispatch({ type: "setProjectFilter", project: "alpha" });

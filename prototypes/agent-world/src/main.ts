@@ -2,7 +2,7 @@ import "./styles.css";
 import { createFixtureSource, type SnapshotSource } from "./app/fixtures";
 import { createStore, initialState } from "./app/store";
 import type { SourceId, Variant } from "./app/types";
-import { createLiveSource, parseLiveMessage, toSnapshot, type LiveMessage, type LiveSource } from "./live/live-source";
+import { createLiveSource, parseLiveMessage, type LiveMessage, type LiveSource } from "./live/live-source";
 import { mountShell, type EnvironmentChoice } from "./ui/shell";
 
 const ENVIRONMENTS: Record<string, EnvironmentChoice> = {
@@ -36,13 +36,11 @@ async function fetchLive(): Promise<LiveMessage | null> {
 }
 
 const sample = createFixtureSource(params.get("scenario") === "quiet-morning" ? "quiet-morning" : "productive-day");
-// Live is the default; it falls back to the sample day when the bridge says it is off or cannot be reached.
-const first = await fetchLive();
-const startLive = params.get("source") !== "sample" && first?.enabled === true;
 
 let live: LiveSource | null = null;
 let unsubscribe = () => {};
 let startedSwitch = 0;
+let userChose = false;
 
 function openLive(message: LiveMessage): LiveSource | null {
   try {
@@ -53,16 +51,16 @@ function openLive(message: LiveMessage): LiveSource | null {
   }
 }
 
-if (startLive) live = openLive(first!);
-const active: SnapshotSource = live ?? sample;
-
+// The app mounts on the sample day at once. Live is the default, but only once
+// the bridge has answered that it is on, so a slow bridge never delays the page.
+// The live switch is assumed on until the bridge says otherwise, so no notice flashes.
 const store = createStore(
-  initialState(active.current(), {
+  initialState(sample.current(), {
     environmentId: environment.id,
     variant,
     mode: params.get("mode") === "dashboard" ? "dashboard" : "explore",
-    source: live ? "live" : "sample",
-    liveEnabled: first?.enabled === true,
+    source: "sample",
+    liveEnabled: true,
   }),
 );
 
@@ -71,11 +69,26 @@ function follow(next: SnapshotSource) {
   unsubscribe = next.subscribe((snapshot) => {
     store.dispatch({ type: "snapshot", snapshot });
     if (!live || next !== live) return;
+    store.dispatch({ type: "setLiveReachable", reachable: live.connected() });
     store.dispatch({ type: "setLiveEnabled", enabled: live.enabled() });
     if (!live.enabled()) void setSource("sample"); // switched off while watching
   });
 }
-follow(active);
+follow(sample);
+
+/** What the bridge said: whether it is reachable and whether live activity is on. */
+function recordBridge(message: LiveMessage | null) {
+  store.dispatch({ type: "setLiveReachable", reachable: message !== null });
+  store.dispatch({ type: "setLiveEnabled", enabled: message?.enabled === true });
+}
+
+function startLive(message: LiveMessage) {
+  const opened = openLive(message);
+  if (!opened) return;
+  live = opened;
+  follow(opened);
+  store.dispatch({ type: "setSource", source: "live", snapshot: opened.current() });
+}
 
 async function setSource(next: SourceId) {
   const request = ++startedSwitch;
@@ -89,18 +102,27 @@ async function setSource(next: SourceId) {
   if (store.get().source === "live") return;
   const message = await fetchLive();
   if (request !== startedSwitch) return; // a later choice wins
-  store.dispatch({ type: "setLiveEnabled", enabled: message?.enabled === true });
-  if (!message?.enabled) return; // stay on the sample day; the notice explains
-  live = openLive(message);
-  if (!live) return;
-  follow(live);
-  store.dispatch({ type: "setSource", source: "live", snapshot: live.current() });
+  recordBridge(message);
+  if (message?.enabled) startLive(message); // otherwise stay on the sample day; the notice explains
 }
+
+void fetchLive().then((message) => {
+  recordBridge(message);
+  // A source the user already picked is never overridden.
+  if (userChose || params.get("source") === "sample" || !message?.enabled || store.get().source === "live") return;
+  startLive(message);
+});
 
 const shell = mountShell(
   document.querySelector<HTMLElement>("#app")!,
   store,
-  { step: () => sample.advance(), setSource: (id) => void setSource(id) },
+  {
+    step: () => sample.advance(),
+    setSource: (id) => {
+      userChose = true;
+      void setSource(id);
+    },
+  },
   environment,
 );
 

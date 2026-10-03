@@ -11,7 +11,9 @@ export interface LiveMessage {
 export interface LiveSource extends SnapshotSource {
   /** Whether the last snapshot said live activity is switched on. */
   enabled(): boolean;
-  /** Closes the stream and silences subscribers. */
+  /** False from a stream error until the next message; agents then read as uncertain. */
+  connected(): boolean;
+  /** Closes the stream, cancels any pending reconnect and silences subscribers. */
   stop(): void;
 }
 
@@ -49,6 +51,9 @@ const LOOKS: Record<Role, { skin: string; shirt: string; hair: string }> = {
   researcher: { skin: "#8d5a3b", shirt: "#4263eb", hair: "#1f1b2d" },
   tester: { skin: "#f2c9a0", shirt: "#e4573d", hair: "#d9a35b" },
 };
+
+const RECONNECT_FIRST_MS = 1000;
+const RECONNECT_MAX_MS = 30_000;
 
 const FALLBACK_ACCENT = "#7a869a";
 // Only plain hex colours reach a style, so a bad value cannot inject CSS.
@@ -148,8 +153,11 @@ const sameElapsed = (a: Snapshot, b: Snapshot) =>
   a.agents.length === b.agents.length && a.agents.every((x, i) => x.elapsedMinutes === b.agents[i].elapsedMinutes);
 
 /**
- * The live snapshot source: follows the bridge's event stream. On a stream
- * error it keeps the last snapshot (the browser reconnects by itself).
+ * The live snapshot source: follows the bridge's event stream. When the
+ * stream errors it closes it and reconnects with a capped backoff (1 s,
+ * doubling, at most 30 s; reset by the next message). The client cannot age
+ * agents itself, so while disconnected every agent reads "uncertain" rather
+ * than a stale "working". The next message after a reconnect replaces the state.
  */
 export function createLiveSource(url = "/api/world/stream", options: LiveSourceOptions = {}): LiveSource {
   const Stream = options.eventSource ?? (EventSource as unknown as new (url: string) => EventSourceLike);
@@ -158,28 +166,54 @@ export function createLiveSource(url = "/api/world/stream", options: LiveSourceO
   const doneSeen = new Set<string>();
   let message: LiveMessage = options.initial ?? { enabled: false, state: { teams: {}, agents: {}, pendingSpawns: [], ended: {} } };
   let stopped = false;
+  let connected = true;
+  let delay = RECONNECT_FIRST_MS;
+  let retry: ReturnType<typeof setTimeout> | undefined;
+  let stream: EventSourceLike;
 
   const build = () => {
     for (const a of Object.values(message.state.agents)) if (a.status === "done") doneSeen.add(a.id);
-    return { ...toSnapshot(message.state, now()), completedThisSession: doneSeen.size };
+    const base = toSnapshot(message.state, now());
+    return {
+      ...base,
+      agents: connected ? base.agents : base.agents.map((a) => ({ ...a, status: "uncertain" as const })),
+      completedThisSession: doneSeen.size,
+    };
   };
   let snapshot = build();
   const notify = () => listeners.forEach((fn) => fn(snapshot));
 
-  const stream = new Stream(url);
-  stream.onmessage = (event) => {
-    const next = stopped ? null : parseLiveMessage(event.data);
-    if (!next) return;
-    message = next;
-    snapshot = build();
-    notify();
-  };
-  stream.onerror = () => {
-    // Keep what is on screen; the stream resumes on its own.
-  };
+  function open() {
+    retry = undefined;
+    const current = new Stream(url);
+    stream = current;
+    current.onmessage = (event) => {
+      const next = stopped || stream !== current ? null : parseLiveMessage(event.data);
+      if (!next) return;
+      message = next;
+      connected = true;
+      delay = RECONNECT_FIRST_MS;
+      snapshot = build();
+      notify();
+    };
+    current.onerror = () => {
+      if (stopped || stream !== current) return;
+      // Close it ourselves: a CLOSED stream never retries, and the browser's own retries have no backoff cap.
+      current.close();
+      if (connected) {
+        connected = false;
+        snapshot = build();
+        notify();
+      }
+      retry = setTimeout(open, delay);
+      delay = Math.min(delay * 2, RECONNECT_MAX_MS);
+    };
+  }
+  open();
 
   // Elapsed times would otherwise freeze while the log is quiet.
   const timer = setInterval(() => {
+    if (!connected) return;
     const next = build();
     if (sameElapsed(snapshot, next)) return;
     snapshot = next;
@@ -190,6 +224,7 @@ export function createLiveSource(url = "/api/world/stream", options: LiveSourceO
   return {
     current: () => snapshot,
     enabled: () => message.enabled,
+    connected: () => connected,
     subscribe(fn) {
       listeners.add(fn);
       return () => listeners.delete(fn);
@@ -198,6 +233,7 @@ export function createLiveSource(url = "/api/world/stream", options: LiveSourceO
     stop() {
       stopped = true;
       clearInterval(timer);
+      clearTimeout(retry);
       stream.close();
       listeners.clear();
     },

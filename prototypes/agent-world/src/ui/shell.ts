@@ -59,13 +59,17 @@ export function mountShell(root: HTMLElement, store: Store, controls: ShellContr
     h("div", { class: "bar-group", "data-hud-obstacle": "" }, quality, modeGroup),
   );
 
-  const liveNotice = h(
-    "p",
-    { class: "live-notice", role: "status", "data-hud-obstacle": "" },
-    "Live activity is off. Run ",
-    h("code", { text: WORLD_COMMAND }),
-    ".",
-  );
+  // One notice, three causes: the switch is off, the bridge cannot be reached, or the live stream dropped.
+  const liveNotice = h("p", { class: "live-notice", role: "status", "data-hud-obstacle": "" });
+  type Notice = "off" | "unreachable" | "reconnecting";
+  function renderNotice(kind: Notice | null) {
+    liveNotice.hidden = kind === null;
+    if (kind === null || liveNotice.dataset.kind === kind) return;
+    liveNotice.dataset.kind = kind;
+    if (kind === "off") liveNotice.replaceChildren("Live activity is off. Run ", h("code", { text: WORLD_COMMAND }), ".");
+    else if (kind === "unreachable") liveNotice.replaceChildren("Live bridge not reachable. Run the prototype's dev server to see live agents.");
+    else liveNotice.replaceChildren("Reconnecting to live activity… Agents show as quiet until it returns.");
+  }
   const stats = h("section", { class: "stats", "aria-label": "Team summary", "data-hud-obstacle": "" });
   const worldStatus = h("div", { class: "world-status", role: "status" });
   const cameraHost = h("div", { class: "camera-controls", role: "group", "aria-label": "Camera", "data-hud-obstacle": "" });
@@ -113,11 +117,11 @@ export function mountShell(root: HTMLElement, store: Store, controls: ShellContr
     // Live stays pressable while off: choosing it asks the bridge again, so turning the switch on needs no reload.
     renderSegmented(sourceGroup, [{ id: "live", label: "Live" }, { id: "sample", label: "Sample" }], s.source, (id) => controls.setSource(id as SourceId));
     const liveButton = sourceGroup.querySelector<HTMLButtonElement>('[data-id="live"]')!;
-    if (s.liveEnabled) liveButton.removeAttribute("title");
-    else liveButton.title = `${LIVE_OFF}. Choosing Live checks again.`;
+    if (s.liveEnabled && s.liveReachable) liveButton.removeAttribute("title");
+    else liveButton.title = `${s.liveReachable ? LIVE_OFF : "Live bridge not reachable"}. Choosing Live checks again.`;
     samplePill.hidden = s.source !== "sample";
     stepButton.hidden = s.source !== "sample";
-    liveNotice.hidden = s.liveEnabled;
+    renderNotice(!s.liveReachable ? (s.source === "live" ? "reconnecting" : "unreachable") : s.liveEnabled ? null : "off");
     renderSegmented(variantGroup, environment.variants, s.variant, (v) => store.dispatch({ type: "setVariant", variant: v as Variant }));
     renderSegmented(
       modeGroup,

@@ -60,6 +60,8 @@ export interface AppState {
   source: SourceId;
   /** Whether the bridge reports live activity switched on. */
   liveEnabled: boolean;
+  /** False when the bridge could not be reached or the live stream dropped. */
+  liveReachable: boolean;
   /** A project name (possibly empty) narrows the roster to it; null shows every project. */
   projectFilter: string | null;
 }
@@ -76,6 +78,7 @@ export type Action =
   /** Switches source; pass the new source's snapshot to swap it in the same step. */
   | { type: "setSource"; source: SourceId; snapshot?: Snapshot }
   | { type: "setLiveEnabled"; enabled: boolean }
+  | { type: "setLiveReachable"; reachable: boolean }
   | { type: "setProjectFilter"; project: string | null };
 
 export const STATUS_LABELS: Record<AgentStatus, string> = {
