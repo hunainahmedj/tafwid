@@ -61,3 +61,92 @@ Round-2 changes:
 - **Pipeline B:** lightmaps now hold irradiance only, at half energy for
   8-bit headroom. The palette colours stay crisp per material, and the
   runtime multiplies the two.
+
+## Round 2
+
+| Criterion | A · kit | B · baked |
+| --- | --- | --- |
+| Ambience | 7 | 6 |
+| Richness | 7 | 7 |
+| Readability | 7 | 7 |
+| Style | 7.5 | 8 |
+| Technical | 6 | 5 |
+| Performance | 9 | 9 |
+| **Weighted total** | **7.2** | **6.9** |
+
+Both variants were vsync-locked on every tier.
+
+Findings:
+
+- **Defects:** the parasols broke up into shards (overlapping coplanar
+  slabs), manholes floated above the road, awnings leaked light between
+  their stripes, and windows and shopfronts still blew out.
+- **Baked lighting:** the baked runtime was darker than its Cycles
+  reference. The cause was Three's basic lighting, which divides light
+  maps by π.
+- **Readability:** the "working" glyph rendered as a minus sign, Rex's
+  beacon was too short, dashboard framing cropped agents, badges showed
+  under HUD chips, and a passer-by trailed an agent.
+
+Round-3 changes addressed all of these and added density: a second parasol
+cluster, a second string of lights, bar stools and an extra café table.
+
+## Round 3 (final)
+
+| Criterion | A · kit | B · baked |
+| --- | --- | --- |
+| Ambience | 7 | 7 |
+| Richness | 7 | 7 |
+| Readability | 7.5 | 7 |
+| Style | 7 | 8 |
+| Technical | 7 | 7 |
+| Performance | 9 | 9 |
+| **Weighted total** | **7.3** | **7.4** |
+
+Frame times, p50/p95 in ms:
+
+| Tier | A · kit | B · baked |
+| --- | --- | --- |
+| High | 17.0 / 18.1 | 16.6 / 17.4 |
+| Medium | 17.3 / 18.5 | 16.7 / 17.6 |
+| Low | 16.7 / 17.2 | 16.7 / 17.4 |
+
+Packages are 5.4 MB (kit) and 9.8 MB (baked).
+
+**Outcome:** neither pipeline reached 8.0 within the three rounds the user
+allowed, so iteration stopped. The 0.1 gap between them is within the
+critics' variance. The practical trade-offs are in
+[ADR-0006](../../docs/05-decisions/0006-scripted-blender-environment-packages.md),
+and choosing between them is [TAF-8](../../docs/01-project/backlog.md).
+
+Final screenshots (our own renders, downscaled):
+
+- [Kit, home view](evidence/kit-01-explore-home.jpg)
+- [Baked, home view](evidence/baked-01-explore-home.jpg)
+- [Kit, close-up](evidence/kit-02-explore-close.jpg)
+- [Baked, follow mode](evidence/baked-05-follow-cleo.jpg)
+- [Baked, dashboard mode](evidence/baked-06-dashboard.jpg)
+
+## Remaining gaps (from the final critiques)
+
+1. **Agent prominence.** Scale agents about 1.3× relative to props and
+   enlarge the badge icons. Keep status rings clear of furniture, and cut
+   the café front wall away further so the seated agents are fully visible.
+2. **Life.** Add seated patrons at terrace and parasol tables, more
+   passers-by, birds on roofs and the fountain rim, and steam from cups and
+   the espresso machine. Fill the remaining empty cobbles.
+3. **Golden hour.** Use a lower, warmer sun with a stronger key-to-fill
+   ratio and longer shadows. Shadows should read cool against warm
+   highlights without an overall salmon or purple cast. Add atmospheric
+   haze at the edges, and for the bake, warm light pools under the lamps.
+4. **Artefacts.** Make the CAFE sign legible and unobstructed. Rebuild the
+   lamp heads as boxy lanterns so they stop clipping to white. Keep string
+   lights off agent spots, and widen the focus band so the foreground stays
+   readable.
+5. **Style C consistency.** Use chunkier table legs and lamp posts, bevel the
+   remaining flat slabs, and choose one foliage palette per tree. Give faces
+   a mouth and brows so they read at the default zoom. In the baked variant,
+   light characters from the local baked irradiance (a probe grid) and
+   darken their contact shadows.
+6. **Measurement.** Measure frame time with vsync off, so tier headroom is
+   real data rather than 16.7 ms everywhere.

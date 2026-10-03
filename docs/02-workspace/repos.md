@@ -12,7 +12,8 @@ Adjacent personal projects are outside this documentation scope.
 | `scripts/check_package.py` | Source/package integrity validation |
 | `docs/` | Archivist documentation and existing user guides |
 | `docs/superpowers/` | Working specs and implementation plans, preserved in place |
-| `prototypes/agent-office/` ([TAF-2](../01-project/backlog.md)) | Local sample-data dashboard; design reference, outside the distributable plugin |
+| `prototypes/agent-office/` ([TAF-2](../01-project/backlog.md)) | First sample-data dashboard; historical design reference, outside the distributable plugin |
+| `prototypes/agent-world/` ([TAF-7](../01-project/backlog.md)) | Open 3D agent world with explore and dashboard modes, its Blender build scripts and the café packages; outside the distributable plugin |
 
 ## Documentation migration
 
