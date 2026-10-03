@@ -127,3 +127,16 @@ for (const mode of ["explore", "dashboard"] as const) {
     expect(serious.map((v) => `${v.id}: ${v.nodes.length}`)).toEqual([]);
   });
 }
+
+test("switching lighting variant while following keeps the selection", async ({ page }) => {
+  test.setTimeout(120_000);
+  await page.goto("/?env=cafe&variant=kit");
+  await page.waitForFunction(() => window.__tafwidWorldReady === true, null, { timeout: 60_000 });
+  await rosterRow(page, "ada").click();
+  await page.evaluate(() => (window.__tafwidWorldReady = false));
+  await page.getByRole("button", { name: "Scene · baked light" }).click();
+  await page.waitForFunction(() => window.__tafwidWorldReady === true, null, { timeout: 60_000 });
+  await expect(rosterRow(page, "ada")).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator(".details")).toContainText("Following");
+  await expect(page.locator(".world-status")).toHaveAttribute("data-state", "ready");
+});

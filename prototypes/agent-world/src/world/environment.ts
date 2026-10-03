@@ -44,12 +44,13 @@ function swayNode() {
 /**
  * Lightmapped surfaces (`*_lm`): the palette colour times a baked irradiance
  * map carried in the emissive slot. The bake stores light at reduced energy
- * for 8-bit headroom; `tafwid_lightmap_scale` restores it.
+ * for 8-bit headroom; `tafwid_lightmap_scale` restores it. Three's basic
+ * lighting divides light maps by π, so the intensity multiplies π back.
  */
 function lightmappedMaterial(source: THREE.MeshStandardMaterial): THREE.MeshBasicNodeMaterial {
   const m = new THREE.MeshBasicNodeMaterial({ color: source.color });
   m.lightMap = source.emissiveMap;
-  m.lightMapIntensity = Number(source.userData.tafwid_lightmap_scale ?? 2);
+  m.lightMapIntensity = Number(source.userData.tafwid_lightmap_scale ?? 2) * Math.PI;
   m.name = source.name;
   if (source.name.includes("leaf_")) m.positionNode = swayNode();
   return m;

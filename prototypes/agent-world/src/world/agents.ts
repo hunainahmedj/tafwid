@@ -13,7 +13,7 @@ const WANDER_SPEED = 0.9;
 const RING_COLOURS: Record<Agent["status"], string> = {
   working: "#2fbf86",
   review: "#ff9f2e",
-  ready: "#9aa6bd",
+  ready: "#4f7cff",
   issue: "#ff3b3b",
 };
 
@@ -223,7 +223,7 @@ export class AgentLayer {
   badgeAnchor(id: string): Vec3 | null {
     const t = this.tracked.get(id);
     if (!t) return null;
-    const lift = t.agent.status === "issue" ? 2.7 : 2.05;
+    const lift = t.agent.status === "issue" ? 3.35 : 2.05; // clear the "!" beacon
     return [t.rig.group.position.x, t.rig.group.position.y + lift, t.rig.group.position.z];
   }
 

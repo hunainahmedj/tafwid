@@ -4,7 +4,7 @@ PALETTE = {
     # Ground
     "cobble_a": "#b9a48f", "cobble_b": "#a8927c", "cobble_c": "#c7b39d", "cobble_grout": "#7d6c5e",
     "plank_a": "#c98f5a", "plank_b": "#b77e4b", "tile_a": "#efe5d4", "tile_b": "#d9c9b0",
-    "asphalt": "#5d6068", "kerb": "#c9c4bb", "grass": "#7fbf5a", "soil": "#7a5a3f",
+    "asphalt": "#5b5660", "manhole": "#77747a", "kerb": "#c9c4bb", "grass": "#7fbf5a", "soil": "#7a5a3f",
     # Buildings
     "brick_a": "#b5553c", "brick_b": "#9e4632", "brick_c": "#c4654a", "mortar": "#d9c8b4",
     "plaster_cream": "#efe2c6", "plaster_sage": "#9fc3a5", "plaster_blue": "#9db8d6",

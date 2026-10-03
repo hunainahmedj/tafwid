@@ -7,17 +7,17 @@
   --muted: #4f5b70;
   --line: rgba(31, 42, 60, 0.1);
   --blue: #4263eb;
-  --glass: rgba(255, 255, 255, 0.82);
+  --glass: rgba(255, 255, 255, 0.9);
   --shadow: 0 6px 24px rgba(31, 42, 60, 0.12);
   /* Bright tones for dots and icons; -text tones meet 4.5:1 on white. */
   --working: #2f9e74;
   --review: #e08a2e;
-  --ready: #8a94a8;
+  --ready: #4f7cff;
   --issue: #e03e3e;
   --done: #4263eb;
   --working-text: #1c7352;
   --review-text: #9a5410;
-  --ready-text: #566278;
+  --ready-text: #3550c4;
   --issue-text: #b8262a;
 }
 * { box-sizing: border-box; }
@@ -81,7 +81,8 @@ button:focus-visible, select:focus-visible { outline: 2px solid var(--blue); out
   padding: 3px 9px 3px 4px; border: 0; border-radius: 99px; background: rgba(255, 255, 255, 0.94); font-size: 11.5px; font-weight: 700;
   box-shadow: 0 3px 10px rgba(20, 24, 40, 0.22); white-space: nowrap; will-change: transform; }
 .badge[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--blue), 0 3px 12px rgba(20, 24, 40, 0.3); }
-.badge-icon { width: 18px; height: 18px; border-radius: 50%; display: grid; place-items: center; color: #fff; font-size: 10px; }
+.badge-icon { width: 18px; height: 18px; border-radius: 50%; display: grid; place-items: center; color: #fff; }
+.badge-icon svg { width: 12px; height: 12px; }
 .badge[data-status="working"] .badge-icon { background: var(--working); }
 .badge[data-status="review"] .badge-icon { background: var(--review); }
 .badge[data-status="ready"] .badge-icon { background: var(--ready); }
@@ -105,6 +106,9 @@ button:focus-visible, select:focus-visible { outline: 2px solid var(--blue); out
 .details { display: flex; align-items: center; gap: 18px; font-size: 12.5px; }
 .who { display: flex; gap: 10px; align-items: center; }
 .field { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.details .field:nth-of-type(2) { min-width: 180px; flex: 1.4; }
+.details .field { min-width: 130px; flex: 1; }
+.details .label, .provider { white-space: nowrap; }
 .placeholder { margin: 0; color: var(--muted); }
 .dismiss-hint { color: var(--muted); font-size: 11px; white-space: nowrap; }
 
@@ -127,7 +131,7 @@ button:focus-visible, select:focus-visible { outline: 2px solid var(--blue); out
 .app[data-mode="explore"] .roster-panel .filters,
 .app[data-mode="explore"] .roster-panel .task,
 .app[data-mode="explore"] .roster-panel .elapsed { display: none; }
-.app[data-mode="explore"] .details { position: absolute; z-index: 3; left: 50%; bottom: 12px; transform: translateX(-50%); padding: 10px 16px; max-width: min(760px, calc(100% - 420px)); }
+.app[data-mode="explore"] .details { position: absolute; z-index: 3; left: 50%; bottom: 12px; transform: translateX(-50%); padding: 10px 16px; width: min(820px, calc(100% - 520px)); }
 .app[data-mode="explore"] .hint { position: absolute; z-index: 3; left: 12px; bottom: 12px; margin: 0; padding: 7px 11px; font-size: 11.5px; color: var(--muted); }
 
 /* ---------- Dashboard mode: information first ---------- */

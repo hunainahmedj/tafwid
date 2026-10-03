@@ -204,7 +204,7 @@ def _bricks(f, width, height, y0, z_face, rng, light=False):
 def _window(f, lx, ly, lz, rng, lit_chance, shutters=None, w=1.1, h=1.5):
     f.box((w + 0.16, h + 0.16, 0.14), M("window_frame"), lx, ly - 0.08, lz, radius=0.03)
     if rng.random() < lit_chance * 0.7:
-        f.box((w, h, 0.06), E("window_glass", rng.choice([0.5, 0.75, 1.0])), lx, ly, lz + 0.06, radius=0.02)
+        f.box((w, h, 0.06), E("window_glass", rng.choice([0.4, 0.6, 0.85])), lx, ly, lz + 0.06, radius=0.02)
     else:
         f.box((w, h, 0.06), M("window_dark", roughness=0.3), lx, ly, lz + 0.06, radius=0.02)
     f.box((0.08, h, 0.07), M("window_frame"), lx, ly, lz + 0.08, radius=0.01)  # mullion
@@ -231,7 +231,7 @@ def _awning(f, width, y, lz, color, depth=1.4):
         t = st / steps
         for i in range(stripes):
             col = color if i % 2 == 0 else "awning_cream"
-            f.box((sw, 0.08, depth / steps + 0.02), M(col), -width / 2 + sw * (i + 0.5), y - t * 0.5, lz + depth * (t + 0.5 / steps),
+            f.box((sw + 0.005, 0.17, depth / steps + 0.03), M(col), -width / 2 + sw * (i + 0.5), y - t * 0.5, lz + depth * (t + 0.5 / steps),
                   radius=0.02)
     for i in range(stripes):  # scalloped valance
         col = color if i % 2 == 0 else "awning_cream"
@@ -244,7 +244,7 @@ def _shopfront(f, width, lz, shop, rng):
     for side in (-1, 1):
         cx = side * (width / 4 + 0.35)
         f.box((win_w + 0.2, 2.3, 0.16), M("window_frame"), cx, 0.35, lz, radius=0.03)
-        f.box((win_w, 2.1, 0.06), E("window_glass", 1.0), cx, 0.45, lz + 0.07, radius=0.02)
+        f.box((win_w, 2.1, 0.06), E("window_glass", 0.55), cx, 0.45, lz + 0.07, radius=0.02)
         f.box((win_w + 0.4, 0.35, 0.22), M("stone_trim"), cx, 0.0, lz + 0.06, radius=0.04)
         # Goods in the window.
         for k in range(int(win_w / 0.5)):
@@ -252,7 +252,7 @@ def _shopfront(f, width, lz, shop, rng):
                   cx - win_w / 2 + 0.35 + k * 0.5, 0.7, lz + 0.18, radius=0.05)
     f.box((1.3, 2.5, 0.18), M("window_frame"), 0, 0.0, lz, radius=0.03)
     f.box((1.05, 2.3, 0.08), M("door_wood"), 0, 0.0, lz + 0.08, radius=0.03)
-    f.box((0.6, 0.9, 0.04), E("window_glass", 0.8), 0, 1.2, lz + 0.13, radius=0.02)
+    f.box((0.6, 0.9, 0.04), E("window_glass", 0.5), 0, 1.2, lz + 0.13, radius=0.02)
     f.box((0.08, 0.08, 0.08), M("bulb_warm", metallic=0.6), 0.38, 1.1, lz + 0.16, radius=0.02)
     _awning(f, width - 0.6, 3.05, lz + 0.05, awning)
     # A lit block-letter sign above the awning.
@@ -475,6 +475,16 @@ def laptop_table(ctx, x, z, outdoor=False, **_):
 
 def terrace_table(ctx, x, z, **_):
     laptop_table(ctx, x, z, outdoor=True)
+
+
+def bar_stools(ctx, x0, x1, z, **_):
+    f = Frame(ctx)
+    n = int((x1 - x0) / 0.9)
+    for k in range(n):
+        x = x0 + 0.45 + k * 0.9
+        f.box((0.08, 0.7, 0.08), M("metal_dark"), x, 0, z, radius=0.02)
+        f.box((0.4, 0.08, 0.4), M("cushion_terracotta"), x, 0.7, z, radius=0.04)
+        f.box((0.3, 0.04, 0.3), M("metal_dark"), x, 0.0, z, radius=0.01)
 
 
 def chair(ctx, x, z, facing=0.0, empty=False, **_):
@@ -740,11 +750,9 @@ def parasol_table(ctx, x, z, color="awning_red", **_):
     f.box((0.08, 2.3, 0.08), M("metal_light", metallic=0.6), 0, 0, 0, radius=0.02)
     for (dx, dz, yaw) in [(0, -0.7, 0), (0, 0.7, PI), (-0.7, 0, PI / 2), (0.7, 0, -PI / 2)]:
         chair(ctx, x + dx, z + dz, facing=yaw)
-    for ring, (r, y) in enumerate([(1.3, 2.25), (0.9, 2.42), (0.5, 2.56)]):
-        for i in range(8):
-            a = 2 * PI * i / 8
-            col = color if i % 2 == 0 else "parasol_a"
-            f.box((r * 0.82, 0.08, 0.4), M(col), math.sin(a) * r * 0.62, y, math.cos(a) * r * 0.62, radius=0.03, yaw=a)
+    for i, (w, y) in enumerate([(2.2, 2.2), (1.5, 2.36), (0.8, 2.52)]):
+        f.box((w, 0.12, w), M(color if i % 2 == 0 else "parasol_a"), 0, y, 0, radius=0.05)
+    f.box((0.14, 0.14, 0.14), M("parasol_a"), 0, 2.66, 0, radius=0.04)
     f.box((0.12, 0.12, 0.12), M("pot_cream"), 0.18, 0.77, 0.1, radius=0.03)
 
 
@@ -773,7 +781,7 @@ def crosswalk(ctx, x0, x1, z0, z1, **_):
 
 def manhole(ctx, x, z, **_):
     f = Frame(ctx, x, z)
-    _disc(f, 0.45, 0.02, M("metal_dark", metallic=0.5, roughness=0.6), -0.0, step=0.15)
+    _disc(f, 0.4, 0.012, M("manhole", roughness=0.7), -0.1, step=0.13)
 
 
 def flower_buckets(ctx, x, z, **_):
@@ -848,6 +856,7 @@ BUILDERS = {
     "market_stall": market_stall, "crates": crates, "phone_box": phone_box, "car": car, "context_ring": context_ring,
     "cafe_sign": cafe_sign, "review_board": review_board, "parasol_table": parasol_table, "bin": bin_,
     "bollards": bollards, "crosswalk": crosswalk, "manhole": manhole, "flower_buckets": flower_buckets,
+    "bar_stools": bar_stools,
 }
 
 

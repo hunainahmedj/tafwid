@@ -82,14 +82,20 @@ export function createCharacter(look: Agent["look"], kind: "agent" | "extra" = "
   part(head, 0.1, 0.12, 0.02, "#1d2433", 0.15, 0.26, 0.335);
   part(head, 0.12, 0.05, 0.02, "#e58f84", -0.24, 0.16, 0.335);
   part(head, 0.12, 0.05, 0.02, "#e58f84", 0.24, 0.16, 0.335);
-  if (kind === "extra") group.scale.setScalar(0.8);
+  if (kind === "extra") {
+    part(head, 0.8, 0.12, 0.8, look.accent, 0, 0.66, 0.02);
+    part(head, 0.5, 0.06, 0.3, look.accent, 0, 0.66, 0.5);
+    group.scale.setScalar(0.75);
+  }
 
   // A floating "!" beacon for agents that need attention: saturated red, lightly emissive so bloom keeps its colour.
   const marker = new THREE.Group();
-  const red = mat("#e8322f", "#c81e1e");
-  const bar = new THREE.Mesh(geo(0.2, 0.5, 0.2), red);
-  bar.position.y = 0.3;
-  const dot = new THREE.Mesh(geo(0.2, 0.2, 0.2), red);
+  const red = new THREE.MeshStandardMaterial({ color: "#e8322f", emissive: "#c81e1e", emissiveIntensity: 0.9, flatShading: true });
+  red.depthTest = false; // a status marker stays visible through railings and walls
+  const bar = new THREE.Mesh(geo(0.24, 0.8, 0.24), red);
+  bar.position.y = 0.36;
+  const dot = new THREE.Mesh(geo(0.24, 0.24, 0.24), red);
+  for (const m of [bar, dot]) m.renderOrder = 10;
   marker.add(bar, dot);
   marker.position.set(0, 2.0, 0);
   marker.visible = false;

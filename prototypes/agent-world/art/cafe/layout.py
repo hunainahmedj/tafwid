@@ -32,6 +32,7 @@ TERRACE_TABLES = [(-8.5, -1.5), (-5.5, -1.5), (-2.5, -1.5), (0.5, -1.5)]
 WORKSTATIONS = [(-4.5, -5.5), (1.5, -5.5), (-5.5, -1.5), (-2.5, -1.5), (0.5, -1.5), (-8.5, -1.5), (-7.5, -5.5), (-1.5, -9.5)]
 REVIEW_BOARD = (6.5, -9.0)
 BAKERY_TABLES = [(9.5, -9.5), (12.0, -7.0)]
+SQUARE_TABLES = [(-9.0, 5.0), (-5.5, 6.5), (-2.0, 4.6)]
 SEAT_OFFSET = 0.85  # seats sit behind each table, facing the camera
 
 
@@ -103,8 +104,19 @@ def placements():
     for (x, z, s, v) in [(-13.5, 6.0, 1.3, 0), (12.5, -1.0, 1.2, 1), (-13.0, -2.0, 1.0, 2), (12.0, 7.0, 1.1, 0),
                          (-5.0, 7.6, 0.9, 1), (8.5, 8.2, 0.8, 2)]:
         add("tree", x=x, z=z, size=s, variant=v)
-    for (x, z, f) in [(0.5, 4.0, PI / 2), (8.5, 4.0, -PI / 2), (-9.0, 5.5, 0.0), (-6.5, 5.5, 0.0)]:
+    for (x, z, f) in [(0.5, 4.0, PI / 2), (8.5, 4.0, -PI / 2), (-12.6, 4.5, PI / 2)]:
         add("bench", x=x, z=z, facing=f)
+    for (x, z) in SQUARE_TABLES:
+        add("parasol_table", x=x, z=z, color="awning_green")
+    lights2 = [(3.8, -0.2), (8.0, 0.6), (11.0, 1.4)]
+    add("string_lights", points=lights2, height=2.9)
+    for (x, z) in lights2[1:]:
+        add("light_post", x=x, z=z, height=3.0)
+    add("bar_stools", x0=-8.3, x1=-3.2, z=-10.15)
+    add("laptop_table", x=-7.5, z=-9.0)
+    add("chair", x=-7.5, z=-9.0 - SEAT_OFFSET, facing=0.0, empty=True)
+    for x in (5.5, 8.0, 11.5, 13.5):
+        add("plant", x=x, z=-11.5, size=0.9)
     for (x, z) in [(-14.5, 1.5), (-1.5, 8.4), (10.5, 2.0), (14.4, 8.4), (6.0, -3.2)]:
         add("lamp_post", x=x, z=z)
     for (x, z) in [(-14.5, -3.4), (14.0, -3.4), (-10.5, 8.3), (1.5, 8.3)]:
@@ -161,8 +173,9 @@ def build_grid():
     for (x, z) in INSIDE_TABLES + TERRACE_TABLES:
         g.block_footprint(x, z, 1.2, 0.9)
     g.block_footprint(REVIEW_BOARD[0], REVIEW_BOARD[1], 2.6, 0.6)
-    for (x, z) in BAKERY_TABLES:
+    for (x, z) in BAKERY_TABLES + SQUARE_TABLES:
         g.block_footprint(x, z, 1.8, 1.8)
+    g.block_footprint(-7.5, -9.0, 1.2, 0.9)
     g.block_footprint(14.6, -10.6, 2.4, 0.5)
     g.block_footprint(FOUNTAIN[0], FOUNTAIN[1], 4.2, 4.2)
     for (x, z) in [(-13.5, 6.0), (12.5, -1.0), (-13.0, -2.0), (12.0, 7.0), (-5.0, 7.6), (8.5, 8.2)]:
@@ -187,7 +200,8 @@ def zones():
 AMBIENT_PATHS = [
     {"id": "near-pavement", "kind": "pedestrian", "points": [[-21, 10], [21, 10]], "loop": False},
     {"id": "right-pavement", "kind": "pedestrian", "points": [[16, -11], [16, 8.5]], "loop": False},
-    {"id": "across-square", "kind": "pedestrian", "points": [[-14.5, 8.5], [-2, 2], [9, -3.4], [14.5, -3.4]], "loop": False},
+    {"id": "west-edge", "kind": "pedestrian", "points": [[-15.2, -3.6], [-13.0, -0.5], [-13.5, 8.6]], "loop": False},
+    {"id": "shop-fronts", "kind": "pedestrian", "points": [[4.8, -4.6], [14.6, -4.6]], "loop": False},
     {"id": "far-pavement", "kind": "pedestrian", "points": [[21, 17], [-21, 17]], "loop": False},
     {"id": "pigeons", "kind": "bird", "points": [[-6, 2], [6, -2], [12, 6], [0, 9], [-10, 6]], "loop": True},
     {"id": "swifts", "kind": "bird", "points": [[-18, -8], [10, -14], [20, 4], [-4, 14]], "loop": True},
@@ -202,7 +216,7 @@ CAMERA = {
 AMBIENCE = {
     # Golden hour: a low (~17°), amber sun from the front right; cool blue-violet fill so shadows read.
     "sun": {"direction": [0.82, 0.3, 0.48], "color": "#ffb37a", "intensity": 4.2},
-    "hemisphere": {"sky": "#97aae0", "ground": "#7a6458", "intensity": 1.0},
+    "hemisphere": {"sky": "#a6a8de", "ground": "#8a6a58", "intensity": 1.25},
     "fog": {"color": "#b8b6d4", "near": 75, "far": 190},
     "exposure": 1.0,
     "bloom": {"strength": 0.6, "radius": 0.45, "threshold": 0.0},

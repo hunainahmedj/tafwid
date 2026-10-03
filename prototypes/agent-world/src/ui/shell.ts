@@ -39,22 +39,22 @@ export function mountShell(root: HTMLElement, store: Store, source: SnapshotSour
     { class: "topbar" },
     h(
       "div",
-      { class: "bar-group" },
+      { class: "bar-group", "data-hud-obstacle": "" },
       h("span", { class: "brand" }, h("span", { class: "brand-mark", "aria-hidden": "true" }), "Tafwid"),
       h("span", { class: "place", text: environment.name }),
       variantGroup,
     ),
-    h("div", { class: "bar-group sample" }, h("span", { class: "sample-pill", text: "Sample data" }), stepButton),
-    h("div", { class: "bar-group" }, quality, modeGroup),
+    h("div", { class: "bar-group sample", "data-hud-obstacle": "" }, h("span", { class: "sample-pill", text: "Sample data" }), stepButton),
+    h("div", { class: "bar-group", "data-hud-obstacle": "" }, quality, modeGroup),
   );
 
-  const stats = h("section", { class: "stats", "aria-label": "Team summary" });
+  const stats = h("section", { class: "stats", "aria-label": "Team summary", "data-hud-obstacle": "" });
   const worldStatus = h("div", { class: "world-status", role: "status" });
-  const cameraHost = h("div", { class: "camera-controls", role: "group", "aria-label": "Camera" });
+  const cameraHost = h("div", { class: "camera-controls", role: "group", "aria-label": "Camera", "data-hud-obstacle": "" });
   const viewport = h("div", { class: "viewport" }, worldStatus, cameraHost);
-  const rosterPanel = h("aside", { class: "roster-panel", "aria-label": "Your team" });
-  const details = h("section", { class: "details", "aria-live": "polite" });
-  const hint = h("p", { class: "hint", text: "Drag to pan · scroll to zoom · Q/E to rotate · click an agent to follow" });
+  const rosterPanel = h("aside", { class: "roster-panel", "aria-label": "Your team", "data-hud-obstacle": "" });
+  const details = h("section", { class: "details", "aria-live": "polite", "data-hud-obstacle": "" });
+  const hint = h("p", { class: "hint", text: "Drag to pan · scroll to zoom · Q/E to rotate · click an agent to follow", "data-hud-obstacle": "" });
   const app = h("div", { class: "app" }, topbar, stats, h("main", { class: "stage" }, viewport, rosterPanel), details, hint);
   root.replaceChildren(app);
 

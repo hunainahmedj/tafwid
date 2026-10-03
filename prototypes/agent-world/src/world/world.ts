@@ -59,6 +59,18 @@ export async function createWorld(host: HTMLElement, store: Store, options: Worl
   let disposed = false;
   let lastHeading = NaN;
 
+  /** Frames all agents (dashboard mode): centre on their bounding box, distance from its size. */
+  function fitAgents() {
+    if (!rig || !env) return;
+    const pts = store.get().snapshot.agents.map((a) => agents.groundOf(a.id)).filter((p): p is [number, number] => !!p);
+    if (!pts.length) return;
+    const xs = pts.map((p) => p[0]), zs = pts.map((p) => p[1]);
+    const cx = (Math.min(...xs) + Math.max(...xs)) / 2, cz = (Math.min(...zs) + Math.max(...zs)) / 2;
+    const spread = Math.max(Math.max(...xs) - Math.min(...xs), Math.max(...zs) - Math.min(...zs));
+    const [lo, hi] = env.manifest.camera.zoom;
+    rig = { ...rig, followId: null, glideTo: [cx, cz + 1.5], distanceGoal: Math.min(hi, Math.max(lo, spread * 2.1 + 16)) };
+  }
+
   async function setEnvironment(id: string, variant: Variant) {
     store.dispatch({ type: "worldError", message: null });
     try {
@@ -98,6 +110,11 @@ export async function createWorld(host: HTMLElement, store: Store, options: Worl
       if (s.selectedId && env && rig.distanceGoal > FOLLOW_DISTANCE) rig = zoom(rig, FOLLOW_DISTANCE - rig.distanceGoal, env.manifest.camera.zoom);
     }
     agents.selectedId = s.selectedId;
+    if (s.mode !== prev.mode) {
+      view.setFocusRangeScale(s.mode === "dashboard" ? 3 : 1);
+      if (s.mode === "dashboard" && !s.selectedId) fitAgents();
+      else if (s.mode === "explore" && !s.selectedId) api.camera.home();
+    }
     if (s.quality !== prev.quality) {
       view.setTier(s.quality);
       sampler.reset();

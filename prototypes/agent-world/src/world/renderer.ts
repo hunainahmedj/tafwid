@@ -11,7 +11,7 @@ import type { Tier } from "../app/types";
 import { TIERS } from "./tiers";
 
 /** Display-space grade applied after AgX tone mapping. */
-const GRADE = { saturation: 1.18, contrast: 1.1, shadowTint: [0.93, 0.95, 1.06] as [number, number, number] };
+const GRADE = { saturation: 1.16, contrast: 1.08, shadowTint: [0.98, 0.94, 1.03] as [number, number, number] };
 
 export interface WorldRenderer {
   renderer: THREE.WebGPURenderer;
@@ -20,6 +20,8 @@ export interface WorldRenderer {
   setEnvironment(manifest: EnvironmentManifest): void;
   /** Distance from the camera to the in-focus plane (the camera target). */
   setFocus(distance: number): void;
+  /** Widens the in-focus band (dashboard mode keeps more of the scene sharp). */
+  setFocusRangeScale(scale: number): void;
   render(): void;
   resize(width: number, height: number): void;
   dispose(): void;
@@ -72,7 +74,8 @@ export async function createRenderer(
       const aoPass = ao(prePass.getTextureNode("depth"), prePass.getTextureNode(), camera);
       aoPass.resolutionScale = 0.5;
       aoPass.radius.value = 0.55; // corner occlusion reads at diorama scale
-      aoPass.scale.value = 1.35;
+      aoPass.scale.value = 1.15;
+      aoPass.samples.value = 24;
       scenePass.contextNode = builtinAOContext(aoPass.getTextureNode().sample(screenUV).r);
     }
     let result: any = scenePass.getTextureNode("output");
@@ -88,7 +91,7 @@ export async function createRenderer(
     const graded = saturation(toned.rgb, GRADE.saturation).sub(0.5).mul(GRADE.contrast).add(0.5);
     const warmShadows = mix(vec3(...GRADE.shadowTint), vec3(1, 1, 1), smoothstep(0.0, 0.45, toned.rgb.length()));
     const v = smoothstep(0.95, 0.35, screenUV.sub(0.5).length());
-    p.outputNode = vec4(graded.mul(warmShadows).mul(mix(float(0.8), float(1.0), v)).clamp(0, 1), 1);
+    p.outputNode = vec4(graded.mul(warmShadows).mul(mix(float(0.9), float(1.0), v)).clamp(0, 1), 1);
     pipeline = p;
   }
 
@@ -146,6 +149,9 @@ export async function createRenderer(
       // Baked packages carry their lighting; the sun only lights characters and casts no world shadows.
       sun.castShadow = m.lighting !== "baked";
       buildPipeline();
+    },
+    setFocusRangeScale(scale) {
+      focalRange.value = (manifest?.ambience.dof.range ?? 12) * scale;
     },
     setFocus(distance) {
       focus.value = distance + (manifest?.ambience.dof.focusOffset ?? 0);
