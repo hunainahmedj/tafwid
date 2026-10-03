@@ -4,16 +4,21 @@
   background: #eef1f6;
   font-synthesis: none;
   --ink: #1f2a3c;
-  --muted: #5d6a80;
+  --muted: #4f5b70;
   --line: rgba(31, 42, 60, 0.1);
   --blue: #4263eb;
   --glass: rgba(255, 255, 255, 0.82);
   --shadow: 0 6px 24px rgba(31, 42, 60, 0.12);
+  /* Bright tones for dots and icons; -text tones meet 4.5:1 on white. */
   --working: #2f9e74;
-  --review: #d9822b;
-  --ready: #7a8599;
+  --review: #e08a2e;
+  --ready: #8a94a8;
   --issue: #e03e3e;
   --done: #4263eb;
+  --working-text: #1c7352;
+  --review-text: #9a5410;
+  --ready-text: #566278;
+  --issue-text: #b8262a;
 }
 * { box-sizing: border-box; }
 html, body { margin: 0; height: 100%; }
@@ -41,10 +46,10 @@ button:focus-visible, select:focus-visible { outline: 2px solid var(--blue); out
 .stat-done .dot { background: var(--done); }
 .status { font-weight: 650; display: inline-flex; align-items: center; gap: 5px; }
 .status::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
-.status-working { color: var(--working); }
-.status-review { color: var(--review); }
-.status-ready { color: var(--ready); }
-.status-issue { color: var(--issue); }
+.status-working { color: var(--working-text); }
+.status-review { color: var(--review-text); }
+.status-ready { color: var(--ready-text); }
+.status-issue { color: var(--issue-text); }
 .avatar { width: 32px; height: 32px; flex: none; border-radius: 9px; position: relative; overflow: hidden;
   background: linear-gradient(var(--hair) 0 22%, var(--skin) 22% 62%, var(--shirt) 62%); }
 .avatar::after { content: ""; position: absolute; left: 30%; right: 30%; top: 40%; height: 3px; border-left: 3px solid #1d2433; border-right: 3px solid #1d2433; }

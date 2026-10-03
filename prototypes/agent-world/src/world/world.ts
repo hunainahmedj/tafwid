@@ -133,11 +133,12 @@ export async function createWorld(host: HTMLElement, store: Store, options: Worl
     { passive: false },
   );
   const onKey = (e: KeyboardEvent) => {
+    const tag = (e.target as HTMLElement)?.tagName;
+    if (tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA") return;
+    if (e.key === "Escape") return store.dispatch({ type: "select", id: null });
     if (!host.matches(":hover") && !host.contains(document.activeElement)) return;
-    if ((e.target as HTMLElement)?.tagName === "INPUT") return;
     if (e.key === "q" || e.key === "Q") api.camera.rotate(1);
     else if (e.key === "e" || e.key === "E") api.camera.rotate(-1);
-    else if (e.key === "Escape") store.dispatch({ type: "select", id: null });
   };
   window.addEventListener("keydown", onKey);
 
@@ -149,7 +150,7 @@ export async function createWorld(host: HTMLElement, store: Store, options: Worl
     const now = performance.now();
     const dtMs = now - last;
     last = now;
-    const dt = Math.min(dtMs / 1000, 0.05);
+    const dt = Math.min(dtMs / 1000, 0.25);
     const time = now / 1000;
     const reduced = reducedMotionQuery.matches;
     ambient.setEnabled(!reduced);
@@ -162,7 +163,7 @@ export async function createWorld(host: HTMLElement, store: Store, options: Worl
       camera.position.set(...pose.position);
       camera.lookAt(...pose.lookAt);
       view.setFocus(rig.distance);
-      if (Math.abs(rig.yaw - lastHeading) > 0.001) {
+      if (!(Math.abs(rig.yaw - lastHeading) <= 0.001)) {
         lastHeading = rig.yaw;
         options.onHeading?.(rig.yaw);
       }

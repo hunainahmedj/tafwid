@@ -123,6 +123,7 @@ export function mountShell(root: HTMLElement, store: Store, source: SnapshotSour
     setHeading,
     attachCamera(actions: CameraActions) {
       camera = actions;
+      if (store.get().worldError) return; // keep a load error visible
       worldStatus.dataset.state = "ready";
       worldStatus.textContent = "";
     },
