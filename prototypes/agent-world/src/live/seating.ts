@@ -47,39 +47,56 @@ function pathCost(path: Cell[]): number {
 }
 
 /**
- * Overflow standing points: lounge loop points, then lounge positions, then
- * entrances. Ring 0 is the anchor itself; ring r adds 6r points at r * 0.8 m,
- * so spacing stays near 0.8 m. Rings are interleaved across anchors.
+ * Overflow standing points, in a fixed order that does not depend on how many
+ * are asked for (so a longer list always extends a shorter one): first the
+ * lounge (loop points, then lounge positions, every ring), then the
+ * entrances, so standing agents fill the lounge before they crowd a doorway.
+ * Ring 0 is the anchor itself; ring r adds 6r points at r * 0.8 m, which keeps
+ * spacing near 0.8 m. Rings interleave across the anchors of one phase. A point
+ * is skipped when it is within 0.6 m of a seat or an earlier point, or (rings
+ * 1 to 40) on a blocked cell.
  */
 function standSlots(manifest: EnvironmentManifest, walk: WalkGrid, count: number): Vec2[] {
-  const anchors: Vec2[] = [];
-  for (const zone of manifest.zones.lounge) for (const p of zone.loop ?? []) anchors.push([p[0], p[1]]);
-  for (const zone of manifest.zones.lounge) anchors.push([zone.position[0], zone.position[2]]);
-  for (const e of manifest.entrances) anchors.push([e[0], e[1]]);
-  if (anchors.length === 0) anchors.push([0, 0]);
+  const lounge: Vec2[] = [];
+  for (const zone of manifest.zones.lounge) for (const p of zone.loop ?? []) lounge.push([p[0], p[1]]);
+  for (const zone of manifest.zones.lounge) lounge.push([zone.position[0], zone.position[2]]);
+  const entrances: Vec2[] = manifest.entrances.map((e): Vec2 => [e[0], e[1]]);
+  if (lounge.length + entrances.length === 0) entrances.push([0, 0]);
+  const seats: Vec2[] = manifest.seating.flatMap((g) => g.seats.map((s): Vec2 => [s.position[0], s.position[2]]));
 
   const slots: Vec2[] = [];
-  const free = (p: Vec2) => slots.every((s) => Math.hypot(s[0] - p[0], s[1] - p[1]) >= MIN_SEPARATION);
+  const clear = (p: Vec2) =>
+    slots.every((s) => Math.hypot(s[0] - p[0], s[1] - p[1]) >= MIN_SEPARATION) &&
+    seats.every((s) => Math.hypot(s[0] - p[0], s[1] - p[1]) >= MIN_SEPARATION);
   const open = (p: Vec2) => {
     const [c, r] = worldToCell(manifest.grid, p[0], p[1]);
     return walk.walkable(c, r);
   };
-  for (let ring = 0; slots.length < count; ring++) {
-    for (const anchor of anchors) {
-      const points = ring === 0 ? 1 : 6 * ring;
-      for (let k = 0; k < points && slots.length < count; k++) {
-        const angle = (2 * Math.PI * k) / points;
-        const p: Vec2 =
-          ring === 0
-            ? [anchor[0], anchor[1]]
-            : [anchor[0] + Math.cos(angle) * RING_SPACING * ring, anchor[1] + Math.sin(angle) * RING_SPACING * ring];
-        if (ring > 0 && ring <= MAX_WALKABLE_RING && !open(p)) continue;
-        if (free(p)) slots.push(p);
+  const fill = (anchors: Vec2[], lastRing: number, walkableOnly: boolean) => {
+    for (let ring = 0; ring <= lastRing && slots.length < count; ring++) {
+      for (const anchor of anchors) {
+        const points = ring === 0 ? 1 : 6 * ring;
+        for (let k = 0; k < points && slots.length < count; k++) {
+          const angle = (2 * Math.PI * k) / points;
+          const p: Vec2 =
+            ring === 0
+              ? [anchor[0], anchor[1]]
+              : [anchor[0] + Math.cos(angle) * RING_SPACING * ring, anchor[1] + Math.sin(angle) * RING_SPACING * ring];
+          if (walkableOnly && ring > 0 && !open(p)) continue;
+          if (clear(p)) slots.push(p);
+        }
       }
     }
-  }
+  };
+  fill(lounge, MAX_WALKABLE_RING, true);
+  fill(entrances, MAX_WALKABLE_RING, true);
+  // Only reached when the walkable area is full: rings may cross blocked cells.
+  fill([...lounge, ...entrances], Infinity, false);
   return slots;
 }
+
+/** Upper bound when searching for a kept agent's previous standing point. */
+const MAX_KEPT_SLOTS = 2048;
 
 export function allocate(
   previous: Map<string, SeatAssignment>,
@@ -210,9 +227,21 @@ export function allocate(
       const prev = previous.get(a.id);
       return prev !== undefined && "standAt" in prev;
     });
-    const slots = standSlots(manifest, walk, standing.length + kept.length);
-    const used = new Set<number>();
     const same = (p: Vec2, q: Vec2) => Math.abs(p[0] - q[0]) < 1e-6 && Math.abs(p[1] - q[1]) < 1e-6;
+    // The slot list is prefix-stable, so grow it until every kept point is
+    // found: a kept agent's old slot may lie beyond the number now needed.
+    let count = standing.length + kept.length;
+    let slots = standSlots(manifest, walk, count);
+    const missing = () =>
+      kept.some((a) => {
+        const at = (previous.get(a.id) as { standAt: Vec2 }).standAt;
+        return !slots.some((s) => same(s, at));
+      });
+    while (count < MAX_KEPT_SLOTS && missing()) {
+      count *= 2;
+      slots = standSlots(manifest, walk, count);
+    }
+    const used = new Set<number>();
     const placed = new Set<string>();
     for (const a of kept) {
       const prev = previous.get(a.id) as { standAt: Vec2 };

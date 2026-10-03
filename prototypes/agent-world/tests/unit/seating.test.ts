@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import fixture from "./fixtures/manifest.valid.json";
 import type { EnvironmentManifest, SeatGroup } from "../../src/contract/manifest";
-import { parseWalkable } from "../../src/contract/grid";
+import { parseWalkable, worldToCell } from "../../src/contract/grid";
 import type { LiveAgent, Role } from "../../src/live/types";
 import { allocate, type SeatAssignment } from "../../src/live/seating";
 
@@ -287,6 +287,103 @@ describe("allocate: overflow", () => {
     expect("standAt" in first.get("s11")!).toBe(true);
     const second = run(agents.filter((a) => a.id !== "s3"), m, first);
     expect("seat" in second.get("s11")!).toBe(true);
+  });
+});
+
+describe("allocate: overflow stickiness and ordering", () => {
+  const standAt = (a: SeatAssignment): [number, number] => {
+    if (!("standAt" in a)) throw new Error("expected standAt");
+    return a.standAt;
+  };
+
+  it("keeps a standing agent's exact spot when the standers ahead of it leave", () => {
+    const m = manifest();
+    const agents = [coord("c1", "t1", 1)];
+    for (let i = 0; i < 31; i++) agents.push(sub(`s${String(i).padStart(2, "0")}`, "t1", "implementer", 2 + i));
+    const first = run(agents, m);
+    const standers = agents.filter((a) => "standAt" in first.get(a.id)!);
+    const seated = agents.filter((a) => "seat" in first.get(a.id)!);
+    expect(standers).toHaveLength(20);
+    expect(seated).toHaveLength(12);
+
+    const keep = standers.slice(-3);
+    const second = run([...seated, ...keep], m, first);
+    for (const a of keep) expect(standAt(second.get(a.id)!)).toEqual(standAt(first.get(a.id)!));
+    for (const a of seated) expect(seatKey(second.get(a.id)!)).toBe(seatKey(first.get(a.id)!));
+    const keys = [...second.values()].map(seatKey);
+    expect(new Set(keys).size).toBe(keys.length);
+  });
+
+  it("fills the lounge before any entrance", () => {
+    const m = manifest();
+    m.entrances = [[-5.5, 3.5]];
+    const agents = [coord("c1", "t1", 1)];
+    for (let i = 0; i < 41; i++) agents.push(sub(`s${String(i).padStart(2, "0")}`, "t1", "implementer", 2 + i));
+    const out = run(agents, m);
+    const standing = [...out.values()].filter((a) => "standAt" in a).map(standAt);
+    expect(standing).toHaveLength(30);
+    const lounge = m.zones.lounge[0].loop!;
+    for (const p of standing) {
+      expect(Math.hypot(p[0] - -5.5, p[1] - 3.5)).toBeGreaterThan(1);
+      // Every spot sits near the lounge, not near the doorway.
+      const nearest = Math.min(...lounge.map((l) => Math.hypot(p[0] - l[0], p[1] - l[1])));
+      expect(nearest).toBeLessThan(4);
+    }
+  });
+});
+
+describe("allocate: capacity limits", () => {
+  it("gives 12 seats plus 20 unique, well-spaced standing points for 32 agents", () => {
+    const m = manifest();
+    const agents = [coord("c1", "t1", 1)];
+    for (let i = 0; i < 31; i++) agents.push(sub(`s${i}`, "t1", "implementer", 2 + i));
+    const out = run(agents, m);
+    const stand = [...out.values()].filter((a) => "standAt" in a).map((a) => (a as { standAt: [number, number] }).standAt);
+    expect(out.size).toBe(32);
+    expect([...out.values()].filter((a) => "seat" in a)).toHaveLength(12);
+    expect(stand).toHaveLength(20);
+    const seatPositions = m.seating.flatMap((g) => g.seats.map((s) => [s.position[0], s.position[2]]));
+    for (let i = 0; i < stand.length; i++) {
+      for (const sp of seatPositions) expect(Math.hypot(stand[i][0] - sp[0], stand[i][1] - sp[1])).toBeGreaterThanOrEqual(0.6);
+      for (let j = i + 1; j < stand.length; j++) {
+        expect(Math.hypot(stand[i][0] - stand[j][0], stand[i][1] - stand[j][1])).toBeGreaterThanOrEqual(0.6);
+      }
+    }
+  });
+
+  it("keeps standing points off blocked cells", () => {
+    const rows = [
+      "............",
+      "............",
+      "..##....##..",
+      "............",
+      "..##.##.##..",
+      "............",
+      "..##....##..",
+      "............",
+    ];
+    const m = manifest({ walkable: rows });
+    const agents = [coord("c1", "t1", 1)];
+    for (let i = 0; i < 31; i++) agents.push(sub(`s${i}`, "t1", "implementer", 2 + i));
+    const out = run(agents, m);
+    const walk = parseWalkable(m.grid);
+    const stand = [...out.values()].filter((a) => "standAt" in a);
+    expect(stand).toHaveLength(20);
+    for (const a of stand) {
+      const [x, z] = (a as { standAt: [number, number] }).standAt;
+      const [c, r] = worldToCell(m.grid, x, z);
+      expect(walk.walkable(c, r)).toBe(true);
+    }
+  });
+
+  it("prefers a farther kind-matched group over a nearer unsuited one", () => {
+    // Same layout, bar full, desk and table nearer than the bench.
+    const nearest = run([...filled("t1", 3), sub("late", "t1", "reviewer", 1_000_000)]);
+    expect(groupOf(nearest, "late")).toBe("desk-1");
+    const researcher = run([...filled("t1", 3), sub("late", "t1", "researcher", 1_000_000)]);
+    expect(groupOf(researcher, "late")).toBe("bench-1");
+    const documenter = run([...filled("t1", 3), sub("late", "t1", "documenter", 1_000_000)]);
+    expect(groupOf(documenter, "late")).toBe("table-1");
   });
 });
 
