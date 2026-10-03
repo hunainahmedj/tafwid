@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "agent-world",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "prototypes/agent-world", "run", "dev"],
+      "port": 4174
+    }
+  ]
+}

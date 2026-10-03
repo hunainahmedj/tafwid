@@ -1,0 +1,101 @@
+import * as THREE from "three/webgpu";
+import { cos, float, instanceIndex, positionLocal, sin, time, vec3 } from "three/tsl";
+import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
+import type { EnvironmentManifest } from "../contract/manifest";
+import { validateManifest } from "../contract/validate";
+import { parseWalkable } from "../contract/grid";
+import type { WalkGrid } from "./pathfinding";
+
+export interface LoadedEnvironment {
+  manifest: EnvironmentManifest;
+  root: THREE.Object3D;
+  walk: WalkGrid;
+  dispose(): void;
+}
+
+export class EnvironmentLoadError extends Error {}
+
+const draco = new DRACOLoader().setDecoderPath(`${import.meta.env.BASE_URL}draco/`);
+const loader = new GLTFLoader().setDRACOLoader(draco);
+
+/** Foliage materials sway gently; each instance gets its own phase. */
+function swayingMaterial(source: THREE.MeshStandardMaterial): THREE.MeshStandardNodeMaterial {
+  const m = new THREE.MeshStandardNodeMaterial();
+  m.color.copy(source.color);
+  m.roughness = source.roughness;
+  m.metalness = source.metalness;
+  m.map = source.map;
+  m.flatShading = true;
+  m.name = source.name;
+  const phase = float(instanceIndex).mul(1.73);
+  const height = positionLocal.y.max(0);
+  m.positionNode = positionLocal.add(
+    vec3(sin(time.mul(1.4).add(phase)).mul(0.035), 0, cos(time.mul(1.1).add(phase)).mul(0.025)).mul(height),
+  );
+  return m;
+}
+
+/** Baked surfaces already contain their lighting, so they render unlit. */
+function bakedMaterial(source: THREE.MeshStandardMaterial): THREE.MeshBasicNodeMaterial {
+  const m = new THREE.MeshBasicNodeMaterial({ map: source.map, color: source.map ? 0xffffff : source.color });
+  m.name = source.name;
+  return m;
+}
+
+export async function loadEnvironment(baseUrl: string): Promise<LoadedEnvironment> {
+  const response = await fetch(`${baseUrl}/manifest.json`);
+  if (!response.ok) throw new EnvironmentLoadError(`Could not load ${baseUrl}/manifest.json (${response.status})`);
+  const result = validateManifest(await response.json());
+  if (!result.ok) throw new EnvironmentLoadError(`Invalid environment package: ${result.errors.join("; ")}`);
+  const manifest = result.manifest;
+  let gltf;
+  try {
+    gltf = await loader.loadAsync(`${baseUrl}/${manifest.scene}`);
+  } catch (e) {
+    throw new EnvironmentLoadError(`Could not load the scene for ${manifest.name}: ${(e as Error).message}`);
+  }
+  const root = gltf.scene;
+  const realtime = manifest.lighting === "realtime";
+  const replaced = new Map<THREE.Material, THREE.Material>();
+  root.traverse((obj) => {
+    const mesh = obj as THREE.Mesh;
+    if (!mesh.isMesh) return;
+    const source = mesh.material as THREE.MeshStandardMaterial;
+    let next = replaced.get(source);
+    if (!next) {
+      if (source.name.endsWith("_baked")) next = bakedMaterial(source);
+      else if (source.name.startsWith("leaf")) next = swayingMaterial(source);
+      else {
+        source.flatShading = true;
+        next = source;
+      }
+      replaced.set(source, next);
+    }
+    mesh.material = next;
+    const emissive = (source as THREE.MeshStandardMaterial).emissiveIntensity > 0 &&
+      (source as THREE.MeshStandardMaterial).emissive?.getHex() !== 0;
+    mesh.castShadow = realtime && !emissive;
+    mesh.receiveShadow = realtime;
+  });
+  root.updateMatrixWorld(true);
+
+  return {
+    manifest,
+    root,
+    walk: parseWalkable(manifest.grid),
+    dispose() {
+      root.traverse((obj) => {
+        const mesh = obj as THREE.Mesh;
+        if (!mesh.isMesh) return;
+        mesh.geometry.dispose();
+      });
+      for (const [src, mat] of replaced) {
+        (src as THREE.MeshStandardMaterial).map?.dispose();
+        src.dispose();
+        mat.dispose();
+      }
+      root.removeFromParent();
+    },
+  };
+}
