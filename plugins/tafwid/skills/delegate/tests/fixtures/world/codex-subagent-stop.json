@@ -1,0 +1,14 @@
+{
+  "session_id": "codex-session-0001",
+  "turn_id": "turn-0001",
+  "transcript_path": "/srv/dev/.codex/sessions/rollout-0001.jsonl",
+  "cwd": "/srv/dev/work/tafwid",
+  "model": "gpt-5",
+  "permission_mode": "default",
+  "hook_event_name": "SubagentStop",
+  "agent_transcript_path": "/srv/dev/.codex/sessions/child.jsonl",
+  "last_assistant_message": "Done.",
+  "stop_hook_active": false,
+  "agent_id": "codex-agent-0001",
+  "agent_type": "default"
+}

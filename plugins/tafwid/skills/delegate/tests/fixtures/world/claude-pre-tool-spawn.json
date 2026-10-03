@@ -1,0 +1,14 @@
+{
+  "session_id": "claude-session-0001",
+  "transcript_path": "/srv/dev/.claude/projects/p/claude-session-0001.jsonl",
+  "cwd": "/srv/dev/work/tafwid",
+  "permission_mode": "default",
+  "hook_event_name": "PreToolUse",
+  "tool_name": "Agent",
+  "tool_use_id": "toolu_04",
+  "tool_input": {
+    "subagent_type": "general-purpose",
+    "description": "Implement Task 3: manifest validator [role: implementer]",
+    "prompt": "Write the validator. Do not touch other files."
+  }
+}

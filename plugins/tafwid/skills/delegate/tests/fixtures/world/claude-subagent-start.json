@@ -1,0 +1,9 @@
+{
+  "session_id": "claude-session-0001",
+  "transcript_path": "/srv/dev/.claude/projects/p/claude-session-0001.jsonl",
+  "cwd": "/srv/dev/work/tafwid",
+  "permission_mode": "default",
+  "hook_event_name": "SubagentStart",
+  "agent_id": "claude-agent-0001",
+  "agent_type": "general-purpose"
+}
