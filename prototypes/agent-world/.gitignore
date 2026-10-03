@@ -1,0 +1,9 @@
+node_modules/
+dist/
+test-results/
+playwright-report/
+art/previews/
+art/**/__pycache__/
+.critique/
+# Built packages stay out of Git until accepted at the end of M2.
+public/environments/*/*/
