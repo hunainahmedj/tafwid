@@ -45,6 +45,17 @@ describe("assignZones", () => {
     });
   });
 
+  it("done agents wander the lounge like ready ones", () => {
+    const list = withStatus(agents(), "ada", "done");
+    expect(assignZones(list, manifest).get("ada")).toMatchObject({ zone: manifest.zones.lounge[0], pose: "wander" });
+  });
+
+  it("uncertain agents stay seated like working ones", () => {
+    const list = withStatus(agents(), "ada", "uncertain");
+    const ada = list.findIndex((a) => a.id === "ada");
+    expect(assignZones(list, manifest).get("ada")).toMatchObject({ zone: seats[ada], pose: "seated-typing" });
+  });
+
   it("throws a named error when there are more agents than seats", () => {
     const list = agents();
     const many = Array.from({ length: seats.length + 1 }, (_, i) => ({ ...list[i % list.length], id: `agent-${i}` }));

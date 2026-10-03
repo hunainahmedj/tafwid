@@ -20,3 +20,18 @@ export function formatElapsed(minutes: number | null): string {
   if (minutes < 1) return "Just started";
   return `${minutes}m elapsed`;
 }
+
+/**
+ * Makes `parent`'s children exactly `wanted`, in order, moving only the nodes
+ * that are out of place. Moving or removing a node drops its keyboard focus,
+ * so a focused row that is already where it belongs is never touched.
+ */
+export function reconcile(parent: Element, wanted: Node[]): void {
+  wanted.forEach((node, i) => {
+    if (parent.childNodes[i] !== node) parent.insertBefore(node, parent.childNodes[i] ?? null);
+  });
+  while (parent.childNodes.length > wanted.length) parent.lastChild!.remove();
+}
+
+/** A project's display name; an empty project (no working directory known) has none. */
+export const projectName = (project: string) => project || "Unknown project";

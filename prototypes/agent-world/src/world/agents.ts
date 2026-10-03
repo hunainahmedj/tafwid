@@ -15,6 +15,8 @@ const RING_COLOURS: Record<Agent["status"], string> = {
   review: "#ff9f2e",
   ready: "#4f7cff",
   issue: "#ff3b3b",
+  done: "#4f7cff",
+  uncertain: "#9aa3b2",
 };
 
 interface Tracked {

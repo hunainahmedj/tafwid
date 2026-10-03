@@ -18,8 +18,29 @@ export function initialState(snapshot: Snapshot, overrides: Partial<AppState> = 
     qualityAuto: true,
     worldAvailable: true,
     worldError: null,
+    source: "sample",
+    liveEnabled: false,
+    projectFilter: null,
     ...overrides,
   };
+}
+
+/** The agents the project filter lets through. */
+export function visibleAgents(snapshot: Snapshot, projectFilter: string | null) {
+  return projectFilter === null ? snapshot.agents : snapshot.agents.filter((a) => a.project === projectFilter);
+}
+
+/**
+ * Brings the filter and the selection back in line with the snapshot: a
+ * filter on a project that has gone is dropped, and a selection survives only
+ * while its agent is still visible.
+ */
+function settle(s: AppState): AppState {
+  const projectFilter =
+    s.projectFilter !== null && !s.snapshot.teams.some((t) => t.project === s.projectFilter) ? null : s.projectFilter;
+  const selectedId =
+    s.selectedId !== null && visibleAgents(s.snapshot, projectFilter).some((a) => a.id === s.selectedId) ? s.selectedId : null;
+  return projectFilter === s.projectFilter && selectedId === s.selectedId ? s : { ...s, projectFilter, selectedId };
 }
 
 function reduce(s: AppState, a: Action): AppState {
@@ -33,10 +54,14 @@ function reduce(s: AppState, a: Action): AppState {
       return s.variant === a.variant ? s : { ...s, variant: a.variant, worldError: null };
     case "setFilter":
       return s.filter === a.filter ? s : { ...s, filter: a.filter };
-    case "snapshot": {
-      const stillThere = a.snapshot.agents.some((agent) => agent.id === s.selectedId);
-      return { ...s, snapshot: a.snapshot, selectedId: stillThere ? s.selectedId : null };
-    }
+    case "snapshot":
+      return settle({ ...s, snapshot: a.snapshot });
+    case "setSource":
+      return s.source === a.source && !a.snapshot ? s : settle({ ...s, source: a.source, snapshot: a.snapshot ?? s.snapshot });
+    case "setLiveEnabled":
+      return s.liveEnabled === a.enabled ? s : { ...s, liveEnabled: a.enabled };
+    case "setProjectFilter":
+      return s.projectFilter === a.project ? s : settle({ ...s, projectFilter: a.project });
     case "setQuality":
       return s.quality === a.tier && s.qualityAuto === a.auto ? s : { ...s, quality: a.tier, qualityAuto: a.auto };
     case "worldUnavailable":
@@ -69,6 +94,7 @@ export function deriveStats(s: Snapshot) {
     working: count("working"),
     review: count("review"),
     attention: count("issue"),
+    ready: count("ready"),
     completed: s.completedThisSession,
   };
 }

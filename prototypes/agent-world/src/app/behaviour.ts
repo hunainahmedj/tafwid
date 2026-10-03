@@ -34,6 +34,7 @@ export function assignZones(
     const seat = seats[index];
     switch (agent.status) {
       case "working":
+      case "uncertain": // seated like a working agent until the live world places them
         result.set(agent.id, { zone: seat, pose: "seated-typing", offset: [0, 0] });
         break;
       case "issue":
@@ -48,7 +49,8 @@ export function assignZones(
         });
         break;
       }
-      case "ready": {
+      case "ready":
+      case "done": {
         const i = loungers++;
         result.set(agent.id, {
           zone: zones.lounge[i % zones.lounge.length],

@@ -1,6 +1,6 @@
 import type { Store } from "../app/store";
-import { STATUS_LABELS, type AppState } from "../app/types";
-import { formatElapsed, h } from "./dom";
+import { ROLE_LABELS, STATUS_LABELS, actionText, type AppState } from "../app/types";
+import { formatElapsed, h, projectName } from "./dom";
 
 /** The selected agent's card: "Following" in explore mode, "In focus" in dashboard mode. */
 export function mountDetails(host: HTMLElement, store: Store) {
@@ -23,13 +23,14 @@ export function mountDetails(host: HTMLElement, store: Store) {
           "div",
           {},
           h("span", { class: "label", text: s.mode === "explore" ? "Following" : "In focus" }),
-          h("span", { class: "agent-line" }, h("strong", { text: a.name }), h("span", { class: "role", text: a.role })),
-          h("span", { class: "provider", text: a.provider }),
+          h("span", { class: "agent-line" }, h("strong", { text: a.name }), h("span", { class: "role", text: ROLE_LABELS[a.role] })),
+          h("span", { class: "provider", text: `${a.provider} · ${projectName(a.project)}` }),
         ),
       ),
       field("Current task", a.task),
+      field("Current action", actionText(a)),
       field("Status", h("span", { class: `status status-${a.status}`, text: STATUS_LABELS[a.status] }), ` · ${formatElapsed(a.elapsedMinutes)}`),
-      field("What happens next", a.next),
+      ...(a.next ? [field("What happens next", a.next)] : []),
       ...hint,
     );
   }

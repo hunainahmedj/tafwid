@@ -30,6 +30,21 @@ test("shows sample data and stats", async ({ page }) => {
   await expect(stats.locator(".stat-issue strong")).toHaveText("1");
 });
 
+test("falls back to the sample day with the live-off notice and groups the roster by team", async ({ page }) => {
+  await open(page);
+  await expect(page.getByRole("button", { name: "Sample", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByRole("button", { name: "Live", exact: true })).toHaveAttribute("aria-pressed", "false");
+  await expect(page.locator(".live-notice")).toContainText("Live activity is off. Run");
+  await expect(page.locator(".live-notice code")).toHaveText("python3 plugins/tafwid/skills/delegate/scripts/world.py on");
+  await expect(page.locator(".roster-panel .team-heading")).toHaveText(["harbour-app· Claude Code", "orchard-api· Codex"]);
+  // A project chip filters the roster; pressing it again clears the filter.
+  const chip = page.locator('.team-chips .chip[data-project="orchard-api"]');
+  await chip.click();
+  await expect(page.locator(".roster-panel .agent-row")).toHaveCount(2);
+  await chip.click();
+  await expect(page.locator(".roster-panel .agent-row")).toHaveCount(5);
+});
+
 test("roster selection follows the agent and shows the follow card", async ({ page }) => {
   await open(page);
   await rosterRow(page, "noor").click();
