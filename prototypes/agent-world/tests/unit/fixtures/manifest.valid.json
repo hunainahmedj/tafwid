@@ -1,5 +1,5 @@
 {
-  "schema": "tafwid.environment/1",
+  "schema": "tafwid.environment/2",
   "id": "fixture",
   "variant": "kit",
   "name": "Fixture room",
@@ -21,15 +21,46 @@
       "............"
     ]
   },
+  "seating": [
+    {
+      "id": "desk-1",
+      "kind": "desk",
+      "seats": [
+        { "id": "desk-1-a", "position": [-4.5, 0, -0.5], "facing": 3.14159, "pose": "seated" },
+        { "id": "desk-1-b", "position": [-3.5, 0, -0.5], "facing": 3.14159, "pose": "seated" },
+        { "id": "desk-1-c", "position": [-2.5, 0, -0.5], "facing": 3.14159, "pose": "seated" }
+      ]
+    },
+    {
+      "id": "bar",
+      "kind": "bar",
+      "seats": [
+        { "id": "bar-1", "position": [-1.5, 0, -0.5], "facing": 3.14159, "pose": "seated" },
+        { "id": "bar-2", "position": [-0.5, 0, -0.5], "facing": 3.14159, "pose": "seated" },
+        { "id": "bar-3", "position": [0.5, 0, -0.5], "facing": 3.14159, "pose": "seated" },
+        { "id": "bar-4", "position": [1.5, 0, -0.5], "facing": 3.14159, "pose": "seated" }
+      ]
+    },
+    {
+      "id": "bench-1",
+      "kind": "bench",
+      "seats": [
+        { "id": "bench-1-a", "position": [3.5, 0, -0.5], "facing": 0, "pose": "seated" },
+        { "id": "bench-1-b", "position": [4.5, 0, -0.5], "facing": 0, "pose": "seated" }
+      ]
+    },
+    {
+      "id": "table-1",
+      "kind": "table",
+      "seats": [
+        { "id": "table-1-a", "position": [-4.5, 0, 0.5], "facing": 0, "pose": "seated" },
+        { "id": "table-1-b", "position": [-3.5, 0, 0.5], "facing": 0, "pose": "seated" },
+        { "id": "table-1-c", "position": [-2.5, 0, 0.5], "facing": 0, "pose": "seated" }
+      ]
+    }
+  ],
+  "entrances": [[0.5, 3.5]],
   "zones": {
-    "workstation": [
-      { "id": "ws-1", "position": [-4.5, 0, -0.5], "facing": 3.14159, "pose": "seated" },
-      { "id": "ws-2", "position": [-3.5, 0, -0.5], "facing": 3.14159, "pose": "seated" },
-      { "id": "ws-3", "position": [-2.5, 0, -0.5], "facing": 3.14159, "pose": "seated" },
-      { "id": "ws-4", "position": [-1.5, 0, -0.5], "facing": 3.14159, "pose": "seated" },
-      { "id": "ws-5", "position": [-0.5, 0, -0.5], "facing": 3.14159, "pose": "seated" },
-      { "id": "ws-6", "position": [0.5, 0, -0.5], "facing": 3.14159, "pose": "seated" }
-    ],
     "review": [{ "id": "review-1", "position": [4.5, 0, -3.5], "facing": 3.14159, "pose": "standing" }],
     "lounge": [
       {

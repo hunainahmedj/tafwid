@@ -72,6 +72,12 @@
       44
     ]
   },
+  "entrances": [
+    [
+      0.5,
+      5.5
+    ]
+  ],
   "grid": {
     "cellSize": 1.0,
     "depth": 12,
@@ -86,7 +92,7 @@
       "#..#..#..#......",
       "#...............",
       "#...............",
-      "#...............",
+      "#..#..#..#......",
       "#...............",
       "#...............",
       "#...............",
@@ -99,7 +105,165 @@
   "lighting": "realtime",
   "name": "Placeholder room",
   "scene": "scene.glb",
-  "schema": "tafwid.environment/1",
+  "schema": "tafwid.environment/2",
+  "seating": [
+    {
+      "id": "desk-1",
+      "kind": "desk",
+      "seats": [
+        {
+          "facing": 3.141592653589793,
+          "id": "desk-1-a",
+          "pose": "seated",
+          "position": [
+            -4.5,
+            0,
+            -1.5
+          ]
+        },
+        {
+          "facing": 0,
+          "id": "desk-1-b",
+          "pose": "seated",
+          "position": [
+            -4.5,
+            0,
+            -3.5
+          ]
+        }
+      ]
+    },
+    {
+      "id": "desk-2",
+      "kind": "desk",
+      "seats": [
+        {
+          "facing": 3.141592653589793,
+          "id": "desk-2-a",
+          "pose": "seated",
+          "position": [
+            -1.5,
+            0,
+            -1.5
+          ]
+        },
+        {
+          "facing": 0,
+          "id": "desk-2-b",
+          "pose": "seated",
+          "position": [
+            -1.5,
+            0,
+            -3.5
+          ]
+        }
+      ]
+    },
+    {
+      "id": "desk-3",
+      "kind": "desk",
+      "seats": [
+        {
+          "facing": 3.141592653589793,
+          "id": "desk-3-a",
+          "pose": "seated",
+          "position": [
+            1.5,
+            0,
+            -1.5
+          ]
+        },
+        {
+          "facing": 0,
+          "id": "desk-3-b",
+          "pose": "seated",
+          "position": [
+            1.5,
+            0,
+            -3.5
+          ]
+        }
+      ]
+    },
+    {
+      "id": "desk-4",
+      "kind": "desk",
+      "seats": [
+        {
+          "facing": 3.141592653589793,
+          "id": "desk-4-a",
+          "pose": "seated",
+          "position": [
+            -4.5,
+            0,
+            1.5
+          ]
+        },
+        {
+          "facing": 0,
+          "id": "desk-4-b",
+          "pose": "seated",
+          "position": [
+            -4.5,
+            0,
+            -0.5
+          ]
+        }
+      ]
+    },
+    {
+      "id": "desk-5",
+      "kind": "desk",
+      "seats": [
+        {
+          "facing": 3.141592653589793,
+          "id": "desk-5-a",
+          "pose": "seated",
+          "position": [
+            -1.5,
+            0,
+            1.5
+          ]
+        },
+        {
+          "facing": 0,
+          "id": "desk-5-b",
+          "pose": "seated",
+          "position": [
+            -1.5,
+            0,
+            -0.5
+          ]
+        }
+      ]
+    },
+    {
+      "id": "desk-6",
+      "kind": "desk",
+      "seats": [
+        {
+          "facing": 3.141592653589793,
+          "id": "desk-6-a",
+          "pose": "seated",
+          "position": [
+            1.5,
+            0,
+            1.5
+          ]
+        },
+        {
+          "facing": 0,
+          "id": "desk-6-b",
+          "pose": "seated",
+          "position": [
+            1.5,
+            0,
+            -0.5
+          ]
+        }
+      ]
+    }
+  ],
   "variant": "kit",
   "zones": {
     "lounge": [
@@ -141,68 +305,6 @@
           4.5,
           0,
           -3.5
-        ]
-      }
-    ],
-    "workstation": [
-      {
-        "facing": 3.141592653589793,
-        "id": "ws-1",
-        "pose": "seated",
-        "position": [
-          -4.5,
-          0,
-          -1.5
-        ]
-      },
-      {
-        "facing": 3.141592653589793,
-        "id": "ws-2",
-        "pose": "seated",
-        "position": [
-          -1.5,
-          0,
-          -1.5
-        ]
-      },
-      {
-        "facing": 3.141592653589793,
-        "id": "ws-3",
-        "pose": "seated",
-        "position": [
-          1.5,
-          0,
-          -1.5
-        ]
-      },
-      {
-        "facing": 3.141592653589793,
-        "id": "ws-4",
-        "pose": "seated",
-        "position": [
-          -4.5,
-          0,
-          2.0
-        ]
-      },
-      {
-        "facing": 3.141592653589793,
-        "id": "ws-5",
-        "pose": "seated",
-        "position": [
-          -1.5,
-          0,
-          2.0
-        ]
-      },
-      {
-        "facing": 3.141592653589793,
-        "id": "ws-6",
-        "pose": "seated",
-        "position": [
-          1.5,
-          0,
-          2.0
         ]
       }
     ]

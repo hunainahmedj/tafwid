@@ -34,15 +34,23 @@ grid.block_rect(-8, -6, -7.01, 6)
 
 desk = materials.palette_material("wood_mid")
 screen = materials.get("screen_glow", "screen", emission="screen_glow", emission_strength=2.0)
-workstations = []
+seating = []
 for i in range(6):
-    x, z = -4.5 + (i % 3) * 3, -2.5 + (i // 3) * 3.5
+    # Desks sit on cell centres so each blocks exactly one cell; a seat on each long side.
+    x, z = -4.5 + (i % 3) * 3, -2.5 + (i // 3) * 3
     bevel_box((1.8, 0.1, 0.9), desk, (x, 0.75, z))
     bevel_box((0.8, 0.5, 0.06), screen, (x, 0.85, z - 0.3))
     for dx in (-0.8, 0.8):
         bevel_box((0.1, 0.75, 0.8), desk, (x + dx, 0, z), radius=0.03)
     grid.block_footprint(x, z, 1.8, 0.9)
-    workstations.append({"id": "ws-%d" % (i + 1), "position": [x, 0, z + 1.0], "facing": math.pi, "pose": "seated"})
+    seating.append({
+        "id": "desk-%d" % (i + 1),
+        "kind": "desk",
+        "seats": [
+            {"id": "desk-%d-a" % (i + 1), "position": [x, 0, z + 1.0], "facing": math.pi, "pose": "seated"},
+            {"id": "desk-%d-b" % (i + 1), "position": [x, 0, z - 1.0], "facing": 0, "pose": "seated"},
+        ],
+    })
 
 board = materials.palette_material("chalk_black")
 bevel_box((2.2, 1.4, 0.1), board, (4.5, 0.6, -4.9))
@@ -51,21 +59,23 @@ review = [{"id": "review-1", "position": [4.5, 0, -3.5], "facing": math.pi, "pos
 loop = [[2.5, 2.5], [6.5, 2.5], [6.5, 4.5], [2.5, 4.5]]
 lounge = [{"id": "lounge-1", "position": [2.5, 0, 2.5], "facing": 0, "pose": "standing", "loop": loop}]
 
-for z in [w["position"] for w in workstations] + [r["position"] for r in review]:
+for z in [r["position"] for r in review]:
     scene.add_zone_empty("z", "debug", z)
 
 scene.export_glb(os.path.join(out, "package", "scene.glb"))
 scene.write_manifest(
     os.path.join(out, "package", "manifest.json"),
     {
-        "schema": "tafwid.environment/1",
+        "schema": "tafwid.environment/2",
         "id": "placeholder",
         "variant": "kit",
         "name": "Placeholder room",
         "scene": "scene.glb",
         "lighting": "realtime",
         "grid": grid.manifest(),
-        "zones": {"workstation": workstations, "review": review, "lounge": lounge},
+        "seating": seating,
+        "entrances": [[0.5, 5.5]],
+        "zones": {"review": review, "lounge": lounge},
         "ambientPaths": [{"id": "walk-1", "kind": "pedestrian", "points": [[-6.5, 5.5], [7.5, 5.5]], "loop": True}],
         "camera": {
             "home": {"target": [0, 0], "yaw": 0.65, "distance": 32},

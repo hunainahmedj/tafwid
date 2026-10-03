@@ -1,5 +1,7 @@
-/** The environment package contract, schema `tafwid.environment/1`. */
-export const MANIFEST_SCHEMA = "tafwid.environment/1";
+/** The environment package contract, schema `tafwid.environment/2`. */
+export const MANIFEST_SCHEMA = "tafwid.environment/2";
+/** The previous schema, kept only so the validator can name it. */
+export const LEGACY_MANIFEST_SCHEMA = "tafwid.environment/1";
 
 export type Vec2 = [number, number];
 export type Vec3 = [number, number, number];
@@ -12,6 +14,25 @@ export interface Zone {
   pose: "seated" | "standing";
   /** Lounge zones may declare a walking loop in world [x, z] points. */
   loop?: Vec2[];
+}
+
+/** One place for one agent to sit or stand; the shape of a zone without a loop. */
+export interface Seat {
+  id: string;
+  position: Vec3;
+  /** Yaw in radians; 0 faces +Z. */
+  facing: number;
+  pose: "seated" | "standing";
+}
+
+export const SEAT_GROUP_KINDS = ["desk", "table", "bar", "bench", "standing", "lounge"] as const;
+export type SeatGroupKind = (typeof SEAT_GROUP_KINDS)[number];
+
+/** Seats that belong together, such as the chairs of one table. */
+export interface SeatGroup {
+  id: string;
+  kind: SeatGroupKind;
+  seats: Seat[];
 }
 
 export interface Grid {
@@ -50,7 +71,10 @@ export interface EnvironmentManifest {
   scene: string;
   lighting: "realtime" | "baked";
   grid: Grid;
-  zones: { workstation: Zone[]; review: Zone[]; lounge: Zone[] };
+  seating: SeatGroup[];
+  /** World [x, z] points on walkable cells where agents enter the scene. */
+  entrances: Vec2[];
+  zones: { review: Zone[]; lounge: Zone[] };
   ambientPaths: AmbientPath[];
   camera: {
     home: { target: Vec2; yaw: number; distance: number };
@@ -60,4 +84,6 @@ export interface EnvironmentManifest {
   ambience: Ambience;
 }
 
-export const ZONE_MINIMUMS = { workstation: 6, review: 1, lounge: 1 } as const;
+export const ZONE_MINIMUMS = { review: 1, lounge: 1 } as const;
+export const SEAT_MINIMUM = 12;
+export const ENTRANCE_MINIMUM = 1;

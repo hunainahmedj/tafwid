@@ -5,50 +5,51 @@ import { createFixtureSource } from "../../src/app/fixtures";
 import type { EnvironmentManifest } from "../../src/contract/manifest";
 import type { Agent } from "../../src/app/types";
 
-const zones = (valid as unknown as EnvironmentManifest).zones;
+const manifest = valid as unknown as EnvironmentManifest;
+const seats = manifest.seating.flatMap((group) => group.seats);
 const agents = () => structuredClone(createFixtureSource("productive-day").current().agents);
 const withStatus = (list: Agent[], id: string, status: Agent["status"]) =>
   list.map((a) => (a.id === id ? { ...a, status } : a));
 
 describe("assignZones", () => {
-  it("working agents sit at the workstation matching their roster index", () => {
+  it("working agents sit at the seat matching their roster index", () => {
     const list = agents();
-    const result = assignZones(list, zones);
+    const result = assignZones(list, manifest);
     const ada = list.findIndex((a) => a.id === "ada");
-    expect(result.get("ada")).toMatchObject({ zone: zones.workstation[ada], pose: "seated-typing" });
+    expect(result.get("ada")).toMatchObject({ zone: seats[ada], pose: "seated-typing" });
   });
 
-  it("issue agents stand alert at their own workstation", () => {
+  it("issue agents stand alert at their own seat", () => {
     const list = agents();
     const rex = list.findIndex((a) => a.id === "rex");
-    expect(assignZones(list, zones).get("rex")).toMatchObject({
-      zone: zones.workstation[rex],
+    expect(assignZones(list, manifest).get("rex")).toMatchObject({
+      zone: seats[rex],
       pose: "standing-alert",
     });
   });
 
   it("review agents share review[0] with distinct offsets", () => {
     const list = withStatus(agents(), "ada", "review");
-    const result = assignZones(list, zones);
+    const result = assignZones(list, manifest);
     const cleo = result.get("cleo")!, ada = result.get("ada")!;
-    expect(cleo.zone).toBe(zones.review[0]);
-    expect(ada.zone).toBe(zones.review[0]);
+    expect(cleo.zone).toBe(manifest.zones.review[0]);
+    expect(ada.zone).toBe(manifest.zones.review[0]);
     expect(cleo.pose).toBe("standing-wave");
     expect(cleo.offset).not.toEqual(ada.offset);
   });
 
   it("ready agents wander the lounge loop", () => {
-    expect(assignZones(agents(), zones).get("noor")).toMatchObject({
-      zone: zones.lounge[0],
+    expect(assignZones(agents(), manifest).get("noor")).toMatchObject({
+      zone: manifest.zones.lounge[0],
       pose: "wander",
     });
   });
 
-  it("throws a named error when there are more agents than workstations", () => {
+  it("throws a named error when there are more agents than seats", () => {
     const list = agents();
-    const many = [...list, ...list.map((a) => ({ ...a, id: a.id + "-2" }))];
-    expect(() => assignZones(many, zones)).toThrow(
-      "10 agents but only 6 workstations in this environment",
+    const many = Array.from({ length: seats.length + 1 }, (_, i) => ({ ...list[i % list.length], id: `agent-${i}` }));
+    expect(() => assignZones(many, manifest)).toThrow(
+      "13 agents but only 12 seats in this environment",
     );
   });
 });

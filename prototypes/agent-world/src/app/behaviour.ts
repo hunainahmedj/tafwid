@@ -14,25 +14,30 @@ export interface Assignment {
 const SHARED_OFFSETS: Vec2[] = [[0, 0], [0.9, 0.3], [-0.9, 0.3], [0.5, 1], [-0.5, 1]];
 
 /**
- * Maps status to a place: each agent owns the workstation at its roster
- * index; review agents share the review spot; ready agents walk the lounge.
+ * Maps status to a place: each agent owns the seat at its roster index, with
+ * seat groups flattened in manifest order; review agents share the review
+ * spot; ready agents walk the lounge. Sample data only: the live world
+ * allocates seats by team and role instead.
  */
-export function assignZones(agents: Agent[], zones: EnvironmentManifest["zones"]): Map<string, Assignment> {
-  if (agents.length > zones.workstation.length)
-    throw new Error(
-      `${agents.length} agents but only ${zones.workstation.length} workstations in this environment`,
-    );
+export function assignZones(
+  agents: Agent[],
+  environment: Pick<EnvironmentManifest, "seating" | "zones">,
+): Map<string, Assignment> {
+  const { zones } = environment;
+  const seats = environment.seating.flatMap((group) => group.seats);
+  if (agents.length > seats.length)
+    throw new Error(`${agents.length} agents but only ${seats.length} seats in this environment`);
   const result = new Map<string, Assignment>();
   let reviewers = 0;
   let loungers = 0;
   agents.forEach((agent, index) => {
-    const desk = zones.workstation[index];
+    const seat = seats[index];
     switch (agent.status) {
       case "working":
-        result.set(agent.id, { zone: desk, pose: "seated-typing", offset: [0, 0] });
+        result.set(agent.id, { zone: seat, pose: "seated-typing", offset: [0, 0] });
         break;
       case "issue":
-        result.set(agent.id, { zone: desk, pose: "standing-alert", offset: [0, 0] });
+        result.set(agent.id, { zone: seat, pose: "standing-alert", offset: [0, 0] });
         break;
       case "review": {
         const i = reviewers++;

@@ -124,7 +124,7 @@ export async function createWorld(host: HTMLElement, store: Store, options: Worl
     overlay.sync(s.snapshot.agents, s.selectedId);
     if (!env) return;
     try {
-      agents.sync(s.snapshot.agents, assignZones(s.snapshot.agents, env.manifest.zones));
+      agents.sync(s.snapshot.agents, assignZones(s.snapshot.agents, env.manifest));
     } catch (e) {
       store.dispatch({ type: "worldError", message: (e as Error).message });
     }

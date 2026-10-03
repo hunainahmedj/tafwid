@@ -77,13 +77,13 @@ critique screenshots and per-tier frame times, with the dev server running.
 
 | Path | Responsibility |
 | --- | --- |
-| `src/app/` | Store, sample fixtures, and status-to-zone behaviour |
+| `src/app/` | Store, sample fixtures, and status-to-seat behaviour |
 | `src/contract/` | Environment package types, grid helpers, validator |
 | `src/world/` | Renderer and post stack, quality tiers, package loader, camera rig, characters, agents, ambient life, badges |
 | `src/ui/` | Shell (both modes), roster, details, camera controls |
 | `art/lib/` | Shared Blender helpers: bevelled blocks, palette, materials, grid, export |
 | `art/kit/pieces.py` | The style C kit, one builder per prop kind |
-| `art/cafe/layout.py` | The café square: placements, zones, walk grid, camera, ambience |
+| `art/cafe/layout.py` | The café square: placements, seat groups, entrances, zones, walk grid, camera, ambience |
 | `art/cafe-kit/`, `art/cafe-baked/` | Pipeline A and pipeline B build scripts |
 
 ## Limits

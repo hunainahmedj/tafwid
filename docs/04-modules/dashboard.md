@@ -37,8 +37,8 @@ design.
   falls back to WebGL2 on older browsers, and to dashboard-only mode when
   there is no 3D at all.
 - **Environments:** each one is a package (`manifest.json` + `scene.glb`).
-  The runtime validates every package before use: zones by role, a walk
-  grid, camera bounds and ambience.
+  The runtime validates every package before use: seat groups, entrances,
+  review and lounge zones, a walk grid, camera bounds and ambience.
 - **Agents:** they walk A* paths between zones when their status changes.
 - **Building packages:** headless Blender scripts produce the packages.
   There are two pipelines, a real-time-lit kit and a baked scene;

@@ -186,6 +186,20 @@
       78
     ]
   },
+  "entrances": [
+    [
+      4.5,
+      10.5
+    ],
+    [
+      -13.5,
+      -11.5
+    ],
+    [
+      16.5,
+      -1.5
+    ]
+  ],
   "grid": {
     "cellSize": 1.0,
     "depth": 36,
@@ -204,8 +218,8 @@
       "######.....#.............#.........###.#####",
       "######.....#........#....#.....#.......#####",
       "######.....#.............#.............#####",
-      "######.....#.............#.......##....#####",
-      "######.....#.....................##....#####",
+      "######.....#.............#........#....#####",
+      "######.....#...........................#####",
       "######.....#..#..#.....#...............#####",
       "######.....#########...###.............#####",
       "######.................................#####",
@@ -216,8 +230,8 @@
       "######....####.........................#####",
       "######....####..........#####..........#####",
       "######..................#####..........#####",
-      "######......##.....##...#####..........#####",
-      "######......##.....##...#####..........#####",
+      "######.............#....#####..........#####",
+      "######......#...........#####..........#####",
       "######..........#......................#####",
       "######.................................#####",
       "######........................#........#####",
@@ -237,7 +251,627 @@
   "lighting": "baked",
   "name": "Caf\u00e9 on the square",
   "scene": "scene.glb",
-  "schema": "tafwid.environment/1",
+  "schema": "tafwid.environment/2",
+  "seating": [
+    {
+      "id": "terrace-1",
+      "kind": "table",
+      "seats": [
+        {
+          "facing": 0.0,
+          "id": "terrace-1-a",
+          "pose": "seated",
+          "position": [
+            -8.5,
+            0.0,
+            -2.35
+          ]
+        },
+        {
+          "facing": -1.5708,
+          "id": "terrace-1-b",
+          "pose": "seated",
+          "position": [
+            -7.75,
+            0.0,
+            -1.5
+          ]
+        }
+      ]
+    },
+    {
+      "id": "terrace-2",
+      "kind": "table",
+      "seats": [
+        {
+          "facing": 0.0,
+          "id": "terrace-2-a",
+          "pose": "seated",
+          "position": [
+            -5.5,
+            0.0,
+            -2.35
+          ]
+        },
+        {
+          "facing": -1.5708,
+          "id": "terrace-2-b",
+          "pose": "seated",
+          "position": [
+            -4.75,
+            0.0,
+            -1.5
+          ]
+        }
+      ]
+    },
+    {
+      "id": "terrace-3",
+      "kind": "table",
+      "seats": [
+        {
+          "facing": 0.0,
+          "id": "terrace-3-a",
+          "pose": "seated",
+          "position": [
+            -2.5,
+            0.0,
+            -2.35
+          ]
+        },
+        {
+          "facing": -1.5708,
+          "id": "terrace-3-b",
+          "pose": "seated",
+          "position": [
+            -1.75,
+            0.0,
+            -1.5
+          ]
+        }
+      ]
+    },
+    {
+      "id": "terrace-4",
+      "kind": "table",
+      "seats": [
+        {
+          "facing": 0.0,
+          "id": "terrace-4-a",
+          "pose": "seated",
+          "position": [
+            0.5,
+            0.0,
+            -2.35
+          ]
+        },
+        {
+          "facing": -1.5708,
+          "id": "terrace-4-b",
+          "pose": "seated",
+          "position": [
+            1.25,
+            0.0,
+            -1.5
+          ]
+        }
+      ]
+    },
+    {
+      "id": "inside-1",
+      "kind": "table",
+      "seats": [
+        {
+          "facing": 0.0,
+          "id": "inside-1-a",
+          "pose": "seated",
+          "position": [
+            -7.5,
+            0.0,
+            -6.35
+          ]
+        },
+        {
+          "facing": -1.5708,
+          "id": "inside-1-b",
+          "pose": "seated",
+          "position": [
+            -6.75,
+            0.0,
+            -5.5
+          ]
+        }
+      ]
+    },
+    {
+      "id": "inside-2",
+      "kind": "table",
+      "seats": [
+        {
+          "facing": 0.0,
+          "id": "inside-2-a",
+          "pose": "seated",
+          "position": [
+            -4.5,
+            0.0,
+            -6.35
+          ]
+        },
+        {
+          "facing": -1.5708,
+          "id": "inside-2-b",
+          "pose": "seated",
+          "position": [
+            -3.75,
+            0.0,
+            -5.5
+          ]
+        }
+      ]
+    },
+    {
+      "id": "inside-3",
+      "kind": "table",
+      "seats": [
+        {
+          "facing": 0.0,
+          "id": "inside-3-a",
+          "pose": "seated",
+          "position": [
+            -1.5,
+            0.0,
+            -10.35
+          ]
+        },
+        {
+          "facing": -1.5708,
+          "id": "inside-3-b",
+          "pose": "seated",
+          "position": [
+            -0.75,
+            0.0,
+            -9.5
+          ]
+        }
+      ]
+    },
+    {
+      "id": "inside-4",
+      "kind": "table",
+      "seats": [
+        {
+          "facing": 0.0,
+          "id": "inside-4-a",
+          "pose": "seated",
+          "position": [
+            1.5,
+            0.0,
+            -6.35
+          ]
+        },
+        {
+          "facing": -1.5708,
+          "id": "inside-4-b",
+          "pose": "seated",
+          "position": [
+            2.25,
+            0.0,
+            -5.5
+          ]
+        }
+      ]
+    },
+    {
+      "id": "square-1",
+      "kind": "table",
+      "seats": [
+        {
+          "facing": 0.0,
+          "id": "square-1-n",
+          "pose": "seated",
+          "position": [
+            -9.5,
+            0.0,
+            4.8
+          ]
+        },
+        {
+          "facing": 1.5708,
+          "id": "square-1-w",
+          "pose": "seated",
+          "position": [
+            -10.2,
+            0.0,
+            5.5
+          ]
+        },
+        {
+          "facing": -1.5708,
+          "id": "square-1-e",
+          "pose": "seated",
+          "position": [
+            -8.8,
+            0.0,
+            5.5
+          ]
+        },
+        {
+          "facing": 3.14159,
+          "id": "square-1-s",
+          "pose": "seated",
+          "position": [
+            -9.5,
+            0.0,
+            6.2
+          ]
+        }
+      ]
+    },
+    {
+      "id": "square-2",
+      "kind": "table",
+      "seats": [
+        {
+          "facing": 0.0,
+          "id": "square-2-n",
+          "pose": "seated",
+          "position": [
+            -5.5,
+            0.0,
+            5.8
+          ]
+        },
+        {
+          "facing": 1.5708,
+          "id": "square-2-w",
+          "pose": "seated",
+          "position": [
+            -6.2,
+            0.0,
+            6.5
+          ]
+        },
+        {
+          "facing": -1.5708,
+          "id": "square-2-e",
+          "pose": "seated",
+          "position": [
+            -4.8,
+            0.0,
+            6.5
+          ]
+        },
+        {
+          "facing": 3.14159,
+          "id": "square-2-s",
+          "pose": "seated",
+          "position": [
+            -5.5,
+            0.0,
+            7.2
+          ]
+        }
+      ]
+    },
+    {
+      "id": "square-3",
+      "kind": "table",
+      "seats": [
+        {
+          "facing": 0.0,
+          "id": "square-3-n",
+          "pose": "seated",
+          "position": [
+            -2.5,
+            0.0,
+            3.8
+          ]
+        },
+        {
+          "facing": 1.5708,
+          "id": "square-3-w",
+          "pose": "seated",
+          "position": [
+            -3.2,
+            0.0,
+            4.5
+          ]
+        },
+        {
+          "facing": -1.5708,
+          "id": "square-3-e",
+          "pose": "seated",
+          "position": [
+            -1.8,
+            0.0,
+            4.5
+          ]
+        },
+        {
+          "facing": 3.14159,
+          "id": "square-3-s",
+          "pose": "seated",
+          "position": [
+            -2.5,
+            0.0,
+            5.2
+          ]
+        }
+      ]
+    },
+    {
+      "id": "bakery-1",
+      "kind": "table",
+      "seats": [
+        {
+          "facing": 0.0,
+          "id": "bakery-1-n",
+          "pose": "seated",
+          "position": [
+            9.5,
+            0.0,
+            -10.2
+          ]
+        },
+        {
+          "facing": 1.5708,
+          "id": "bakery-1-w",
+          "pose": "seated",
+          "position": [
+            8.8,
+            0.0,
+            -9.5
+          ]
+        },
+        {
+          "facing": -1.5708,
+          "id": "bakery-1-e",
+          "pose": "seated",
+          "position": [
+            10.2,
+            0.0,
+            -9.5
+          ]
+        },
+        {
+          "facing": 3.14159,
+          "id": "bakery-1-s",
+          "pose": "seated",
+          "position": [
+            9.5,
+            0.0,
+            -8.8
+          ]
+        }
+      ]
+    },
+    {
+      "id": "bakery-2",
+      "kind": "table",
+      "seats": [
+        {
+          "facing": 0.0,
+          "id": "bakery-2-n",
+          "pose": "seated",
+          "position": [
+            12.5,
+            0.0,
+            -8.2
+          ]
+        },
+        {
+          "facing": 1.5708,
+          "id": "bakery-2-w",
+          "pose": "seated",
+          "position": [
+            11.8,
+            0.0,
+            -7.5
+          ]
+        },
+        {
+          "facing": -1.5708,
+          "id": "bakery-2-e",
+          "pose": "seated",
+          "position": [
+            13.2,
+            0.0,
+            -7.5
+          ]
+        },
+        {
+          "facing": 3.14159,
+          "id": "bakery-2-s",
+          "pose": "seated",
+          "position": [
+            12.5,
+            0.0,
+            -6.8
+          ]
+        }
+      ]
+    },
+    {
+      "id": "bar",
+      "kind": "bar",
+      "seats": [
+        {
+          "facing": 3.14159,
+          "id": "bar-1",
+          "pose": "seated",
+          "position": [
+            -8.05,
+            0.3,
+            -10.15
+          ]
+        },
+        {
+          "facing": 3.14159,
+          "id": "bar-2",
+          "pose": "seated",
+          "position": [
+            -7.15,
+            0.3,
+            -10.15
+          ]
+        },
+        {
+          "facing": 3.14159,
+          "id": "bar-3",
+          "pose": "seated",
+          "position": [
+            -6.25,
+            0.3,
+            -10.15
+          ]
+        },
+        {
+          "facing": 3.14159,
+          "id": "bar-4",
+          "pose": "seated",
+          "position": [
+            -5.35,
+            0.3,
+            -10.15
+          ]
+        },
+        {
+          "facing": 3.14159,
+          "id": "bar-5",
+          "pose": "seated",
+          "position": [
+            -4.45,
+            0.3,
+            -10.15
+          ]
+        },
+        {
+          "facing": 3.14159,
+          "id": "bar-6",
+          "pose": "seated",
+          "position": [
+            -3.55,
+            0.3,
+            -10.15
+          ]
+        }
+      ]
+    },
+    {
+      "id": "bench-1",
+      "kind": "bench",
+      "seats": [
+        {
+          "facing": 1.5708,
+          "id": "bench-1-a",
+          "pose": "seated",
+          "position": [
+            0.5,
+            0.0,
+            4.45
+          ]
+        },
+        {
+          "facing": 1.5708,
+          "id": "bench-1-b",
+          "pose": "seated",
+          "position": [
+            0.5,
+            0.0,
+            3.55
+          ]
+        }
+      ]
+    },
+    {
+      "id": "bench-2",
+      "kind": "bench",
+      "seats": [
+        {
+          "facing": -1.5708,
+          "id": "bench-2-a",
+          "pose": "seated",
+          "position": [
+            8.5,
+            0.0,
+            3.55
+          ]
+        },
+        {
+          "facing": -1.5708,
+          "id": "bench-2-b",
+          "pose": "seated",
+          "position": [
+            8.5,
+            0.0,
+            4.45
+          ]
+        }
+      ]
+    },
+    {
+      "id": "bench-3",
+      "kind": "bench",
+      "seats": [
+        {
+          "facing": 1.5708,
+          "id": "bench-3-a",
+          "pose": "seated",
+          "position": [
+            -12.6,
+            0.0,
+            4.45
+          ]
+        },
+        {
+          "facing": 1.5708,
+          "id": "bench-3-b",
+          "pose": "seated",
+          "position": [
+            -12.6,
+            0.0,
+            3.55
+          ]
+        }
+      ]
+    },
+    {
+      "id": "review-queue",
+      "kind": "standing",
+      "seats": [
+        {
+          "facing": 0.0,
+          "id": "review-queue-1",
+          "pose": "standing",
+          "position": [
+            5.5,
+            0.0,
+            -6.5
+          ]
+        },
+        {
+          "facing": 0.0,
+          "id": "review-queue-2",
+          "pose": "standing",
+          "position": [
+            6.5,
+            0.0,
+            -6.5
+          ]
+        },
+        {
+          "facing": 0.0,
+          "id": "review-queue-3",
+          "pose": "standing",
+          "position": [
+            7.5,
+            0.0,
+            -6.5
+          ]
+        }
+      ]
+    }
+  ],
   "variant": "baked",
   "zones": {
     "lounge": [
@@ -279,88 +913,6 @@
           6.5,
           0.0,
           -7.5
-        ]
-      }
-    ],
-    "workstation": [
-      {
-        "facing": 0.0,
-        "id": "ws-1",
-        "pose": "seated",
-        "position": [
-          -4.5,
-          0.0,
-          -6.35
-        ]
-      },
-      {
-        "facing": 0.0,
-        "id": "ws-2",
-        "pose": "seated",
-        "position": [
-          1.5,
-          0.0,
-          -6.35
-        ]
-      },
-      {
-        "facing": 0.0,
-        "id": "ws-3",
-        "pose": "seated",
-        "position": [
-          -5.5,
-          0.0,
-          -2.35
-        ]
-      },
-      {
-        "facing": 0.0,
-        "id": "ws-4",
-        "pose": "seated",
-        "position": [
-          -2.5,
-          0.0,
-          -2.35
-        ]
-      },
-      {
-        "facing": 0.0,
-        "id": "ws-5",
-        "pose": "seated",
-        "position": [
-          0.5,
-          0.0,
-          -2.35
-        ]
-      },
-      {
-        "facing": 0.0,
-        "id": "ws-6",
-        "pose": "seated",
-        "position": [
-          -8.5,
-          0.0,
-          -2.35
-        ]
-      },
-      {
-        "facing": 0.0,
-        "id": "ws-7",
-        "pose": "seated",
-        "position": [
-          -7.5,
-          0.0,
-          -6.35
-        ]
-      },
-      {
-        "facing": 0.0,
-        "id": "ws-8",
-        "pose": "seated",
-        "position": [
-          -1.5,
-          0.0,
-          -10.35
         ]
       }
     ]

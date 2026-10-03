@@ -118,7 +118,7 @@ test("an invalid package shows a named error", async ({ page }) => {
     route.fulfill({ contentType: "application/json", body: JSON.stringify({ schema: "nope" }) }),
   );
   await page.goto(`/?env=${ENV}`);
-  await expect(page.locator(".world-status")).toContainText('Invalid environment package: schema: expected "tafwid.environment/1"');
+  await expect(page.locator(".world-status")).toContainText('Invalid environment package: schema: expected "tafwid.environment/2"');
   await expect(rosterRow(page, "milo")).toBeVisible();
 });
 

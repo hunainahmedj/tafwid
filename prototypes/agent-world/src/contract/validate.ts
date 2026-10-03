@@ -1,8 +1,11 @@
 import {
+  ENTRANCE_MINIMUM,
+  LEGACY_MANIFEST_SCHEMA,
   MANIFEST_SCHEMA,
+  SEAT_GROUP_KINDS,
+  SEAT_MINIMUM,
   ZONE_MINIMUMS,
   type EnvironmentManifest,
-  type Zone,
 } from "./manifest";
 import { parseWalkable, worldToCell } from "./grid";
 import { findPath } from "../world/pathfinding";
@@ -17,14 +20,20 @@ const isNum = (v: unknown): v is number => typeof v === "number" && Number.isFin
 const isVec = (v: unknown, n: number) => Array.isArray(v) && v.length === n && v.every(isNum);
 
 /**
- * Checks shape first, then the spatial rules: zone minimums, zones on
- * walkable cells, and every zone reachable from the first workstation.
+ * Checks shape first, then the spatial rules: seat and zone minimums, seats,
+ * zones and entrances on walkable cells, and everything reachable from the
+ * first seat.
  */
 export function validateManifest(input: unknown): ValidationResult {
   const errors: string[] = [];
   if (!isObject(input)) return { ok: false, errors: ["manifest: expected an object"] };
   const m = input;
 
+  if (m.schema === LEGACY_MANIFEST_SCHEMA)
+    return {
+      ok: false,
+      errors: [`schema: "${LEGACY_MANIFEST_SCHEMA}" is no longer supported; rebuild the package as "${MANIFEST_SCHEMA}"`],
+    };
   if (m.schema !== MANIFEST_SCHEMA) errors.push(`schema: expected "${MANIFEST_SCHEMA}"`);
   for (const key of ["id", "name", "scene"] as const)
     if (typeof m[key] !== "string" || !m[key]) errors.push(`${key}: expected a non-empty string`);
@@ -53,6 +62,44 @@ export function validateManifest(input: unknown): ValidationResult {
       });
     }
     gridOk = gridOk && errors.length === 0;
+  }
+
+  const seating = m.seating;
+  if (!Array.isArray(seating)) errors.push("seating: expected an array of seat groups");
+  else {
+    let seatCount = 0;
+    const seen = new Set<string>();
+    seating.forEach((g: any, gi: number) => {
+      const group = `seating[${gi}]`;
+      if (!isObject(g) || typeof g.id !== "string" || !g.id)
+        return errors.push(`${group}: expected a seat group with an id`);
+      if (!SEAT_GROUP_KINDS.includes(g.kind))
+        errors.push(`${group} (${g.id}): kind must be ${SEAT_GROUP_KINDS.slice(0, -1).join(", ")} or ${SEAT_GROUP_KINDS.at(-1)}`);
+      if (!Array.isArray(g.seats) || g.seats.length === 0)
+        return errors.push(`${group} (${g.id}): expected at least one seat`);
+      g.seats.forEach((z: any, si: number) => {
+        const where = `${group}.seats[${si}]`;
+        if (!isObject(z) || typeof z.id !== "string" || !z.id) return errors.push(`${where}: expected a seat with an id`);
+        seatCount++;
+        if (seen.has(z.id)) errors.push(`${where}: duplicate seat id "${z.id}"`);
+        seen.add(z.id);
+        if (!isVec(z.position, 3)) errors.push(`${where} (${z.id}): position must be [x, y, z]`);
+        if (!isNum(z.facing)) errors.push(`${where} (${z.id}): facing must be a number`);
+        if (z.pose !== "seated" && z.pose !== "standing")
+          errors.push(`${where} (${z.id}): pose must be "seated" or "standing"`);
+      });
+    });
+    if (seatCount < SEAT_MINIMUM) errors.push(`seating: at least ${SEAT_MINIMUM} seats required, found ${seatCount}`);
+  }
+
+  const entrances = m.entrances;
+  if (!Array.isArray(entrances)) errors.push("entrances: expected an array of [x, z] points");
+  else {
+    if (entrances.length < ENTRANCE_MINIMUM)
+      errors.push(`entrances: at least ${ENTRANCE_MINIMUM} required, found ${entrances.length}`);
+    entrances.forEach((p: unknown, i: number) => {
+      if (!isVec(p, 2)) errors.push(`entrances[${i}]: expected [x, z]`);
+    });
   }
 
   const zones = m.zones;
@@ -127,16 +174,19 @@ function spatialErrors(m: EnvironmentManifest): string[] {
   const errors: string[] = [];
   const walk = parseWalkable(m.grid);
   const located: { label: string; cell: [number, number] }[] = [];
-  for (const role of ["workstation", "review", "lounge"] as const) {
-    m.zones[role].forEach((z: Zone, i: number) => {
-      const label = `zones.${role}[${i}] (${z.id})`;
-      const cell = worldToCell(m.grid, z.position[0], z.position[2]);
-      if (cell[0] < 0 || cell[1] < 0 || cell[0] >= m.grid.width || cell[1] >= m.grid.depth)
-        errors.push(`${label} is outside the grid`);
-      else if (!walk.walkable(...cell)) errors.push(`${label} is on a blocked cell`);
-      else located.push({ label, cell });
-    });
-  }
+  const check = (label: string, x: number, z: number) => {
+    const cell = worldToCell(m.grid, x, z);
+    if (cell[0] < 0 || cell[1] < 0 || cell[0] >= m.grid.width || cell[1] >= m.grid.depth)
+      errors.push(`${label} is outside the grid`);
+    else if (!walk.walkable(...cell)) errors.push(`${label} is on a blocked cell`);
+    else located.push({ label, cell });
+  };
+  m.seating.forEach((g, gi) =>
+    g.seats.forEach((s, si) => check(`seating[${gi}].seats[${si}] (${s.id})`, s.position[0], s.position[2])),
+  );
+  for (const role of ["review", "lounge"] as const)
+    m.zones[role].forEach((z, i) => check(`zones.${role}[${i}] (${z.id})`, z.position[0], z.position[2]));
+  m.entrances.forEach((p, i) => check(`entrances[${i}]`, p[0], p[1]));
   const [anchor, ...rest] = located;
   if (anchor)
     for (const other of rest)

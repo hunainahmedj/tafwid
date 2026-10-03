@@ -28,12 +28,18 @@ FOUNTAIN = (4.5, 4.0)
 # Seats face the camera (+z) so faces stay readable from the default view.
 INSIDE_TABLES = [(-7.5, -5.5), (-4.5, -5.5), (-1.5, -9.5), (1.5, -5.5)]
 TERRACE_TABLES = [(-8.5, -1.5), (-5.5, -1.5), (-2.5, -1.5), (0.5, -1.5)]
-# Desks are assigned in roster order; the most visible ones come first.
-WORKSTATIONS = [(-4.5, -5.5), (1.5, -5.5), (-5.5, -1.5), (-2.5, -1.5), (0.5, -1.5), (-8.5, -1.5), (-7.5, -5.5), (-1.5, -9.5)]
 REVIEW_BOARD = (6.5, -9.0)
-BAKERY_TABLES = [(9.5, -9.5), (12.0, -7.0)]
-SQUARE_TABLES = [(-9.0, 5.0), (-5.5, 6.5), (-2.0, 4.6)]
+# Parasol tables sit on cell centres so each blocks exactly its own cell and
+# the four chairs around it stay on walkable neighbours.
+BAKERY_TABLES = [(9.5, -9.5), (12.5, -7.5)]
+SQUARE_TABLES = [(-9.5, 5.5), (-5.5, 6.5), (-2.5, 4.5)]
 SEAT_OFFSET = 0.85  # seats sit behind each table, facing the camera
+SIDE_OFFSET = 0.75  # the second laptop-table seat sits beside the table
+PARASOL_OFFSET = 0.7
+# Park benches: (x, z, facing); the two seats sit 0.45 m either side of the centre.
+PARK_BENCHES = [(0.5, 4.0, PI / 2), (8.5, 4.0, -PI / 2), (-12.6, 4.0, PI / 2)]
+BAR = dict(x0=-8.5, x1=-3.0, z=-10.15)  # six stools along the counter
+STANDING_SPOTS = [(5.5, -6.5), (6.5, -6.5), (7.5, -6.5)]  # in front of the review board
 
 
 def placements():
@@ -79,6 +85,7 @@ def placements():
     for (x, z) in INSIDE_TABLES:
         add("laptop_table", x=x, z=z)
         add("chair", x=x, z=z - SEAT_OFFSET, facing=0.0)
+        add("chair", x=x + SIDE_OFFSET, z=z, facing=-PI / 2)
     add("armchair", x=2.6, z=-10.8, facing=PI * 0.75)
     add("plant", x=3.3, z=-4.7, size=1.0)
     add("plant", x=-10.4, z=-11.4, size=0.9)
@@ -90,7 +97,7 @@ def placements():
     for (x, z) in TERRACE_TABLES:
         add("terrace_table", x=x, z=z)
         add("chair", x=x, z=z - SEAT_OFFSET, facing=0.0)
-        add("chair", x=x + 0.75, z=z, facing=-PI / 2, empty=True)
+        add("chair", x=x + SIDE_OFFSET, z=z, facing=-PI / 2)
     posts = [(-10.8, -3.8), (-7.0, -0.2), (-4.0, -3.8), (-1.0, -0.2), (2.0, -3.8), (3.8, -0.2)]
     add("string_lights", points=posts, height=2.9)
     for (x, z) in posts:
@@ -104,7 +111,7 @@ def placements():
     for (x, z, s, v) in [(-13.5, 6.0, 1.3, 0), (12.5, -1.0, 1.2, 1), (-13.0, -2.0, 1.0, 2), (12.0, 7.0, 1.1, 0),
                          (-5.0, 7.6, 0.9, 1), (8.5, 8.2, 0.8, 2)]:
         add("tree", x=x, z=z, size=s, variant=v)
-    for (x, z, f) in [(0.5, 4.0, PI / 2), (8.5, 4.0, -PI / 2), (-12.6, 4.5, PI / 2)]:
+    for (x, z, f) in PARK_BENCHES:
         add("bench", x=x, z=z, facing=f)
     for (x, z) in SQUARE_TABLES:
         add("parasol_table", x=x, z=z, color="awning_green")
@@ -112,7 +119,7 @@ def placements():
     add("string_lights", points=lights2, height=2.9)
     for (x, z) in lights2[1:]:
         add("light_post", x=x, z=z, height=3.0)
-    add("bar_stools", x0=-8.3, x1=-3.2, z=-10.15)
+    add("bar_stools", **BAR)
     add("laptop_table", x=-7.5, z=-9.0)
     add("chair", x=-7.5, z=-9.0 - SEAT_OFFSET, facing=0.0, empty=True)
     for x in (5.5, 8.0, 11.5, 13.5):
@@ -174,7 +181,7 @@ def build_grid():
         g.block_footprint(x, z, 1.2, 0.9)
     g.block_footprint(REVIEW_BOARD[0], REVIEW_BOARD[1], 2.6, 0.6)
     for (x, z) in BAKERY_TABLES + SQUARE_TABLES:
-        g.block_footprint(x, z, 1.8, 1.8)
+        g.block_footprint(x, z, 0.9, 0.9)              # the table only; its chairs stay walkable
     g.block_footprint(-7.5, -9.0, 1.2, 0.9)
     g.block_footprint(14.6, -10.6, 2.4, 0.5)
     g.block_footprint(FOUNTAIN[0], FOUNTAIN[1], 4.2, 4.2)
@@ -186,15 +193,82 @@ def build_grid():
     return g
 
 
+def _seat(seat_id, x, z, facing, pose="seated", y=0.0):
+    return {"id": seat_id, "position": [round(x, 3), y, round(z, 3)], "facing": round(facing, 5), "pose": pose}
+
+
+def _bar_x_positions():
+    n = int((BAR["x1"] - BAR["x0"]) / 0.9)  # mirrors kit.pieces.bar_stools
+    return [BAR["x0"] + 0.45 + k * 0.9 for k in range(n)]
+
+
+def seating():
+    """Seat groups in allocation order: the most visible tables first."""
+    groups = []
+
+    def table_group(group_id, kind, seats):
+        groups.append({"id": group_id, "kind": kind, "seats": seats})
+
+    # Terrace first (front of the café), then inside, then the square and bakery.
+    for i, (x, z) in enumerate(TERRACE_TABLES):
+        gid = "terrace-%d" % (i + 1)
+        table_group(gid, "table", [
+            _seat(gid + "-a", x, z - SEAT_OFFSET, 0.0),
+            _seat(gid + "-b", x + SIDE_OFFSET, z, -PI / 2),
+        ])
+    for i, (x, z) in enumerate(INSIDE_TABLES):
+        gid = "inside-%d" % (i + 1)
+        table_group(gid, "table", [
+            _seat(gid + "-a", x, z - SEAT_OFFSET, 0.0),
+            _seat(gid + "-b", x + SIDE_OFFSET, z, -PI / 2),
+        ])
+    for i, (x, z) in enumerate(SQUARE_TABLES):
+        gid = "square-%d" % (i + 1)
+        table_group(gid, "table", [
+            _seat(gid + "-n", x, z - PARASOL_OFFSET, 0.0),
+            _seat(gid + "-w", x - PARASOL_OFFSET, z, PI / 2),
+            _seat(gid + "-e", x + PARASOL_OFFSET, z, -PI / 2),
+            _seat(gid + "-s", x, z + PARASOL_OFFSET, PI),
+        ])
+    for i, (x, z) in enumerate(BAKERY_TABLES):
+        gid = "bakery-%d" % (i + 1)
+        table_group(gid, "table", [
+            _seat(gid + "-n", x, z - PARASOL_OFFSET, 0.0),
+            _seat(gid + "-w", x - PARASOL_OFFSET, z, PI / 2),
+            _seat(gid + "-e", x + PARASOL_OFFSET, z, -PI / 2),
+            _seat(gid + "-s", x, z + PARASOL_OFFSET, PI),
+        ])
+    # Bar stools face the counter; the stool top is 0.3 m above a chair seat.
+    table_group("bar", "bar", [
+        _seat("bar-%d" % (k + 1), x, BAR["z"], PI, y=0.3) for k, x in enumerate(_bar_x_positions())
+    ])
+    for i, (x, z, facing) in enumerate(PARK_BENCHES):
+        gid = "bench-%d" % (i + 1)
+        along = (math.cos(facing), -math.sin(facing))  # the bench's long axis in (x, z)
+        table_group(gid, "bench", [
+            _seat(gid + "-a", x - 0.45 * along[0], z - 0.45 * along[1], facing),
+            _seat(gid + "-b", x + 0.45 * along[0], z + 0.45 * along[1], facing),
+        ])
+    table_group("review-queue", "standing", [
+        _seat("review-queue-%d" % (i + 1), x, z, 0.0, pose="standing") for i, (x, z) in enumerate(STANDING_SPOTS)
+    ])
+    return groups
+
+
+# World [x, z] points on walkable cells at the scene edges.
+ENTRANCES = [
+    [4.5, 10.5],     # street: near pavement beside the crosswalk
+    [-13.5, -11.5],  # alley: the lane beside the café
+    [16.5, -1.5],    # side street: the right-hand pavement
+]
+
+
 def zones():
-    ws = []
-    for i, (x, z) in enumerate(WORKSTATIONS):
-        ws.append({"id": "ws-%d" % (i + 1), "position": [x, 0.0, z - SEAT_OFFSET], "facing": 0.0, "pose": "seated"})
     review = [{"id": "review-board", "position": [REVIEW_BOARD[0], 0.0, REVIEW_BOARD[1] + 1.5], "facing": 0.0, "pose": "standing"}]
     fx, fz = FOUNTAIN
     loop = [[fx - 3.2, fz - 3.0], [fx + 3.2, fz - 3.0], [fx + 3.2, fz + 3.1], [fx - 3.2, fz + 3.1]]
     lounge = [{"id": "fountain", "position": [loop[0][0], 0.0, loop[0][1]], "facing": 0.0, "pose": "standing", "loop": loop}]
-    return {"workstation": ws, "review": review, "lounge": lounge}
+    return {"review": review, "lounge": lounge}
 
 
 AMBIENT_PATHS = [
@@ -234,13 +308,15 @@ def manifest(variant):
     g = build_grid()
     ambience = dict(AMBIENCE)
     return {
-        "schema": "tafwid.environment/1",
+        "schema": "tafwid.environment/2",
         "id": "cafe",
         "variant": variant,
         "name": "Café on the square",
         "scene": "scene.glb",
         "lighting": "realtime" if variant == "kit" else "baked",
         "grid": g.manifest(),
+        "seating": seating(),
+        "entrances": ENTRANCES,
         "zones": zones(),
         "ambientPaths": AMBIENT_PATHS,
         "camera": CAMERA,
