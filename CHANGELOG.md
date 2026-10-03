@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.5.0
+
+- Add an opt-in local activity log. `python3 scripts/world.py on|off|status` switches it;
+  it is off by default and nothing is written until you turn it on. When on, hooks append
+  one short event per session start, prompt, tool call, permission request, subagent
+  start or stop, stop, session end and notification to `~/.tafwid/state/world`
+  (`$TAFWID_HOME/state/world`), kept for 7 days. Events hold only derived labels (an
+  action such as `run-tests`, the host, a project folder name, a short worker label and
+  role) and hashed session and agent ids. Prompts, file paths, commands, tool input and
+  output, and raw ids are never recorded.
+- Register async observer hooks for Claude Code and Codex. They exit at once when the log
+  is off and never print or block, so they cannot disturb a session. Existing completion
+  hooks are unchanged.
+- After updating, Codex asks to trust Tafwid's hooks once more, because Codex re-prompts
+  whenever `hooks.json` changes (`/hooks` in the CLI). Until you trust them, the
+  `wait.py` fallback applies. Claude Code needs no trust step.
+- Measured on an M5 Max, 50 runs of the registered hook command with a Claude PreToolUse
+  payload: median 4.4 ms with the log off and 39.5 ms with it on. The hooks run
+  asynchronously, so neither adds wait time to a turn.
+
 ## 0.4.0
 
 - Support Claude Code as a coordinator alongside Codex, with Claude Code marketplace

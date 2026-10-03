@@ -10,6 +10,16 @@
             "statusMessage": "Waiting for a Tafwid worker"
           }
         ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash -c '[ -f \"${TAFWID_HOME:-$HOME/.tafwid}/state/world/enabled\" ] || exit 0; exec python3 \"${CLAUDE_PLUGIN_ROOT:-${PLUGIN_ROOT}}/skills/delegate/scripts/world_hook.py\"'",
+            "timeout": 5,
+            "async": true
+          }
+        ]
       }
     ],
     "Interrupt": [
@@ -30,6 +40,115 @@
             "type": "command",
             "command": "bash -c 'exec python3 \"${CLAUDE_PLUGIN_ROOT:-${PLUGIN_ROOT}}/skills/delegate/scripts/completion_hook.py\" disarm'",
             "timeout": 5
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash -c '[ -f \"${TAFWID_HOME:-$HOME/.tafwid}/state/world/enabled\" ] || exit 0; exec python3 \"${CLAUDE_PLUGIN_ROOT:-${PLUGIN_ROOT}}/skills/delegate/scripts/world_hook.py\"'",
+            "timeout": 5,
+            "async": true
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash -c '[ -f \"${TAFWID_HOME:-$HOME/.tafwid}/state/world/enabled\" ] || exit 0; exec python3 \"${CLAUDE_PLUGIN_ROOT:-${PLUGIN_ROOT}}/skills/delegate/scripts/world_hook.py\"'",
+            "timeout": 5,
+            "async": true
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash -c '[ -f \"${TAFWID_HOME:-$HOME/.tafwid}/state/world/enabled\" ] || exit 0; exec python3 \"${CLAUDE_PLUGIN_ROOT:-${PLUGIN_ROOT}}/skills/delegate/scripts/world_hook.py\"'",
+            "timeout": 5,
+            "async": true
+          }
+        ]
+      }
+    ],
+    "PermissionRequest": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash -c '[ -f \"${TAFWID_HOME:-$HOME/.tafwid}/state/world/enabled\" ] || exit 0; exec python3 \"${CLAUDE_PLUGIN_ROOT:-${PLUGIN_ROOT}}/skills/delegate/scripts/world_hook.py\"'",
+            "timeout": 5,
+            "async": true
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash -c '[ -f \"${TAFWID_HOME:-$HOME/.tafwid}/state/world/enabled\" ] || exit 0; exec python3 \"${CLAUDE_PLUGIN_ROOT:-${PLUGIN_ROOT}}/skills/delegate/scripts/world_hook.py\"'",
+            "timeout": 5,
+            "async": true
+          }
+        ]
+      }
+    ],
+    "SubagentStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash -c '[ -f \"${TAFWID_HOME:-$HOME/.tafwid}/state/world/enabled\" ] || exit 0; exec python3 \"${CLAUDE_PLUGIN_ROOT:-${PLUGIN_ROOT}}/skills/delegate/scripts/world_hook.py\"'",
+            "timeout": 5,
+            "async": true
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash -c '[ -f \"${TAFWID_HOME:-$HOME/.tafwid}/state/world/enabled\" ] || exit 0; exec python3 \"${CLAUDE_PLUGIN_ROOT:-${PLUGIN_ROOT}}/skills/delegate/scripts/world_hook.py\"'",
+            "timeout": 5,
+            "async": true
+          }
+        ]
+      }
+    ],
+    "Notification": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash -c '[ -f \"${TAFWID_HOME:-$HOME/.tafwid}/state/world/enabled\" ] || exit 0; exec python3 \"${CLAUDE_PLUGIN_ROOT:-${PLUGIN_ROOT}}/skills/delegate/scripts/world_hook.py\"'",
+            "timeout": 5,
+            "async": true
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash -c '[ -f \"${TAFWID_HOME:-$HOME/.tafwid}/state/world/enabled\" ] || exit 0; exec python3 \"${CLAUDE_PLUGIN_ROOT:-${PLUGIN_ROOT}}/skills/delegate/scripts/world_hook.py\"'",
+            "timeout": 5,
+            "async": true
           }
         ]
       }

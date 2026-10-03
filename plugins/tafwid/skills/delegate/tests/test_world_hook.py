@@ -488,5 +488,31 @@ class WorldHookTests(unittest.TestCase):
         self.assertAlmostEqual(prune.call_args[0][0], time.time(), delta=5)
 
 
+    def test_hooks_json_registers_async_guarded_observers(self):
+        hooks = json.loads((SCRIPTS.parents[2] / "hooks" / "hooks.json").read_text())["hooks"]
+        command = ("bash -c '[ -f \"${TAFWID_HOME:-$HOME/.tafwid}/state/world/enabled\" ] || exit 0; "
+                   "exec python3 \"${CLAUDE_PLUGIN_ROOT:-${PLUGIN_ROOT}}/skills/delegate/scripts/world_hook.py\"'")
+        events = ("SessionStart", "UserPromptSubmit", "PreToolUse", "PostToolUse", "PermissionRequest",
+                  "SubagentStart", "SubagentStop", "Stop", "SessionEnd", "Notification")
+        for event in events:
+            observers = [hook for group in hooks[event] for hook in group["hooks"]
+                         if "world_hook.py" in hook["command"]]
+            self.assertEqual(len(observers), 1, event)
+            self.assertEqual(observers[0], {"type": "command", "command": command,
+                                            "timeout": 5, "async": True}, event)
+        prefix = ("bash -c 'exec python3 \"${CLAUDE_PLUGIN_ROOT:-${PLUGIN_ROOT}}"
+                  "/skills/delegate/scripts/completion_hook.py\" ")
+        # Completion entries are untouched and still come first.
+        self.assertEqual(hooks["Stop"][0], {"hooks": [{
+            "type": "command", "command": prefix + "hook'", "timeout": 1800,
+            "statusMessage": "Waiting for a Tafwid worker"}]})
+        self.assertEqual(hooks["UserPromptSubmit"][0], {"hooks": [{
+            "type": "command", "command": prefix + "disarm'", "timeout": 5}]})
+        self.assertEqual(hooks["Interrupt"], [{"hooks": [{
+            "type": "command", "command": prefix + "disarm'", "timeout": 2}]}])
+        for event in ("PreToolUse", "PostToolUse", "PermissionRequest"):
+            self.assertEqual(hooks[event][0]["matcher"], ".*", event)
+
+
 if __name__ == "__main__":
     unittest.main()

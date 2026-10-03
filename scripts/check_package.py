@@ -152,9 +152,16 @@ def check():
     assert hooks["Stop"] and hooks["UserPromptSubmit"], "Missing completion hooks"
     prefix = ("bash -c 'exec python3 \"${CLAUDE_PLUGIN_ROOT:-${PLUGIN_ROOT}}"
               "/skills/delegate/scripts/completion_hook.py\" ")
+    # The opt-in activity observer is the only other accepted command; it must be async.
+    observer = ("bash -c '[ -f \"${TAFWID_HOME:-$HOME/.tafwid}/state/world/enabled\" ] || exit 0; "
+                "exec python3 \"${CLAUDE_PLUGIN_ROOT:-${PLUGIN_ROOT}}"
+                "/skills/delegate/scripts/world_hook.py\"'")
     for event, groups in hooks.items():
         for group in groups:
             for hook in group["hooks"]:
+                if hook["command"] == observer:
+                    assert hook.get("async") is True, f"Observer hook must be async: {event}"
+                    continue
                 assert hook["command"].startswith(prefix), f"Hook is not host-neutral: {event}"
 
     # Scan source files for invalid assets and recognizable private data.
