@@ -9,7 +9,7 @@ PALETTE = {
     "brick_a": "#b5553c", "brick_b": "#9e4632", "brick_c": "#c4654a", "mortar": "#d9c8b4",
     "plaster_cream": "#efe2c6", "plaster_sage": "#9fc3a5", "plaster_blue": "#9db8d6",
     "plaster_rose": "#e6b3a3", "stone_trim": "#ddd3c4", "roof_slate": "#4f566a", "roof_tile": "#a8543c",
-    "window_frame": "#3d4a5c", "window_glass": "#ffd89a", "window_dark": "#33415a",
+    "window_frame": "#3d4a5c", "window_glass": "#ffb562", "window_dark": "#3a4a66", "roof_gravel": "#9a928b",
     "door_wood": "#6e4227", "awning_red": "#d24b3e", "awning_cream": "#f5ead2",
     "awning_green": "#3f8f6b", "awning_blue": "#3d6fb3",
     # Interior and props
@@ -18,7 +18,8 @@ PALETTE = {
     "cushion_blue": "#4263eb", "cushion_terracotta": "#c8673f", "screen": "#25334d", "screen_glow": "#8fd3ff",
     "pot_terracotta": "#d0794f", "pot_cream": "#efe6d5",
     # Nature
-    "leaf_a": "#5fb35a", "leaf_b": "#4a9c4c", "leaf_c": "#7cc764", "leaf_autumn": "#e0a43a",
+    "leaf_a": "#5fb35a", "leaf_b": "#4a9c4c", "leaf_c": "#7cc764", "leaf_dark": "#357f45", "leaf_autumn": "#e0a43a",
+    "sign_board": "#2b2f3a", "parasol_a": "#f2e3c6", "bin_green": "#3f6b55",
     "trunk": "#6b4a32", "water": "#6fc3df", "water_deep": "#3f9cc0",
     # Lights
     "bulb_warm": "#ffcf7a", "lamp_glow": "#ffd28a", "neon_pink": "#ff6fae", "neon_teal": "#4fe3d4",

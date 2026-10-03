@@ -28,11 +28,30 @@ function swayingMaterial(source: THREE.MeshStandardMaterial): THREE.MeshStandard
   m.map = source.map;
   m.flatShading = true;
   m.name = source.name;
-  const phase = float(instanceIndex).mul(1.73);
-  const height = positionLocal.y.max(0);
-  m.positionNode = positionLocal.add(
-    vec3(sin(time.mul(1.4).add(phase)).mul(0.035), 0, cos(time.mul(1.1).add(phase)).mul(0.025)).mul(height),
+  m.positionNode = swayNode();
+  return m;
+}
+
+/** Height-weighted sway; the phase varies per instance and by position. */
+function swayNode() {
+  const phase = float(instanceIndex).mul(1.73).add(positionLocal.x.mul(0.6)).add(positionLocal.z.mul(0.4));
+  const height = positionLocal.y.max(0).min(4);
+  return positionLocal.add(
+    vec3(sin(time.mul(1.4).add(phase)).mul(0.03), 0, cos(time.mul(1.1).add(phase)).mul(0.022)).mul(height),
   );
+}
+
+/**
+ * Lightmapped surfaces (`*_lm`): the palette colour times a baked irradiance
+ * map carried in the emissive slot. The bake stores light at reduced energy
+ * for 8-bit headroom; `tafwid_lightmap_scale` restores it.
+ */
+function lightmappedMaterial(source: THREE.MeshStandardMaterial): THREE.MeshBasicNodeMaterial {
+  const m = new THREE.MeshBasicNodeMaterial({ color: source.color });
+  m.lightMap = source.emissiveMap;
+  m.lightMapIntensity = Number(source.userData.tafwid_lightmap_scale ?? 2);
+  m.name = source.name;
+  if (source.name.includes("leaf_")) m.positionNode = swayNode();
   return m;
 }
 
@@ -95,7 +114,8 @@ export async function loadEnvironment(baseUrl: string): Promise<LoadedEnvironmen
     const source = mesh.material as THREE.MeshStandardMaterial;
     let next = replaced.get(source);
     if (!next) {
-      if (source.name.endsWith("_baked")) next = bakedMaterial(source);
+      if (source.name.endsWith("_lm")) next = lightmappedMaterial(source);
+      else if (source.name.endsWith("_baked")) next = bakedMaterial(source);
       else if (source.name.startsWith("leaf")) next = swayingMaterial(source);
       else {
         source.flatShading = true;
@@ -104,8 +124,7 @@ export async function loadEnvironment(baseUrl: string): Promise<LoadedEnvironmen
       replaced.set(source, next);
     }
     mesh.material = next;
-    const emissive = (source as THREE.MeshStandardMaterial).emissiveIntensity > 0 &&
-      (source as THREE.MeshStandardMaterial).emissive?.getHex() !== 0;
+    const emissive = !source.name.endsWith("_lm") && source.emissiveIntensity > 0 && source.emissive?.getHex() !== 0;
     mesh.castShadow = realtime && !emissive;
     mesh.receiveShadow = realtime;
   });

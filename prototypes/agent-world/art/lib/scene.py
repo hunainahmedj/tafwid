@@ -58,7 +58,7 @@ def add_zone_empty(zone_id, role, position):
     return empty
 
 
-def preview_camera(target, yaw, distance, pitch=0.92, fov_deg=26):
+def preview_camera(target, yaw, distance, pitch=0.82, fov_deg=26):
     """A camera matching the runtime's home framing."""
     horizontal = math.cos(pitch) * distance
     pos = (target[0] + math.sin(yaw) * horizontal, math.sin(pitch) * distance, target[1] + math.cos(yaw) * horizontal)

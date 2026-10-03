@@ -58,6 +58,39 @@ class Context:
         self.rng = random.Random(seed)
 
 
+# ---------------------------------------------------------------- block-letter signs
+FONT = {  # pixel glyphs, rows top to bottom; widths vary so diagonals stay legible
+    "A": ["0110", "1001", "1111", "1001", "1001"], "B": ["1110", "1001", "1110", "1001", "1110"],
+    "C": ["0111", "1000", "1000", "1000", "0111"], "D": ["1110", "1001", "1001", "1001", "1110"],
+    "E": ["111", "100", "110", "100", "111"], "F": ["111", "100", "110", "100", "100"],
+    "I": ["111", "010", "010", "010", "111"], "K": ["1001", "1010", "1100", "1010", "1001"],
+    "L": ["100", "100", "100", "100", "111"], "O": ["0110", "1001", "1001", "1001", "0110"],
+    "R": ["1110", "1001", "1110", "1010", "1001"], "S": ["0111", "1000", "0110", "0001", "1110"],
+    "W": ["10001", "10001", "10101", "10101", "01010"], "Y": ["10001", "01010", "00100", "00100", "00100"],
+    "V": ["10001", "10001", "10001", "01010", "00100"], "N": ["1001", "1101", "1011", "1001", "1001"],
+    "H": ["1001", "1001", "1111", "1001", "1001"], " ": ["00", "00", "00", "00", "00"],
+}
+
+
+def sign_text(f, text, lx, ly, lz, px=0.12, letters=None, board=True):
+    """Block letters centred at (lx, ly) on a façade plane at depth lz."""
+    letters = letters or E("bulb_warm", 2.2)
+    glyphs = [FONT.get(ch, FONT[" "]) for ch in text.upper()]
+    columns = sum(len(g[0]) for g in glyphs) + len(glyphs) - 1
+    width = columns * px
+    if board:
+        f.box((width + 4 * px, 7 * px, 0.1), M("sign_board"), lx, ly - px, lz, radius=0.04)
+    col = 0
+    x0 = lx - width / 2
+    for glyph in glyphs:
+        for r, row in enumerate(glyph):
+            for c, bit in enumerate(row):
+                if bit == "1":
+                    f.box((px * 0.9, px * 0.9, 0.06), letters, x0 + (col + c) * px + px / 2, ly + (4 - r) * px, lz + 0.07,
+                          radius=0.015, segments=1)
+        col += len(glyph[0]) + 1
+
+
 # ---------------------------------------------------------------- ground
 def cobbles(ctx, x0, z0, x1, z1, seed=0, **_):
     rng = random.Random(seed)
@@ -104,7 +137,7 @@ def pavement(ctx, x0, z0, x1, z1, **_):
     sx, sz = (x1 - x0) / nx, (z1 - z0) / nz
     for i in range(nx):
         for j in range(nz):
-            tone = "kerb" if (i + j) % 2 else "stone_trim"
+            tone = rng.choice(["kerb", "stone_trim", "stone_trim", "cobble_c"])
             f.box((sx - 0.04, 0.16, sz - 0.04), M(tone), x0 + sx * (i + 0.5), -0.12 + rng.choice([0, 0.005]),
                   z0 + sz * (j + 0.5), radius=0.03)
 
@@ -170,8 +203,8 @@ def _bricks(f, width, height, y0, z_face, rng, light=False):
 
 def _window(f, lx, ly, lz, rng, lit_chance, shutters=None, w=1.1, h=1.5):
     f.box((w + 0.16, h + 0.16, 0.14), M("window_frame"), lx, ly - 0.08, lz, radius=0.03)
-    if rng.random() < lit_chance:
-        f.box((w, h, 0.06), E("window_glass", rng.choice([1.2, 1.8, 2.4])), lx, ly, lz + 0.06, radius=0.02)
+    if rng.random() < lit_chance * 0.7:
+        f.box((w, h, 0.06), E("window_glass", rng.choice([0.5, 0.75, 1.0])), lx, ly, lz + 0.06, radius=0.02)
     else:
         f.box((w, h, 0.06), M("window_dark", roughness=0.3), lx, ly, lz + 0.06, radius=0.02)
     f.box((0.08, h, 0.07), M("window_frame"), lx, ly, lz + 0.08, radius=0.01)  # mullion
@@ -211,7 +244,7 @@ def _shopfront(f, width, lz, shop, rng):
     for side in (-1, 1):
         cx = side * (width / 4 + 0.35)
         f.box((win_w + 0.2, 2.3, 0.16), M("window_frame"), cx, 0.35, lz, radius=0.03)
-        f.box((win_w, 2.1, 0.06), E("window_glass", 2.2), cx, 0.45, lz + 0.07, radius=0.02)
+        f.box((win_w, 2.1, 0.06), E("window_glass", 1.0), cx, 0.45, lz + 0.07, radius=0.02)
         f.box((win_w + 0.4, 0.35, 0.22), M("stone_trim"), cx, 0.0, lz + 0.06, radius=0.04)
         # Goods in the window.
         for k in range(int(win_w / 0.5)):
@@ -219,15 +252,13 @@ def _shopfront(f, width, lz, shop, rng):
                   cx - win_w / 2 + 0.35 + k * 0.5, 0.7, lz + 0.18, radius=0.05)
     f.box((1.3, 2.5, 0.18), M("window_frame"), 0, 0.0, lz, radius=0.03)
     f.box((1.05, 2.3, 0.08), M("door_wood"), 0, 0.0, lz + 0.08, radius=0.03)
-    f.box((0.6, 0.9, 0.04), E("window_glass", 1.6), 0, 1.2, lz + 0.13, radius=0.02)
+    f.box((0.6, 0.9, 0.04), E("window_glass", 0.8), 0, 1.2, lz + 0.13, radius=0.02)
     f.box((0.08, 0.08, 0.08), M("bulb_warm", metallic=0.6), 0.38, 1.1, lz + 0.16, radius=0.02)
     _awning(f, width - 0.6, 3.05, lz + 0.05, awning)
-    # Sign board with an icon.
-    f.box((width * 0.55, 0.55, 0.14), M("wood_dark"), 0, 3.25, lz + 0.04, radius=0.04)
-    f.box((width * 0.5, 0.42, 0.06), M("pot_cream"), 0, 3.31, lz + 0.12, radius=0.03)
-    icon = SHOP_ICON.get(kind, "awning_red")
-    for k in range(3):
-        f.box((0.26, 0.26, 0.06), E(icon, 1.4) if kind == "flowers" else M(icon), -0.45 + k * 0.45, 3.38, lz + 0.16, radius=0.05)
+    # A lit block-letter sign above the awning.
+    word = {"bookshop": "BOOKS", "bakery": "BAKERY", "flowers": "FLOWERS", "deli": "DELI"}.get(kind, "SHOP")
+    px = min(0.12, (width - 1.0) / (len(word) * 5 + 3))
+    sign_text(f, word, 0, 3.3, lz + 0.05, px=px)
 
 
 def building(ctx, x0, z0, x1, z1, floors, style, roof="flat", shop=None, seed=0, facing="z", annex_below=False, **_):
@@ -277,7 +308,7 @@ def building(ctx, x0, z0, x1, z1, floors, style, roof="flat", shop=None, seed=0,
         for (sx, sz, lx, lz) in [(width, 0.3, 0, front - 0.15), (width, 0.3, 0, -front + 0.15),
                                  (0.3, depth, -width / 2 + 0.15, 0), (0.3, depth, width / 2 - 0.15, 0)]:
             f.box((sx, 0.6, sz), M("stone_trim"), lx, top, lz, radius=0.06)
-        f.box((width - 0.6, 0.05, depth - 0.6), M("roof_slate", roughness=0.95), 0, top, 0, radius=0.01)
+        f.box((width - 0.6, 0.08, depth - 0.6), M("roof_gravel", roughness=0.95), 0, top, 0, radius=0.01)
         for _k in range(rng.randint(2, 4)):
             lx, lz = rng.uniform(-width / 2 + 1.2, width / 2 - 1.2), rng.uniform(-front + 1.2, front - 1.4)
             choice = rng.random()
@@ -491,7 +522,7 @@ def string_lights(ctx, points, height=2.9, **_):
             x, z, y = ax + (bx - ax) * t, az + (bz - az) * t, height - sag
             f.box((0.05, 0.05, 0.05), M("metal_dark"), x, y + 0.02, z, radius=0.01)
             if 0 < i < n:
-                f.box((0.11, 0.13, 0.11), E("bulb_warm", 8.0), x, y - 0.13, z, radius=0.04)
+                f.box((0.11, 0.13, 0.11), E("bulb_warm", 5.0), x, y - 0.13, z, radius=0.04)
 
 
 def light_post(ctx, x, z, height=3.0, **_):
@@ -524,6 +555,16 @@ def a_frame(ctx, x, z, facing=0.0, **_):
 
 
 # ---------------------------------------------------------------- square
+def _disc(f, r, h, mat, y, step=0.3):
+    """A circle built from strips, a stepped pixel disc in the block style."""
+    n = int(r * 2 / step)
+    for i in range(n):
+        zc = -r + step * (i + 0.5)
+        w = 2 * math.sqrt(max(0.0, r * r - zc * zc))
+        if w > 0.1:
+            f.box((w, h, step + 0.01), mat, 0, y, zc, radius=0.01, segments=1)
+
+
 def fountain(ctx, x, z, **_):
     f = Frame(ctx, x, z)
     r = 1.8
@@ -531,11 +572,11 @@ def fountain(ctx, x, z, **_):
     for i in range(n):
         a = 2 * PI * i / n
         f.box((0.75, 0.6, 0.4), M("stone_trim"), math.sin(a) * r, 0, math.cos(a) * r, radius=0.06, yaw=a)
-    f.box((3.2, 0.06, 3.2), M("water_deep", roughness=0.1), 0, 0.42, 0, radius=0.3, segments=3)
-    f.box((2.6, 0.04, 2.6), M("water", roughness=0.05), 0, 0.47, 0, radius=0.3, segments=3)
+    _disc(f, 1.55, 0.06, M("water_deep", roughness=0.1), 0.4)
+    _disc(f, 1.25, 0.04, M("water", roughness=0.05), 0.45)
     f.box((0.6, 1.1, 0.6), M("stone_trim"), 0, 0, 0, radius=0.08)
     f.box((1.3, 0.22, 1.3), M("stone_trim"), 0, 1.1, 0, radius=0.08)
-    f.box((1.1, 0.06, 1.1), M("water"), 0, 1.3, 0, radius=0.08)
+    _disc(f, 0.5, 0.05, M("water"), 1.3, step=0.2)
     f.box((0.3, 0.6, 0.3), M("stone_trim"), 0, 1.3, 0, radius=0.05)
     f.box((0.18, 0.5, 0.18), E("water", 0.6), 0, 1.9, 0, radius=0.06)
     for i in range(4):
@@ -551,12 +592,20 @@ def tree(ctx, x, z, size=1.0, variant=0, **_):
     trunk_h = 2.0 * size
     f.box((0.32 * size, trunk_h, 0.32 * size), M("trunk"), 0, 0, 0, radius=0.06)
     f.box((0.18 * size, 0.6 * size, 0.18 * size), M("trunk"), 0.3 * size, trunk_h * 0.7, 0, radius=0.04)
-    greens = [["leaf_a", "leaf_b", "leaf_c"], ["leaf_b", "leaf_a", "leaf_b"], ["leaf_c", "leaf_autumn", "leaf_a"]][variant % 3]
-    for _k in range(11):
-        s = rng.uniform(0.9, 1.6) * size
-        lx, lz = rng.uniform(-0.9, 0.9) * size, rng.uniform(-0.9, 0.9) * size
-        ly = trunk_h + rng.uniform(-0.3, 1.6) * size
-        f.box((s, s * 0.9, s), LEAF(rng.choice(greens)), lx, ly, lz, radius=0.14, yaw=rng.uniform(0, PI / 2))
+    greens = [["leaf_a", "leaf_b", "leaf_c"], ["leaf_b", "leaf_a", "leaf_c"], ["leaf_c", "leaf_autumn", "leaf_a"]][variant % 3]
+    # A dark underside layer, then a bushy crown of overlapping lobes, lighter towards the top.
+    for _k in range(6):
+        s = rng.uniform(0.8, 1.1) * size
+        f.box((s, s * 0.7, s), LEAF("leaf_dark"), rng.uniform(-0.9, 0.9) * size, trunk_h - 0.2 * size,
+              rng.uniform(-0.9, 0.9) * size, radius=0.12, yaw=rng.uniform(0, PI / 2))
+    for k in range(18):
+        s = rng.uniform(0.6, 1.1) * size
+        t = k / 17
+        spread = (1.25 - 0.6 * t) * size
+        ly = trunk_h + (0.1 + t * 1.9) * size
+        tone = greens[2] if t > 0.7 else rng.choice(greens[:2])
+        f.box((s, s * 0.85, s), LEAF(tone), rng.uniform(-spread, spread), ly, rng.uniform(-spread, spread), radius=0.12,
+              yaw=rng.uniform(0, PI / 2))
 
 
 def street_tree(ctx, x, z, **_):
@@ -662,8 +711,85 @@ def car(ctx, x, z, facing=0.0, color="awning_blue", **_):
     f.box((1.74, 0.16, 0.12), M("metal_light", metallic=0.7), 0, 0.3, -1.8, radius=0.04)
 
 
+def cafe_sign(ctx, x, z, word="CAFE", y=3.75, **_):
+    f = Frame(ctx, x, z, y=y)
+    sign_text(f, word, 0, 0.0, 0.0, px=0.16, letters=E("bulb_warm", 2.6))
+    for dx in (-1.6, 1.6):  # little lamps over the sign
+        f.box((0.08, 0.3, 0.3), M("metal_dark"), dx, 1.15, 0.18, radius=0.02)
+        f.box((0.22, 0.12, 0.2), E("lamp_glow", 4.0), dx, 1.05, 0.36, radius=0.03)
+
+
+def review_board(ctx, x, z, facing=0.0, **_):
+    """A standing pinboard where agents wait for your review."""
+    rng = random.Random(9)
+    f = Frame(ctx, x, z, facing)
+    for dx in (-1.2, 1.2):
+        f.box((0.12, 2.3, 0.12), M("wood_dark"), dx, 0, 0, radius=0.03)
+        f.box((0.5, 0.08, 0.5), M("wood_dark"), dx, 0, 0, radius=0.02)
+    f.box((2.3, 1.4, 0.1), M("wood_mid"), 0, 0.8, 0, radius=0.04)
+    f.box((2.1, 1.2, 0.05), M("pot_cream"), 0, 0.9, 0.05, radius=0.02)
+    for i in range(9):
+        c = rng.choice(["bulb_warm", "neon_teal", "neon_pink", "awning_cream", "leaf_c"])
+        f.box((0.32, 0.3, 0.02), M(c), -0.75 + (i % 3) * 0.75, 1.0 + (i // 3) * 0.36, 0.09, radius=0.02)
+    sign_text(f, "REVIEW", 0, 2.25, 0.0, px=0.07, letters=E("awning_cream", 1.6))
+
+
+def parasol_table(ctx, x, z, color="awning_red", **_):
+    f = Frame(ctx, x, z)
+    f.box((0.8, 0.05, 0.8), M("metal_dark"), 0, 0.72, 0, radius=0.02)
+    f.box((0.08, 2.3, 0.08), M("metal_light", metallic=0.6), 0, 0, 0, radius=0.02)
+    for (dx, dz, yaw) in [(0, -0.7, 0), (0, 0.7, PI), (-0.7, 0, PI / 2), (0.7, 0, -PI / 2)]:
+        chair(ctx, x + dx, z + dz, facing=yaw)
+    for ring, (r, y) in enumerate([(1.3, 2.25), (0.9, 2.42), (0.5, 2.56)]):
+        for i in range(8):
+            a = 2 * PI * i / 8
+            col = color if i % 2 == 0 else "parasol_a"
+            f.box((r * 0.82, 0.08, 0.4), M(col), math.sin(a) * r * 0.62, y, math.cos(a) * r * 0.62, radius=0.03, yaw=a)
+    f.box((0.12, 0.12, 0.12), M("pot_cream"), 0.18, 0.77, 0.1, radius=0.03)
+
+
+def bin_(ctx, x, z, **_):
+    f = Frame(ctx, x, z)
+    f.box((0.5, 0.9, 0.5), M("bin_green"), 0, 0, 0, radius=0.08)
+    f.box((0.56, 0.08, 0.56), M("metal_dark"), 0, 0.9, 0, radius=0.03)
+
+
+def bollards(ctx, x0, x1, z, step=2.5, **_):
+    f = Frame(ctx)
+    x = x0
+    while x <= x1:
+        f.box((0.22, 0.8, 0.22), M("metal_dark"), x, 0, z, radius=0.06)
+        f.box((0.24, 0.08, 0.24), M("pot_cream"), x, 0.65, z, radius=0.03)
+        x += step
+
+
+def crosswalk(ctx, x0, x1, z0, z1, **_):
+    f = Frame(ctx)
+    x = x0
+    while x < x1:
+        f.box((0.45, 0.02, z1 - z0), M("pot_cream"), x + 0.225, -0.09, (z0 + z1) / 2, radius=0.01)
+        x += 0.9
+
+
+def manhole(ctx, x, z, **_):
+    f = Frame(ctx, x, z)
+    _disc(f, 0.45, 0.02, M("metal_dark", metallic=0.5, roughness=0.6), -0.0, step=0.15)
+
+
+def flower_buckets(ctx, x, z, **_):
+    rng = random.Random(int(x * 3 + z))
+    f = Frame(ctx, x, z)
+    for k in range(4):
+        lx = -0.9 + k * 0.6
+        f.box((0.4, 0.45, 0.4), M("metal_light", metallic=0.5), lx, 0, 0, radius=0.06)
+        for j in range(5):
+            f.box((0.12, 0.12, 0.12), M(rng.choice(["neon_pink", "bulb_warm", "awning_red", "pot_cream"])),
+                  lx + rng.uniform(-0.12, 0.12), 0.5 + rng.uniform(0, 0.25), rng.uniform(-0.12, 0.12), radius=0.04)
+        f.box((0.3, 0.25, 0.3), LEAF("leaf_b"), lx, 0.42, 0, radius=0.06)
+
+
 # ---------------------------------------------------------------- context ring
-def _block_building(f, width, depth, floors, wall, rng, lit=0.5):
+def _block_building(f, width, depth, floors, wall, rng, lit=0.3):
     height = 3.2 * floors
     f.box((width, height, depth), M(wall), 0, 0, 0, radius=0.1)
     cols = max(1, int(width / 2.4))
@@ -671,7 +797,7 @@ def _block_building(f, width, depth, floors, wall, rng, lit=0.5):
         for k in range(cols):
             lx = -width / 2 + width / cols * (k + 0.5)
             if rng.random() < lit:
-                f.box((1.0, 1.3, 0.06), E("window_glass", rng.choice([1.0, 1.6, 2.2])), lx, fl * 3.2 + 1.1, depth / 2 + 0.02, radius=0.02)
+                f.box((1.0, 1.3, 0.06), E("window_glass", rng.choice([0.5, 0.8, 1.1])), lx, fl * 3.2 + 1.1, depth / 2 + 0.02, radius=0.02)
             else:
                 f.box((1.0, 1.3, 0.06), M("window_dark"), lx, fl * 3.2 + 1.1, depth / 2 + 0.02, radius=0.02)
     f.box((width + 0.2, 0.3, depth + 0.2), M("stone_trim"), 0, height, 0, radius=0.06)
@@ -720,6 +846,8 @@ BUILDERS = {
     "flower_box": flower_box, "a_frame": a_frame, "fountain": fountain, "tree": tree, "street_tree": street_tree,
     "bench": bench, "lamp_post": lamp_post, "planter": planter, "bike_rack": bike_rack,
     "market_stall": market_stall, "crates": crates, "phone_box": phone_box, "car": car, "context_ring": context_ring,
+    "cafe_sign": cafe_sign, "review_board": review_board, "parasol_table": parasol_table, "bin": bin_,
+    "bollards": bollards, "crosswalk": crosswalk, "manhole": manhole, "flower_buckets": flower_buckets,
 }
 
 

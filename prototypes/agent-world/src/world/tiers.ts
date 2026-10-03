@@ -16,8 +16,8 @@ export interface TierConfig {
 
 export const TIERS: Record<Tier, TierConfig> = {
   low: { pixelRatio: 1, shadowMapSize: 1024, ao: false, bloom: true, dof: false, samples: 0, frameBudgetMs: 34 },
-  medium: { pixelRatio: 1.5, shadowMapSize: 2048, ao: true, bloom: true, dof: true, samples: 4, frameBudgetMs: 25 },
-  high: { pixelRatio: 2, shadowMapSize: 4096, ao: true, bloom: true, dof: true, samples: 4, frameBudgetMs: 25 },
+  medium: { pixelRatio: 1.25, shadowMapSize: 2048, ao: true, bloom: true, dof: true, samples: 4, frameBudgetMs: 25 },
+  high: { pixelRatio: 1.5, shadowMapSize: 4096, ao: true, bloom: true, dof: true, samples: 4, frameBudgetMs: 25 },
 };
 
 export const LOWER_TIER: Record<Tier, Tier | null> = { high: "medium", medium: "low", low: null };

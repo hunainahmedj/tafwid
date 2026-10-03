@@ -35,6 +35,7 @@ declare global {
   }
 }
 
+const FOLLOW_DISTANCE = 30;
 const reducedMotionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
 
 export async function createWorld(host: HTMLElement, store: Store, options: WorldOptions = {}): Promise<World> {
@@ -91,7 +92,12 @@ export async function createWorld(host: HTMLElement, store: Store, options: Worl
 
   store.subscribe((s, prev) => {
     if (s.snapshot !== prev.snapshot || s.selectedId !== prev.selectedId) syncAgents(s);
-    if (s.selectedId !== prev.selectedId && rig) rig = follow(rig, s.selectedId);
+    if (s.selectedId !== prev.selectedId && rig) {
+      rig = follow(rig, s.selectedId);
+      // Frame the followed agent closely enough to read their pose.
+      if (s.selectedId && env && rig.distanceGoal > FOLLOW_DISTANCE) rig = zoom(rig, FOLLOW_DISTANCE - rig.distanceGoal, env.manifest.camera.zoom);
+    }
+    agents.selectedId = s.selectedId;
     if (s.quality !== prev.quality) {
       view.setTier(s.quality);
       sampler.reset();

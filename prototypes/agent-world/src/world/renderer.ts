@@ -1,7 +1,7 @@
 import * as THREE from "three/webgpu";
 import {
-  builtinAOContext, color, emissive, mix, mrt, normalView, output, pass,
-  positionWorldDirection, screenUV, smoothstep, uniform, vec4,
+  builtinAOContext, color, emissive, float, mix, mrt, normalView, output, pass,
+  positionWorldDirection, renderOutput, saturation, screenUV, smoothstep, uniform, vec3, vec4,
 } from "three/tsl";
 import { ao } from "three/addons/tsl/display/GTAONode.js";
 import { bloom } from "three/addons/tsl/display/BloomNode.js";
@@ -9,6 +9,9 @@ import { dof } from "three/addons/tsl/display/DepthOfFieldNode.js";
 import type { Ambience, EnvironmentManifest } from "../contract/manifest";
 import type { Tier } from "../app/types";
 import { TIERS } from "./tiers";
+
+/** Display-space grade applied after AgX tone mapping. */
+const GRADE = { saturation: 1.18, contrast: 1.1, shadowTint: [0.93, 0.95, 1.06] as [number, number, number] };
 
 export interface WorldRenderer {
   renderer: THREE.WebGPURenderer;
@@ -68,6 +71,8 @@ export async function createRenderer(
       prePass.setMRT(mrt({ output: normalView }));
       const aoPass = ao(prePass.getTextureNode("depth"), prePass.getTextureNode(), camera);
       aoPass.resolutionScale = 0.5;
+      aoPass.radius.value = 0.55; // corner occlusion reads at diorama scale
+      aoPass.scale.value = 1.35;
       scenePass.contextNode = builtinAOContext(aoPass.getTextureNode().sample(screenUV).r);
     }
     let result: any = scenePass.getTextureNode("output");
@@ -77,9 +82,13 @@ export async function createRenderer(
       result = result.add(b);
     }
     if (cfg.dof) result = dof(result, scenePass.getViewZNode(), focus, focalRange, bokeh);
-    // Gentle vignette for the miniature feel.
+    // Tone map first, then grade in display space: a little contrast and saturation, and a vignette.
+    p.outputColorTransform = false;
+    const toned = renderOutput(result);
+    const graded = saturation(toned.rgb, GRADE.saturation).sub(0.5).mul(GRADE.contrast).add(0.5);
+    const warmShadows = mix(vec3(...GRADE.shadowTint), vec3(1, 1, 1), smoothstep(0.0, 0.45, toned.rgb.length()));
     const v = smoothstep(0.95, 0.35, screenUV.sub(0.5).length());
-    p.outputNode = vec4(result.rgb.mul(mix(0.78, 1.0, v)), 1);
+    p.outputNode = vec4(graded.mul(warmShadows).mul(mix(float(0.8), float(1.0), v)).clamp(0, 1), 1);
     pipeline = p;
   }
 

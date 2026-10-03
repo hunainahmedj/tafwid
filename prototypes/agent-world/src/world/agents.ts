@@ -10,10 +10,18 @@ import type { LoadedEnvironment } from "./environment";
 const WALK_SPEED = 1.7; // metres per second when changing zone
 const WANDER_SPEED = 0.9;
 
+const RING_COLOURS: Record<Agent["status"], string> = {
+  working: "#2fbf86",
+  review: "#ff9f2e",
+  ready: "#9aa6bd",
+  issue: "#ff3b3b",
+};
+
 interface Tracked {
   agent: Agent;
   rig: CharacterRig;
   blob: THREE.Mesh;
+  ring: THREE.Mesh;
   pos: THREE.Vector3;
   yaw: number;
   assignment: Assignment | null;
@@ -28,17 +36,45 @@ function blobShadow(): THREE.Mesh {
   canvas.width = canvas.height = 64;
   const ctx = canvas.getContext("2d")!;
   const g = ctx.createRadialGradient(32, 32, 4, 32, 32, 30);
-  g.addColorStop(0, "rgba(20,16,30,0.55)");
-  g.addColorStop(1, "rgba(20,16,30,0)");
+  g.addColorStop(0, "rgba(28,18,30,0.75)");
+  g.addColorStop(0.6, "rgba(28,18,30,0.35)");
+  g.addColorStop(1, "rgba(28,18,30,0)");
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, 64, 64);
   const mesh = new THREE.Mesh(
-    new THREE.PlaneGeometry(1.1, 1.1),
+    new THREE.PlaneGeometry(1.5, 1.5),
     new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(canvas), transparent: true, depthWrite: false }),
   );
   mesh.rotation.x = -Math.PI / 2;
   mesh.position.y = 0.02;
   mesh.renderOrder = 1;
+  return mesh;
+}
+
+let ringTexture: THREE.CanvasTexture | null = null;
+
+/** A soft status-coloured ring on the ground under each agent. */
+function statusRing(): THREE.Mesh {
+  if (!ringTexture) {
+    const canvas = document.createElement("canvas");
+    canvas.width = canvas.height = 128;
+    const ctx = canvas.getContext("2d")!;
+    ctx.strokeStyle = "white";
+    ctx.lineWidth = 12;
+    ctx.beginPath();
+    ctx.arc(64, 64, 50, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.globalAlpha = 0.25;
+    ctx.fillStyle = "white";
+    ctx.fill();
+    ringTexture = new THREE.CanvasTexture(canvas);
+  }
+  const mesh = new THREE.Mesh(
+    new THREE.PlaneGeometry(1.25, 1.25),
+    new THREE.MeshBasicMaterial({ map: ringTexture, transparent: true, depthWrite: false, toneMapped: false }),
+  );
+  mesh.rotation.x = -Math.PI / 2;
+  mesh.renderOrder = 2;
   return mesh;
 }
 
@@ -49,6 +85,7 @@ export class AgentLayer {
   private env: LoadedEnvironment | null = null;
   private blobs = false;
   private warned = new Set<string>();
+  selectedId: string | null = null;
 
   constructor(scene: THREE.Scene) {
     scene.add(this.group);
@@ -68,6 +105,7 @@ export class AgentLayer {
       if (!agents.some((a) => a.id === id)) {
         t.rig.dispose();
         t.blob.removeFromParent();
+        t.ring.removeFromParent();
         this.tracked.delete(id);
       }
     for (const agent of agents) {
@@ -77,11 +115,13 @@ export class AgentLayer {
         rig.group.userData.agentId = agent.id;
         const blob = blobShadow();
         blob.visible = this.blobs;
-        this.group.add(rig.group, blob);
-        t = { agent, rig, blob, pos: new THREE.Vector3(), yaw: 0, assignment: null, route: [], loopIndex: 0 };
+        const ring = statusRing();
+        this.group.add(rig.group, blob, ring);
+        t = { agent, rig, blob, ring, pos: new THREE.Vector3(), yaw: 0, assignment: null, route: [], loopIndex: 0 };
         this.tracked.set(agent.id, t);
       }
       t.agent = agent;
+      (t.ring.material as THREE.MeshBasicMaterial).color.set(RING_COLOURS[agent.status]);
       const next = assignments.get(agent.id) ?? null;
       if (!next) continue;
       const placed = t.assignment !== null;
@@ -152,6 +192,11 @@ export class AgentLayer {
       const delta = ((t.yaw - current + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
       t.rig.group.rotation.y = current + delta * Math.min(1, dt * 10);
       t.blob.position.set(t.pos.x, 0.03, t.pos.z);
+      t.ring.position.set(t.pos.x, 0.05, t.pos.z);
+      const urgent = t.agent.status === "issue" || t.agent.status === "review";
+      const pulse = urgent ? 1 + Math.sin(time * 4) * 0.12 : 1;
+      t.ring.scale.setScalar(pulse * (this.selectedId === t.agent.id ? 1.3 : 1));
+      (t.ring.material as THREE.MeshBasicMaterial).opacity = urgent ? 0.75 + Math.sin(time * 4) * 0.25 : 0.65;
     }
   }
 

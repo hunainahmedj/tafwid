@@ -31,7 +31,7 @@ function mat(color: string, emissive?: string) {
     const m = new THREE.MeshStandardMaterial({ color, roughness: 0.8, flatShading: true });
     if (emissive) {
       m.emissive.set(emissive);
-      m.emissiveIntensity = 2.2;
+      m.emissiveIntensity = 0.9;
     }
     materials.set(key, m);
   }
@@ -82,10 +82,16 @@ export function createCharacter(look: Agent["look"], kind: "agent" | "extra" = "
   part(head, 0.1, 0.12, 0.02, "#1d2433", 0.15, 0.26, 0.335);
   part(head, 0.12, 0.05, 0.02, "#e58f84", -0.24, 0.16, 0.335);
   part(head, 0.12, 0.05, 0.02, "#e58f84", 0.24, 0.16, 0.335);
-  if (kind === "extra") group.scale.setScalar(0.88);
+  if (kind === "extra") group.scale.setScalar(0.8);
 
-  const marker = new THREE.Mesh(geo(0.3, 0.3, 0.3), mat("#ef5b5b", "#ff4d4d"));
-  marker.position.set(0, 2.05, 0);
+  // A floating "!" beacon for agents that need attention: saturated red, lightly emissive so bloom keeps its colour.
+  const marker = new THREE.Group();
+  const red = mat("#e8322f", "#c81e1e");
+  const bar = new THREE.Mesh(geo(0.2, 0.5, 0.2), red);
+  bar.position.y = 0.3;
+  const dot = new THREE.Mesh(geo(0.2, 0.2, 0.2), red);
+  marker.add(bar, dot);
+  marker.position.set(0, 2.0, 0);
   marker.visible = false;
   group.add(marker);
 
@@ -127,8 +133,9 @@ export function createCharacter(look: Agent["look"], kind: "agent" | "extra" = "
           armL.rotation.z = 0.35;
           armR.rotation.z = -0.35;
           head.rotation.z = Math.sin(t * 2.4) * 0.08;
-          marker.position.y = 2.1 + Math.sin(t * 4) * 0.08;
-          marker.rotation.y = t * 1.5;
+          marker.position.y = 2.05 + Math.sin(t * 4) * 0.1;
+          marker.rotation.y = t * 1.2;
+          marker.scale.setScalar(1 + Math.sin(t * 6) * 0.08);
           break;
       }
     },

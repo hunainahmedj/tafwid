@@ -1,7 +1,7 @@
 import type { EnvironmentManifest, Vec2, Vec3 } from "../contract/manifest";
 
 /** Fixed high pitch (radians above the horizon) and narrow field of view. */
-export const PITCH = 0.92;
+export const PITCH = 0.82;
 export const FOV_DEGREES = 26;
 
 type Home = EnvironmentManifest["camera"]["home"];

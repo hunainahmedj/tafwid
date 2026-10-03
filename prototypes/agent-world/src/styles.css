@@ -131,14 +131,14 @@ button:focus-visible, select:focus-visible { outline: 2px solid var(--blue); out
 .app[data-mode="explore"] .hint { position: absolute; z-index: 3; left: 12px; bottom: 12px; margin: 0; padding: 7px 11px; font-size: 11.5px; color: var(--muted); }
 
 /* ---------- Dashboard mode: information first ---------- */
-.app[data-mode="dashboard"] { max-width: 1440px; margin: 0 auto; padding: 16px 24px 24px; display: flex; flex-direction: column; gap: 14px; min-height: 100%; }
+.app[data-mode="dashboard"] { max-width: 1600px; margin: 0 auto; padding: 16px 24px 20px; display: flex; flex-direction: column; gap: 14px; height: 100vh; }
 .app[data-mode="dashboard"] .topbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
 .app[data-mode="dashboard"] .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
 .app[data-mode="dashboard"] .stat { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; display: grid; grid-template-columns: auto 1fr; align-items: center; column-gap: 8px; font-size: 13px; color: var(--muted); }
 .app[data-mode="dashboard"] .stat strong { grid-row: 2; grid-column: 1 / 3; font-size: 28px; color: var(--ink); letter-spacing: -0.02em; }
 .app[data-mode="dashboard"] .stat span:last-child { grid-row: 1; grid-column: 2; }
-.app[data-mode="dashboard"] .stage { display: grid; grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr); gap: 14px; }
-.app[data-mode="dashboard"] .viewport { aspect-ratio: 16 / 10; border-radius: 16px; border: 1px solid var(--line); }
+.app[data-mode="dashboard"] .stage { flex: 1; min-height: 360px; display: grid; grid-template-columns: minmax(0, 2.2fr) minmax(300px, 1fr); gap: 14px; }
+.app[data-mode="dashboard"] .viewport { min-height: 360px; border-radius: 16px; border: 1px solid var(--line); }
 .app[data-mode="dashboard"] .roster-panel { background: #fff; border: 1px solid var(--line); border-radius: 16px; padding: 12px; overflow: auto; }
 .app[data-mode="dashboard"] .details { background: #fff; border: 1px solid var(--line); border-radius: 16px; padding: 14px 18px; }
 .app[data-mode="dashboard"] .details .field { flex: 1; }
@@ -151,7 +151,8 @@ button:focus-visible, select:focus-visible { outline: 2px solid var(--blue); out
   .app[data-mode="explore"] .details { max-width: calc(100% - 24px); bottom: 64px; flex-wrap: wrap; }
   .app[data-mode="explore"] .topbar { flex-wrap: wrap; }
   .app[data-mode="explore"] .stats { top: 116px; }
-  .app[data-mode="dashboard"] { padding: 12px; }
+  .app[data-mode="dashboard"] { padding: 12px; height: auto; }
+  .app[data-mode="dashboard"] .viewport { aspect-ratio: 4 / 3; }
   .app[data-mode="dashboard"] .stats { grid-template-columns: repeat(2, 1fr); }
   .app[data-mode="dashboard"] .stage { grid-template-columns: 1fr; }
   .app[data-mode="dashboard"] .details { flex-wrap: wrap; }

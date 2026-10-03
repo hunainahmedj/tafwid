@@ -28,6 +28,10 @@ FOUNTAIN = (4.5, 4.0)
 # Seats face the camera (+z) so faces stay readable from the default view.
 INSIDE_TABLES = [(-7.5, -5.5), (-4.5, -5.5), (-1.5, -9.5), (1.5, -5.5)]
 TERRACE_TABLES = [(-8.5, -1.5), (-5.5, -1.5), (-2.5, -1.5), (0.5, -1.5)]
+# Desks are assigned in roster order; the most visible ones come first.
+WORKSTATIONS = [(-4.5, -5.5), (1.5, -5.5), (-5.5, -1.5), (-2.5, -1.5), (0.5, -1.5), (-8.5, -1.5), (-7.5, -5.5), (-1.5, -9.5)]
+REVIEW_BOARD = (6.5, -9.0)
+BAKERY_TABLES = [(9.5, -9.5), (12.0, -7.0)]
 SEAT_OFFSET = 0.85  # seats sit behind each table, facing the camera
 
 
@@ -105,6 +109,20 @@ def placements():
         add("lamp_post", x=x, z=z)
     for (x, z) in [(-14.5, -3.4), (14.0, -3.4), (-10.5, 8.3), (1.5, 8.3)]:
         add("planter", x=x, z=z)
+    # Shop fronts and kerbside life.
+    add("cafe_sign", x=-3.5, z=-11.85)
+    add("review_board", x=REVIEW_BOARD[0], z=REVIEW_BOARD[1], facing=0.0)
+    for (x, z) in BAKERY_TABLES:
+        add("parasol_table", x=x, z=z, color="awning_red")
+    add("flower_buckets", x=14.6, z=-10.6)
+    for (x, z) in [(4.6, -4.6), (14.6, 8.6), (-15.4, 8.6), (-15.4, -4.6)]:
+        add("bin", x=x, z=z)
+    add("bollards", x0=-14.0, x1=14.0, z=10.85, step=3.5)
+    add("crosswalk", x0=2.0, x1=6.0, z0=11.3, z1=15.7)
+    for (x, z) in [(-8.0, 13.5), (12.0, 13.0), (20.0, -2.0)]:
+        add("manhole", x=x, z=z)
+    for (x, z) in [(-12.5, -6.5), (-14.0, -10.0), (8.0, -5.0)]:
+        add("plant", x=x, z=z, size=1.2)
     add("bike_rack", x=10.0, z=-2.6, count=3)
     add("market_stall", x=-10.0, z=2.2, facing=0.0, color="awning_green")
     add("crates", x=-12.0, z=2.0)
@@ -142,6 +160,10 @@ def build_grid():
     g.block_rect(-8.5, -12, -3.0, -10.6)               # counter
     for (x, z) in INSIDE_TABLES + TERRACE_TABLES:
         g.block_footprint(x, z, 1.2, 0.9)
+    g.block_footprint(REVIEW_BOARD[0], REVIEW_BOARD[1], 2.6, 0.6)
+    for (x, z) in BAKERY_TABLES:
+        g.block_footprint(x, z, 1.8, 1.8)
+    g.block_footprint(14.6, -10.6, 2.4, 0.5)
     g.block_footprint(FOUNTAIN[0], FOUNTAIN[1], 4.2, 4.2)
     for (x, z) in [(-13.5, 6.0), (12.5, -1.0), (-13.0, -2.0), (12.0, 7.0), (-5.0, 7.6), (8.5, 8.2)]:
         g.block_footprint(x, z, 0.8, 0.8)
@@ -153,9 +175,9 @@ def build_grid():
 
 def zones():
     ws = []
-    for i, (x, z) in enumerate(INSIDE_TABLES + TERRACE_TABLES):
+    for i, (x, z) in enumerate(WORKSTATIONS):
         ws.append({"id": "ws-%d" % (i + 1), "position": [x, 0.0, z - SEAT_OFFSET], "facing": 0.0, "pose": "seated"})
-    review = [{"id": "chalkboard", "position": [-9.5, 0.0, -7.5], "facing": PI * 0.75, "pose": "standing"}]
+    review = [{"id": "review-board", "position": [REVIEW_BOARD[0], 0.0, REVIEW_BOARD[1] + 1.5], "facing": 0.0, "pose": "standing"}]
     fx, fz = FOUNTAIN
     loop = [[fx - 3.2, fz - 3.0], [fx + 3.2, fz - 3.0], [fx + 3.2, fz + 3.1], [fx - 3.2, fz + 3.1]]
     lounge = [{"id": "fountain", "position": [loop[0][0], 0.0, loop[0][1]], "facing": 0.0, "pose": "standing", "loop": loop}]
@@ -172,32 +194,31 @@ AMBIENT_PATHS = [
 ]
 
 CAMERA = {
-    "home": {"target": [-1.0, -1.5], "yaw": 0.62, "distance": 58},
+    "home": {"target": [0.0, -2.5], "yaw": 0.62, "distance": 50},
     "bounds": {"minX": -16, "maxX": 16, "minZ": -13, "maxZ": 13},
     "zoom": [18, 78],
 }
 
 AMBIENCE = {
-    # Late-afternoon golden hour: low sun from the front right.
-    "sun": {"direction": [0.78, 0.42, 0.46], "color": "#ffc98f", "intensity": 3.6},
-    "hemisphere": {"sky": "#b9c9f0", "ground": "#a07a5c", "intensity": 1.0},
-    "fog": {"color": "#f1c9a5", "near": 55, "far": 140},
-    "exposure": 1.05,
-    "bloom": {"strength": 0.9, "radius": 0.5, "threshold": 0.0},
-    "dof": {"focusOffset": 0.0, "range": 16.0, "strength": 1.6},
-    "sky": {"top": "#7fa6dc", "bottom": "#ffcf9e"},
+    # Golden hour: a low (~17°), amber sun from the front right; cool blue-violet fill so shadows read.
+    "sun": {"direction": [0.82, 0.3, 0.48], "color": "#ffb37a", "intensity": 4.2},
+    "hemisphere": {"sky": "#97aae0", "ground": "#7a6458", "intensity": 1.0},
+    "fog": {"color": "#b8b6d4", "near": 75, "far": 190},
+    "exposure": 1.0,
+    "bloom": {"strength": 0.6, "radius": 0.45, "threshold": 0.0},
+    "dof": {"focusOffset": 0.0, "range": 8.0, "strength": 2.4},
+    "sky": {"top": "#6c90cf", "bottom": "#ffc48c"},
 }
 
 
-# The bake stores lighting in 8-bit textures with headroom; the runtime exposes it back up.
-BAKED_EXPOSURE = 1.5
+# Pipeline B bakes irradiance at this fraction of full energy for 8-bit headroom; the
+# runtime multiplies it back via the material's tafwid_lightmap_scale.
+LIGHTMAP_ENERGY = 0.5
 
 
 def manifest(variant):
     g = build_grid()
     ambience = dict(AMBIENCE)
-    if variant == "baked":
-        ambience["exposure"] = BAKED_EXPOSURE
     return {
         "schema": "tafwid.environment/1",
         "id": "cafe",

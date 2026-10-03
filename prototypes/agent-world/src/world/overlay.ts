@@ -47,13 +47,28 @@ export class Overlay {
   }
 
   update(camera: THREE.Camera, width: number, height: number, anchorOf: (id: string) => Vec3 | null) {
+    const placed: { x: number; y: number; w: number; el: HTMLButtonElement }[] = [];
     for (const [id, el] of this.badges) {
       const anchor = anchorOf(id);
       if (!anchor) continue;
       this.v.set(...anchor).project(camera);
       const hidden = this.v.z > 1 || Math.abs(this.v.x) > 1.1 || Math.abs(this.v.y) > 1.1;
       el.style.visibility = hidden ? "hidden" : "visible";
-      el.style.transform = `translate(${((this.v.x + 1) / 2) * width}px, ${((1 - this.v.y) / 2) * height}px) translate(-50%, -100%)`;
+      if (!hidden) placed.push({ x: ((this.v.x + 1) / 2) * width, y: ((1 - this.v.y) / 2) * height, w: el.offsetWidth || 60, el });
+    }
+    // Declutter: badges that would overlap are nudged upwards, nearest-to-camera first keeps its place.
+    placed.sort((a, b) => b.y - a.y);
+    const taken: { x: number; y: number; w: number }[] = [];
+    const H = 24;
+    for (const b of placed) {
+      let y = b.y;
+      for (let guard = 0; guard < 6; guard++) {
+        const hit = taken.find((t) => Math.abs(t.x - b.x) < (t.w + b.w) / 2 + 4 && Math.abs(t.y - y) < H);
+        if (!hit) break;
+        y = hit.y - H;
+      }
+      taken.push({ x: b.x, y, w: b.w });
+      b.el.style.transform = `translate(${b.x}px, ${y}px) translate(-50%, -100%)`;
     }
   }
 

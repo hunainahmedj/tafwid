@@ -3,8 +3,10 @@
 Same builders and layout as pipeline A, then:
   1. light the scene for golden hour (sun, sky, lamps and bulbs as real lights);
   2. join static geometry per area and unwrap a lightmap UV set;
-  3. bake diffuse direct + indirect light (times albedo) per area on the GPU;
-  4. swap each area to a single `<area>_baked` material and export.
+  3. bake diffuse direct + indirect *irradiance* (no surface colour) per area on the GPU,
+     at LIGHTMAP_ENERGY of full strength so 8-bit maps keep highlight headroom;
+  4. give each area per-material `<material>__<area>_lm` copies that keep their palette
+     colour and carry the lightmap in the emissive slot; the runtime multiplies them.
 Emissive pieces (emit_*) stay separate and unbaked so they still bloom.
 """
 
@@ -62,7 +64,8 @@ def rgb(key):
 amb = layout.AMBIENCE
 sun_dir = Vector(bl(*amb["sun"]["direction"])).normalized()
 sun_data = bpy.data.lights.new("sun", "SUN")
-sun_data.energy = 2.2
+E = layout.LIGHTMAP_ENERGY
+sun_data.energy = 2.2 * E
 sun_data.angle = math.radians(2.5)
 sun_data.color = rgb(amb["sun"]["color"])
 sun = bpy.data.objects.new("sun", sun_data)
@@ -73,13 +76,13 @@ world = bpy.data.worlds.new("sky")
 world.use_nodes = True
 bg = world.node_tree.nodes["Background"]
 bg.inputs["Color"].default_value = (*rgb(amb["hemisphere"]["sky"]), 1.0)
-bg.inputs["Strength"].default_value = 0.45
+bg.inputs["Strength"].default_value = 0.42 * E
 sc.world = world
 
 
 def point(name, location, power, color, radius=0.1):
     data = bpy.data.lights.new(name, "POINT")
-    data.energy = power
+    data.energy = power * E
     data.color = rgb(color)
     data.shadow_soft_size = radius
     obj = bpy.data.objects.new(name, data)
@@ -101,7 +104,7 @@ for p in placements:
                 point("bulb", (ax + (bx - ax) * t, p["height"] - sag - 0.15, az + (bz - az) * t), 18, "bulb_warm", 0.08)
 # A warm fill over the café interior so the room glows.
 area_data = bpy.data.lights.new("cafe_fill", "AREA")
-area_data.energy = 260
+area_data.energy = 260 * E
 area_data.size = 8.0
 area_data.size_y = 4.0
 area_data.shape = "RECTANGLE"
@@ -110,10 +113,12 @@ area = bpy.data.objects.new("cafe_fill", area_data)
 area.location = bl(-3.5, 3.2, -8.0)
 collection.objects.link(area)
 
-# Reference render of the lit scene before baking (what the bake should match).
+# Reference render of the lit scene before baking (what the bake should match), at full energy.
 cam = layout.CAMERA["home"]
 scene.preview_camera(cam["target"], cam["yaw"], cam["distance"])
+sc.view_settings.exposure = math.log2(1 / E)
 scene.render_preview(os.path.join(out, "previews", "reference.png"), engine="cycles", samples=96)
+sc.view_settings.exposure = 0.0
 log("reference render done")
 
 # ---------------------------------------------------------------- group and join
@@ -192,7 +197,7 @@ sc.cycles.use_adaptive_sampling = True
 sc.render.bake.margin = 8
 sc.render.bake.use_pass_direct = True
 sc.render.bake.use_pass_indirect = True
-sc.render.bake.use_pass_color = True
+sc.render.bake.use_pass_color = False
 
 for obj in baked_objects:
     img = images[obj.name]
@@ -207,7 +212,7 @@ for obj in baked_objects:
     bpy.ops.object.select_all(action="DESELECT")
     obj.select_set(True)
     bpy.context.view_layer.objects.active = obj
-    bpy.ops.object.bake(type="DIFFUSE", pass_filter={"DIRECT", "INDIRECT", "COLOR"}, margin=8, use_clear=True)
+    bpy.ops.object.bake(type="DIFFUSE", pass_filter={"DIRECT", "INDIRECT"}, margin=8, use_clear=True)
     log("baked %s (%d px)" % (obj.name, img.size[0]))
 
 # Denoise each lightmap with the compositor's OpenImageDenoise (Blender 5 node-group compositor).
@@ -244,23 +249,31 @@ for obj in baked_objects:
         log("denoise skipped for %s: %s" % (obj.name, exc))
 log("denoised")
 
-# ---------------------------------------------------------------- baked materials and export
+# ---------------------------------------------------------------- lightmapped materials and export
+def lightmapped(source, area, image):
+    """A copy of `source` that keeps its colour and carries the area lightmap as emission."""
+    mat = bpy.data.materials.new("%s__%s_lm" % (source.name, area))
+    mat.use_nodes = True
+    bsdf = mat.node_tree.nodes["Principled BSDF"]
+    src_bsdf = source.node_tree.nodes.get("Principled BSDF")
+    bsdf.inputs["Base Color"].default_value = src_bsdf.inputs["Base Color"].default_value if src_bsdf else source.diffuse_color
+    bsdf.inputs["Roughness"].default_value = 1.0
+    tex = mat.node_tree.nodes.new("ShaderNodeTexImage")
+    tex.image = image
+    mat.node_tree.links.new(tex.outputs["Color"], bsdf.inputs["Emission Color"])
+    bsdf.inputs["Emission Strength"].default_value = 1.0
+    mat["tafwid_lightmap_scale"] = 1.0 / layout.LIGHTMAP_ENERGY
+    return mat
+
+
 for obj in baked_objects:
     mesh = obj.data
     for layer in [l for l in mesh.uv_layers if l.name != "Lightmap"]:
         mesh.uv_layers.remove(layer)
-    mat = bpy.data.materials.new(obj.name + "_baked")
-    mat.use_nodes = True
-    bsdf = mat.node_tree.nodes["Principled BSDF"]
-    tex = mat.node_tree.nodes.new("ShaderNodeTexImage")
-    tex.image = images[obj.name]
-    tex.interpolation = "Linear"
-    mat.node_tree.links.new(tex.outputs["Color"], bsdf.inputs["Base Color"])
-    bsdf.inputs["Roughness"].default_value = 1.0
-    mesh.materials.clear()
-    mesh.materials.append(mat)
-    mesh.polygons.foreach_set("material_index", [0] * len(mesh.polygons))
-    images[obj.name].file_format = "WEBP"
+    image = images[obj.name]
+    image.file_format = "WEBP"
+    for slot in obj.material_slots:
+        slot.material = lightmapped(slot.material, obj.name, image)
 
 for o in [o for o in bpy.data.objects if o.type in ("LIGHT",)]:
     bpy.data.objects.remove(o)

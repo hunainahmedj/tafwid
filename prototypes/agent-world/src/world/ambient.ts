@@ -3,11 +3,12 @@ import type { AmbientPath, Vec2 } from "../contract/manifest";
 import { createCharacter, type CharacterRig } from "./characters";
 import type { LoadedEnvironment } from "./environment";
 
+// Passers-by are deliberately muted (greys and beiges) so they never read as agents.
 const EXTRA_LOOKS = [
-  { skin: "#e8b48f", shirt: "#8e9aaf", hair: "#4a3b33", accent: "#cbc0d3" },
-  { skin: "#a7714f", shirt: "#b8a088", hair: "#2a2a2a", accent: "#dee2e6" },
-  { skin: "#f3d2b8", shirt: "#7f9c96", hair: "#a0522d", accent: "#e9ecef" },
-  { skin: "#6f4a35", shirt: "#c9b29b", hair: "#1b1b1b", accent: "#adb5bd" },
+  { skin: "#c9b2a3", shirt: "#9aa0a8", hair: "#6b6560", accent: "#b9b4ad" },
+  { skin: "#a8907f", shirt: "#b7ab9c", hair: "#4f4a47", accent: "#c8c2b8" },
+  { skin: "#d6c3b5", shirt: "#8f9590", hair: "#857a6e", accent: "#a9aaa5" },
+  { skin: "#8f7768", shirt: "#c2b9ae", hair: "#3f3b39", accent: "#9c9a96" },
 ];
 
 interface Walker {
@@ -51,11 +52,11 @@ function sample(points: Vec2[], loop: boolean, distance: number, length: number)
 function makeBird(): { group: THREE.Group; wings: THREE.Mesh[] } {
   const group = new THREE.Group();
   const body = new THREE.MeshStandardMaterial({ color: "#3d3a4b", flatShading: true });
-  const torso = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.12, 0.3), body);
+  const torso = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.18, 0.42), body);
   group.add(torso);
   const wings = [-1, 1].map((side) => {
-    const w = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.03, 0.18), body);
-    w.geometry.translate(side * 0.17, 0, 0);
+    const w = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.04, 0.24), body);
+    w.geometry.translate(side * 0.25, 0, 0);
     w.position.x = side * 0.06;
     group.add(w);
     return w;
@@ -78,7 +79,7 @@ export class AmbientLayer {
     env.manifest.ambientPaths.forEach((path, i) => {
       const length = pathLength(path.points, path.loop);
       if (length <= 0) return;
-      const count = path.kind === "pedestrian" ? Math.max(1, Math.round(length / 18)) : 1;
+      const count = path.kind === "pedestrian" ? Math.max(1, Math.round(length / 12)) : 2;
       for (let k = 0; k < count; k++) {
         const w: Walker = {
           path,
@@ -120,7 +121,7 @@ export class AmbientLayer {
         w.rig.group.rotation.y = yaw;
         w.rig.setPose("walk", time + w.progress);
       } else if (w.bird && w.wings) {
-        w.bird.position.set(p[0], 7 + Math.sin(time * 0.8 + w.progress) * 0.6, p[1]);
+        w.bird.position.set(p[0], 5 + Math.sin(time * 0.8 + w.progress) * 0.8, p[1]);
         w.bird.rotation.y = yaw;
         const flap = Math.sin(time * 14 + w.progress) * 0.7;
         w.wings[0].rotation.z = flap;
