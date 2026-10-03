@@ -31,6 +31,7 @@ declare global {
     __tafwidPerf?: () => { p50: number; p95: number; count: number; tier: string; backend: string };
     __tafwidAmbientEnabled?: boolean;
     __tafwidWorldReady?: boolean;
+    __tafwidStats?: () => { calls: number; triangles: number; meshes: number; instanced: number };
   }
 }
 
@@ -191,6 +192,15 @@ export async function createWorld(host: HTMLElement, store: Store, options: Worl
   document.addEventListener("visibilitychange", setLoop);
 
   window.__tafwidPerf = () => ({ ...sampler.stats(), tier: store.get().quality, backend: view.backend });
+  window.__tafwidStats = () => {
+    let meshes = 0, instanced = 0;
+    scene.traverse((o) => {
+      if ((o as THREE.InstancedMesh).isInstancedMesh) instanced++;
+      else if ((o as THREE.Mesh).isMesh) meshes++;
+    });
+    const r = view.renderer.info.render;
+    return { calls: r.drawCalls ?? (r as { calls?: number }).calls ?? 0, triangles: r.triangles, meshes, instanced };
+  };
 
   const api: World = {
     backend: view.backend,

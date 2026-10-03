@@ -43,6 +43,37 @@ function bakedMaterial(source: THREE.MeshStandardMaterial): THREE.MeshBasicNodeM
   return m;
 }
 
+/**
+ * Collapses meshes that share geometry and material into one InstancedMesh.
+ * GLTFLoader reuses a geometry for every node that references the same glTF
+ * mesh, so a kit of repeated pieces becomes a few hundred draw calls.
+ */
+function instanceRepeats(root: THREE.Object3D) {
+  const groups = new Map<string, THREE.Mesh[]>();
+  root.traverse((obj) => {
+    const mesh = obj as THREE.Mesh;
+    if (!mesh.isMesh || (mesh as THREE.InstancedMesh).isInstancedMesh || Array.isArray(mesh.material)) return;
+    const key = `${mesh.geometry.uuid}|${(mesh.material as THREE.Material).uuid}`;
+    const list = groups.get(key);
+    if (list) list.push(mesh);
+    else groups.set(key, [mesh]);
+  });
+  const inverseRoot = root.matrixWorld.clone().invert();
+  const m = new THREE.Matrix4();
+  for (const meshes of groups.values()) {
+    if (meshes.length < 2) continue;
+    const first = meshes[0];
+    const instanced = new THREE.InstancedMesh(first.geometry, first.material, meshes.length);
+    meshes.forEach((mesh, i) => instanced.setMatrixAt(i, m.multiplyMatrices(inverseRoot, mesh.matrixWorld)));
+    instanced.instanceMatrix.needsUpdate = true;
+    instanced.castShadow = first.castShadow;
+    instanced.receiveShadow = first.receiveShadow;
+    instanced.computeBoundingSphere();
+    root.add(instanced);
+    for (const mesh of meshes) mesh.removeFromParent();
+  }
+}
+
 export async function loadEnvironment(baseUrl: string): Promise<LoadedEnvironment> {
   const response = await fetch(`${baseUrl}/manifest.json`);
   if (!response.ok) throw new EnvironmentLoadError(`Could not load ${baseUrl}/manifest.json (${response.status})`);
@@ -79,6 +110,7 @@ export async function loadEnvironment(baseUrl: string): Promise<LoadedEnvironmen
     mesh.receiveShadow = realtime;
   });
   root.updateMatrixWorld(true);
+  instanceRepeats(root);
 
   return {
     manifest,
