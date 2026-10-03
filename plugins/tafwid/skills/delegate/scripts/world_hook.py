@@ -57,7 +57,10 @@ def _patch_paths(tool_input):
 
 def classify_action(tool_name, tool_input):
     """Return a coarse action label from the tool name and target extension."""
-    tool_input = tool_input if isinstance(tool_input, dict) else {}
+    if isinstance(tool_input, str):  # Codex may send the patch text or command bare
+        tool_input = {"command": tool_input}
+    elif not isinstance(tool_input, dict):
+        tool_input = {}
     if tool_name in SPAWN_TOOLS:
         return "spawn"
     if tool_name in EDIT_TOOLS:
@@ -71,6 +74,8 @@ def classify_action(tool_name, tool_input):
         return "search"
     if tool_name == "Bash":
         command = tool_input.get("command")
+        if isinstance(command, list) and all(isinstance(part, str) for part in command):
+            command = " ".join(command)  # Codex may send an argv list
         if isinstance(command, str) and TEST_RUNNER.search(command[:SCAN_CHARS]):
             return "run-tests"
         return "run-command"
@@ -141,16 +146,11 @@ def _status(name, payload):
 
 
 def detect_host(payload):
-    """Name the host: host.detect first, then the payload's shape."""
-    try:
-        found = host.detect()
-    except ValueError:
-        found = None
-    if found:
-        return found
-    if "turn_id" in payload:
-        return "codex"
-    return "claude" if "hook_event_name" in payload else "unknown"
+    """Name the host the way hooks do: Claude Code exports the event's own session id."""
+    session = payload.get("session_id")
+    if isinstance(session, str) and session:
+        return host.for_hook(session)
+    return "unknown"
 
 
 def fit_event(event):
@@ -186,10 +186,10 @@ def to_event(payload, host_name):
     }
     if kind in ("tool", "permission"):
         tool_input = payload.get("tool_input")
-        tool_input = tool_input if isinstance(tool_input, dict) else {}
         event["action"] = classify_action(payload.get("tool_name"), tool_input)
         if event["action"] == "spawn" and event["phase"] == "pre":
-            event["label"], event["agentType"], event["role"] = _spawn_details(tool_input, host_name)
+            details = _spawn_details(tool_input if isinstance(tool_input, dict) else {}, host_name)
+            event["label"], event["agentType"], event["role"] = details
     return fit_event(event)
 
 

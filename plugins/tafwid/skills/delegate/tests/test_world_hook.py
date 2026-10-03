@@ -37,10 +37,14 @@ class WorldHookTests(unittest.TestCase):
             os.environ.pop(key, None)
         world.enable()
 
-    def run_hook(self, payload):
-        """Run main on a payload and return the events written; main must be silent."""
+    def run_hook(self, payload, host_name=None):
+        """Run main on a payload and return the events written; main must be silent.
+
+        Claude Code exports the event's own session id; Codex does not.
+        """
+        env = {"CLAUDE_CODE_SESSION_ID": payload["session_id"]} if host_name == "claude" else {}
         out, err = io.StringIO(), io.StringIO()
-        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+        with patch.dict(os.environ, env), contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
             status = world_hook.main(io.StringIO(json.dumps(payload)))
         self.assertEqual(status, 0)
         self.assertEqual((out.getvalue(), err.getvalue()), ("", ""))
@@ -52,15 +56,15 @@ class WorldHookTests(unittest.TestCase):
             lines += path.read_text().splitlines()
         return [json.loads(line) for line in lines]
 
-    def last(self, payload):
-        events = self.run_hook(payload)
+    def last(self, payload, host_name=None):
+        events = self.run_hook(payload, host_name)
         self.assertEqual(len(events), 1)
         return events[0]
 
     def test_tool_pre_from_main_session_has_null_agent(self):
         for name in ("claude-pre-tool-main", "codex-pre-tool-main"):
             with self.subTest(name):
-                event = self.last(fixture(name))
+                event = self.last(fixture(name), name.split("-")[0])
                 self.assertIsNone(event["agent"])
                 self.assertEqual((event["event"], event["phase"]), ("tool", "pre"))
                 self.assertEqual(event["session"], world.hash_id(fixture(name)["session_id"]))
@@ -70,13 +74,13 @@ class WorldHookTests(unittest.TestCase):
                 self.assertIsNone(event["status"])
                 for path in world.world_dir().glob("events-*.jsonl"):
                     path.unlink()
-        self.assertEqual(self.last(fixture("claude-pre-tool-main"))["host"], "claude")
+        self.assertEqual(self.last(fixture("claude-pre-tool-main"), "claude")["host"], "claude")
 
     def test_tool_inside_subagent_hashes_agent_id(self):
         for name, raw, kind in (("claude-pre-tool-subagent", "claude-agent-0001", "general-purpose"),
                                 ("codex-pre-tool-subagent", "codex-agent-0001", "default")):
             with self.subTest(name):
-                event = self.last(fixture(name))
+                event = self.last(fixture(name), name.split("-")[0])
                 self.assertEqual(event["agent"], world.hash_id(raw))
                 self.assertRegex(event["agent"], r"^[0-9a-f]{16}$")
                 self.assertEqual(event["agentType"], kind)
@@ -117,6 +121,16 @@ class WorldHookTests(unittest.TestCase):
             ("Bash", {"command": "make build"}, "run-command"),
             ("Bash", {"command": "echo untested"}, "run-command"),
             ("Bash", {}, "run-command"),
+            ("Bash", {"command": ["bash", "-lc", "npm test"]}, "run-tests"),
+            ("Bash", {"command": ["bash", "-lc", "ls -la"]}, "run-command"),
+            ("Bash", {"command": ["pytest", "-q"]}, "run-tests"),
+            ("Bash", {"command": ["ls", 3]}, "run-command"),
+            ("apply_patch", "*** Begin Patch\n*** Update File: docs/x.md\n@@\n-a\n+b\n*** End Patch", "edit-docs"),
+            ("Edit", "*** Update File: src/x.py\n+code", "edit-code"),
+            ("Write", "*** Add File: notes.txt\n+hi", "edit-docs"),
+            ("apply_patch", "plain text without headers", "edit-code"),
+            ("Bash", "make test", "run-tests"),
+            ("Read", "x", "read"),
             ("WebFetch", {"url": "https://example.com"}, "web"),
             ("WebSearch", {"query": "q"}, "web"),
             ("Agent", {"description": "d"}, "spawn"),
@@ -133,7 +147,7 @@ class WorldHookTests(unittest.TestCase):
 
     def test_spawn_label_claude_description_and_codex_first_prompt_line_truncated_to_80(self):
         claude = fixture("claude-pre-tool-spawn")
-        event = self.last(claude)
+        event = self.last(claude, "claude")
         self.assertEqual(event["action"], "spawn")
         self.assertEqual(event["label"], "Implement Task 3: manifest validator")
         self.assertEqual(event["agentType"], "general-purpose")
@@ -182,7 +196,7 @@ class WorldHookTests(unittest.TestCase):
         self.assertEqual(world_hook.extract_role(""), (None, ""))
         self.assertEqual(world_hook.extract_role("[role: wizard] x [role: tester]"), ("tester", "x"))
 
-        event = self.last(fixture("claude-pre-tool-spawn"))
+        event = self.last(fixture("claude-pre-tool-spawn"), "claude")
         self.assertEqual(event["role"], "implementer")
         self.assertNotIn("role:", event["label"])
         codex = self.run_hook(fixture("codex-pre-tool-spawn"))[-1]
@@ -239,25 +253,26 @@ class WorldHookTests(unittest.TestCase):
     def test_host_detection(self):
         claude = fixture("claude-stop")
         codex = fixture("codex-stop")
-        self.assertEqual(self.last(claude)["host"], "claude")
+        self.assertEqual(self.last(claude, "claude")["host"], "claude")
         self.assertEqual(self.run_hook(codex)[-1]["host"], "codex")
-        self.assertEqual(self.run_hook({"session_id": "s", "hook_event_name": "Stop", "turn_id": "t"})[-1]["host"],
-                         "codex")
-        unknown = self.run_hook({"session_id": "s", "hook_event_name": "Stop"})[-1]
-        self.assertEqual(unknown["host"], "claude")
-        self.assertEqual(world_hook.detect_host({"session_id": "s"}), "unknown")
-        # host.detect decides first; payload shape is only the fallback.
-        with patch.dict(os.environ, {"TAFWID_HOST": "codex"}):
+        # Codex lifecycle events carry no turn_id, and no identity variable reaches the hook.
+        for name in ("codex-session-start", "codex-session-end"):
+            self.assertNotIn("turn_id", fixture(name))
+            self.assertEqual(self.run_hook(fixture(name))[-1]["host"], "codex", name)
+        # A different Claude session id in the environment is not this event's session.
+        with patch.dict(os.environ, {"CLAUDE_CODE_SESSION_ID": "someone-else"}):
+            self.assertEqual(world_hook.detect_host(codex), "codex")
+            self.assertEqual(world_hook.detect_host(fixture("codex-session-start")), "codex")
             self.assertEqual(world_hook.detect_host(claude), "codex")
-        with patch.dict(os.environ, {"TAFWID_HOST": "claude"}):
-            self.assertEqual(world_hook.detect_host(codex), "claude")
-        # Ambiguous or invalid environments fall back to payload shape.
-        both = {"CODEX_THREAD_ID": "a", "CLAUDE_CODE_SESSION_ID": "b"}
-        with patch.dict(os.environ, both):
-            self.assertEqual(world_hook.detect_host(codex), "codex")
+        with patch.dict(os.environ, {"CLAUDE_CODE_SESSION_ID": claude["session_id"]}):
             self.assertEqual(world_hook.detect_host(claude), "claude")
-        with patch.dict(os.environ, {"TAFWID_HOST": "nonsense"}):
+            self.assertEqual(world_hook.detect_host(fixture("claude-session-start")), "claude")
             self.assertEqual(world_hook.detect_host(codex), "codex")
+        # TAFWID_HOST and shape no longer decide; only the session id does.
+        with patch.dict(os.environ, {"TAFWID_HOST": "claude"}):
+            self.assertEqual(world_hook.detect_host(codex), "codex")
+        self.assertEqual(world_hook.detect_host({"hook_event_name": "Stop"}), "unknown")
+        self.assertEqual(world_hook.detect_host({"session_id": ""}), "unknown")
 
     def test_forbidden_fields_never_written(self):
         secrets = {
@@ -286,6 +301,10 @@ class WorldHookTests(unittest.TestCase):
                  tool_response={"stdout": secrets["output"]}),
             dict(base, hook_event_name="PreToolUse", tool_name="apply_patch",
                  tool_input={"command": "*** Update File: %s\n+%s" % (secrets["path"], secrets["output"])}),
+            dict(base, hook_event_name="PreToolUse", tool_name="apply_patch",
+                 tool_input="*** Update File: %s\n+%s" % (secrets["path"], secrets["output"])),
+            dict(base, hook_event_name="PreToolUse", tool_name="Bash",
+                 tool_input={"command": ["bash", "-lc", secrets["command"]]}),
             dict(base, hook_event_name="UserPromptSubmit", prompt=secrets["prompt"]),
             dict(base, hook_event_name="PermissionRequest", tool_name="Bash",
                  tool_input={"command": secrets["command"]}),
@@ -303,7 +322,7 @@ class WorldHookTests(unittest.TestCase):
             with self.subTest(event=payload["hook_event_name"], tool=payload.get("tool_name")):
                 for path in world.world_dir().glob("events-*.jsonl"):
                     path.unlink()
-                self.run_hook(payload)
+                self.run_hook(payload, "claude" if payload.get("tool_name") == "Agent" else None)
                 lines = [p.read_text() for p in world.world_dir().glob("events-*.jsonl")]
                 self.assertEqual(len(lines), 1)
                 written = lines[0]
@@ -412,6 +431,12 @@ class WorldHookTests(unittest.TestCase):
         events = self.events()
         self.assertEqual(len(events), 1)
         self.assertEqual((events[0]["host"], events[0]["action"]), ("codex", "run-tests"))
+        claude = fixture("claude-session-start")
+        run = subprocess.run([sys.executable, str(SCRIPTS / "world_hook.py")], input=json.dumps(claude),
+                             env=dict(env, CLAUDE_CODE_SESSION_ID=claude["session_id"]),
+                             capture_output=True, text=True, timeout=30)
+        self.assertEqual((run.returncode, run.stdout, run.stderr), (0, "", ""))
+        self.assertEqual([e["host"] for e in self.events()], ["codex", "claude"])
         bad = subprocess.run([sys.executable, str(SCRIPTS / "world_hook.py")], input="garbage", env=env,
                              capture_output=True, text=True, timeout=30)
         self.assertEqual((bad.returncode, bad.stdout, bad.stderr), (0, "", ""))
