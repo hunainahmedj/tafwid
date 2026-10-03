@@ -63,6 +63,14 @@ class WorldTests(unittest.TestCase):
         salt.write_bytes(b"x" * 32)
         self.assertNotEqual(world.hash_id("session-1"), first)
 
+    def test_hash_matches_dashboard_bridge_vector(self):
+        # The dashboard bridge (prototypes/agent-world/tests/unit/bridge.test.ts)
+        # asserts the same vector with a 32-zero-byte salt.
+        directory = world.world_dir()
+        directory.mkdir(parents=True)
+        (directory / "salt").write_bytes(bytes(32))
+        self.assertEqual(world.hash_id("abc"), "fd7adb152c05ef80")
+
     def test_append_writes_one_json_line_with_version_and_time(self):
         world.enable()
         before = time.time()
