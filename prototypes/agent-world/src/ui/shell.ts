@@ -62,20 +62,24 @@ export function mountShell(root: HTMLElement, store: Store, source: SnapshotSour
   mountRoster(rosterPanel, store);
   mountDetails(details, store);
 
+  // Segmented buttons are created once and updated in place, so keyboard focus survives updates.
   function renderSegmented(group: HTMLElement, items: { id: string; label: string }[], current: string, onPick: (id: string) => void, disabled = new Set<string>()) {
-    group.replaceChildren(
-      ...items.map((item) => {
-        const b = h("button", {
-          type: "button",
-          "aria-pressed": String(item.id === current),
-          disabled: disabled.has(item.id),
-          title: disabled.has(item.id) ? UNAVAILABLE : undefined,
-          text: item.label,
-        });
-        b.addEventListener("click", () => onPick(item.id));
-        return b;
-      }),
-    );
+    if (group.children.length !== items.length) {
+      group.replaceChildren(
+        ...items.map((item) => {
+          const b = h("button", { type: "button", "data-id": item.id, text: item.label });
+          b.addEventListener("click", () => onPick(item.id));
+          return b;
+        }),
+      );
+    }
+    for (const b of group.querySelectorAll<HTMLButtonElement>("button")) {
+      const id = b.dataset.id!;
+      b.setAttribute("aria-pressed", String(id === current));
+      b.disabled = disabled.has(id);
+      if (disabled.has(id)) b.title = UNAVAILABLE;
+      else b.removeAttribute("title");
+    }
   }
 
   function render(s: AppState) {

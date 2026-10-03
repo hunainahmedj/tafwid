@@ -88,10 +88,35 @@ export function validateManifest(input: unknown): ValidationResult {
     });
 
   const cam = m.camera;
-  if (!isObject(cam) || !isObject(cam.home) || !isObject(cam.bounds) || !isVec(cam.zoom, 2))
-    errors.push("camera: expected home, bounds and zoom");
-  if (!isObject(m.ambience) || !isObject(m.ambience.sun) || !isObject(m.ambience.fog))
-    errors.push("ambience: expected sun, hemisphere, fog, bloom, dof and sky");
+  if (!isObject(cam)) errors.push("camera: expected home, bounds and zoom");
+  else {
+    const home = cam.home;
+    if (!isObject(home) || !isVec(home.target, 2) || !isNum(home.yaw) || !isNum(home.distance))
+      errors.push("camera.home: expected target [x, z], yaw and distance");
+    const b = cam.bounds;
+    if (!isObject(b) || !["minX", "maxX", "minZ", "maxZ"].every((k) => isNum(b[k])))
+      errors.push("camera.bounds: expected numbers minX, maxX, minZ and maxZ");
+    if (!isVec(cam.zoom, 2)) errors.push("camera.zoom: expected [min, max]");
+  }
+
+  // Every ambience field the renderer reads, so a bad package fails here with a name.
+  const a = m.ambience;
+  const isStr = (v: unknown) => typeof v === "string" && v.length > 0;
+  if (!isObject(a)) errors.push("ambience: expected sun, hemisphere, fog, exposure, bloom, dof and sky");
+  else {
+    if (!isObject(a.sun) || !isVec(a.sun.direction, 3) || !isStr(a.sun.color) || !isNum(a.sun.intensity))
+      errors.push("ambience.sun: expected direction [x, y, z], color and intensity");
+    if (!isObject(a.hemisphere) || !isStr(a.hemisphere.sky) || !isStr(a.hemisphere.ground) || !isNum(a.hemisphere.intensity))
+      errors.push("ambience.hemisphere: expected sky, ground and intensity");
+    if (!isObject(a.fog) || !isStr(a.fog.color) || !isNum(a.fog.near) || !isNum(a.fog.far))
+      errors.push("ambience.fog: expected color, near and far");
+    if (!isNum(a.exposure)) errors.push("ambience.exposure: expected a number");
+    if (!isObject(a.bloom) || !isNum(a.bloom.strength) || !isNum(a.bloom.radius) || !isNum(a.bloom.threshold))
+      errors.push("ambience.bloom: expected strength, radius and threshold");
+    if (!isObject(a.dof) || !isNum(a.dof.focusOffset) || !isNum(a.dof.range) || !isNum(a.dof.strength))
+      errors.push("ambience.dof: expected focusOffset, range and strength");
+    if (!isObject(a.sky) || !isStr(a.sky.top) || !isStr(a.sky.bottom)) errors.push("ambience.sky: expected top and bottom colours");
+  }
 
   // Spatial rules only make sense once the shape is sound.
   if (errors.length === 0 && gridOk) errors.push(...spatialErrors(m as EnvironmentManifest));

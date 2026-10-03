@@ -38,9 +38,16 @@ export async function createRenderer(
   camera: THREE.PerspectiveCamera,
   initialTier: Tier,
   forceWebGL = false,
+  onLost: (reason: string) => void = () => {},
 ): Promise<WorldRenderer> {
   const renderer = new THREE.WebGPURenderer({ canvas, antialias: true, forceWebGL });
   await renderer.init();
+  // A lost GPU device or WebGL context ends the 3D view; the caller falls back to dashboard mode.
+  renderer.onDeviceLost = (info: { message?: string }) => onLost(info?.message || "The graphics device was lost");
+  canvas.addEventListener("webglcontextlost", (e) => {
+    e.preventDefault();
+    onLost("The graphics context was lost");
+  });
   const backend = (renderer.backend as { isWebGPUBackend?: boolean }).isWebGPUBackend ? "webgpu" : "webgl";
   renderer.toneMapping = THREE.AgXToneMapping;
   renderer.shadowMap.enabled = true;

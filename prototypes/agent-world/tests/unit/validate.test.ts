@@ -68,6 +68,24 @@ describe("validateManifest", () => {
   });
 });
 
+it("names a missing ambience field instead of failing later", () => {
+  const m = clone();
+  delete m.ambience.sky;
+  expect(errorsOf(m)).toContain("ambience.sky: expected top and bottom colours");
+});
+
+it("names missing camera bounds", () => {
+  const m = clone();
+  delete m.camera.bounds.minX;
+  expect(errorsOf(m)).toContain("camera.bounds: expected numbers minX, maxX, minZ and maxZ");
+});
+
+it("names a malformed camera home", () => {
+  const m = clone();
+  m.camera.home.distance = "far";
+  expect(errorsOf(m)).toContain("camera.home: expected target [x, z], yaw and distance");
+});
+
 describe("grid conversion", () => {
   it("round-trips worldToCell and cellToWorld", () => {
     const grid = clone().grid;

@@ -1,11 +1,12 @@
 import * as THREE from "three/webgpu";
-import { cos, float, instanceIndex, positionLocal, sin, time, vec3 } from "three/tsl";
+import { cos, float, instanceIndex, positionLocal, sin, time, uniform, vec3 } from "three/tsl";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
 import type { EnvironmentManifest } from "../contract/manifest";
 import { validateManifest } from "../contract/validate";
 import { parseWalkable } from "../contract/grid";
 import type { WalkGrid } from "./pathfinding";
+import { disposeAll } from "./dispose";
 
 export interface LoadedEnvironment {
   manifest: EnvironmentManifest;
@@ -32,12 +33,15 @@ function swayingMaterial(source: THREE.MeshStandardMaterial): THREE.MeshStandard
   return m;
 }
 
+/** 1 for normal motion, 0 under reduced motion; scales all foliage sway. */
+export const motionScale = uniform(1);
+
 /** Height-weighted sway; the phase varies per instance and by position. */
 function swayNode() {
   const phase = float(instanceIndex).mul(1.73).add(positionLocal.x.mul(0.6)).add(positionLocal.z.mul(0.4));
   const height = positionLocal.y.max(0).min(4);
   return positionLocal.add(
-    vec3(sin(time.mul(1.4).add(phase)).mul(0.03), 0, cos(time.mul(1.1).add(phase)).mul(0.022)).mul(height),
+    vec3(sin(time.mul(1.4).add(phase)).mul(0.03), 0, cos(time.mul(1.1).add(phase)).mul(0.022)).mul(height).mul(motionScale),
   );
 }
 
@@ -137,17 +141,8 @@ export async function loadEnvironment(baseUrl: string): Promise<LoadedEnvironmen
     root,
     walk: parseWalkable(manifest.grid),
     dispose() {
-      root.traverse((obj) => {
-        const mesh = obj as THREE.Mesh;
-        if (!mesh.isMesh) return;
-        mesh.geometry.dispose();
-      });
-      for (const [src, mat] of replaced) {
-        (src as THREE.MeshStandardMaterial).map?.dispose();
-        src.dispose();
-        mat.dispose();
-      }
-      root.removeFromParent();
+      // Frees geometry, every texture slot (maps, lightmaps), materials and instance buffers.
+      disposeAll(root, [...replaced.keys(), ...replaced.values()]);
     },
   };
 }

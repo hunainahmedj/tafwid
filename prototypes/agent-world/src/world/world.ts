@@ -5,8 +5,9 @@ import { assignZones } from "../app/behaviour";
 import { AgentLayer } from "./agents";
 import { AmbientLayer } from "./ambient";
 import { cameraPose, createRig, follow, FOV_DEGREES, goHome, pan, rotate, step, zoom, type RigState } from "./camera-rig";
-import { EnvironmentLoadError, loadEnvironment, type LoadedEnvironment } from "./environment";
+import { EnvironmentLoadError, loadEnvironment, motionScale, type LoadedEnvironment } from "./environment";
 import { createFrameSampler } from "./frame-sampler";
+import { createLatestOnly } from "./latest";
 import { Overlay } from "./overlay";
 import { createRenderer } from "./renderer";
 import { LOWER_TIER, TIERS } from "./tiers";
@@ -32,6 +33,8 @@ declare global {
     __tafwidAmbientEnabled?: boolean;
     __tafwidWorldReady?: boolean;
     __tafwidStats?: () => { calls: number; triangles: number; meshes: number; instanced: number };
+    __tafwidMotionScale?: number;
+    __tafwidLoadedVariant?: string;
   }
 }
 
@@ -46,7 +49,15 @@ export async function createWorld(host: HTMLElement, store: Store, options: Worl
 
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(FOV_DEGREES, 16 / 9, 0.5, 400);
-  const view = await createRenderer(canvas, scene, camera, store.get().quality, options.forceWebGL);
+  let lost = false;
+  let timer = 0;
+  const view = await createRenderer(canvas, scene, camera, store.get().quality, options.forceWebGL, (reason) => {
+    if (lost) return;
+    lost = true;
+    view.renderer.setAnimationLoop(null);
+    clearInterval(timer);
+    store.dispatch({ type: "worldUnavailable", reason });
+  });
   const agents = new AgentLayer(scene);
   const ambient = new AmbientLayer(scene);
   const overlay = new Overlay(host, (id) => store.dispatch({ type: "select", id }));
@@ -71,22 +82,39 @@ export async function createWorld(host: HTMLElement, store: Store, options: Worl
     rig = { ...rig, followId: null, glideTo: [cx, cz + 1.5], distanceGoal: Math.min(hi, Math.max(lo, spread * 2.1 + 16)) };
   }
 
+  const loads = createLatestOnly();
+
+  /**
+   * Loads a package and swaps it in. A newer request makes this one discard
+   * its result; fallible setup runs before the old package is disposed, so a
+   * failure leaves the previous environment intact.
+   */
   async function setEnvironment(id: string, variant: Variant) {
+    const token = loads.begin();
     store.dispatch({ type: "worldError", message: null });
+    let next: LoadedEnvironment | null = null;
     try {
-      const next = await loadEnvironment(`${import.meta.env.BASE_URL}environments/${id}/${variant}`);
-      if (disposed) return next.dispose();
+      next = await loadEnvironment(`${import.meta.env.BASE_URL}environments/${id}/${variant}`);
+      if (disposed || !loads.isCurrent(token)) return next.dispose();
+      const keepFollow = rig?.followId ?? null;
+      const nextRig = follow(createRig(next.manifest.camera.home), keepFollow);
+      view.setEnvironment(next.manifest);
       env?.dispose();
       env = next;
       scene.add(next.root);
-      view.setEnvironment(next.manifest);
       agents.setEnvironment(next);
       ambient.setEnvironment(next);
-      const keepFollow = rig?.followId ?? null;
-      rig = follow(createRig(next.manifest.camera.home), keepFollow);
-      syncAgents(store.get());
+      rig = nextRig;
+      const s = store.get();
+      view.setFocusRangeScale(s.mode === "dashboard" ? 3 : 1);
+      syncAgents(s);
+      window.__tafwidLoadedVariant = next.manifest.variant;
       window.__tafwidWorldReady = true;
     } catch (e) {
+      if (next && next !== env) {
+        next.dispose();
+        if (env) view.setEnvironment(env.manifest); // restore the previous lighting
+      }
       const message = e instanceof EnvironmentLoadError ? e.message : `The environment could not be shown: ${(e as Error).message}`;
       store.dispatch({ type: "worldError", message });
     }
@@ -179,6 +207,8 @@ export async function createWorld(host: HTMLElement, store: Store, options: Worl
     const reduced = reducedMotionQuery.matches;
     ambient.setEnabled(!reduced);
     window.__tafwidAmbientEnabled = ambient.isEnabled;
+    motionScale.value = reduced ? 0 : 1;
+    window.__tafwidMotionScale = motionScale.value;
     agents.update(dt, time);
     ambient.update(dt, time);
     if (rig) {
@@ -203,8 +233,8 @@ export async function createWorld(host: HTMLElement, store: Store, options: Worl
     }
   }
 
-  let timer = 0;
   const setLoop = () => {
+    if (lost) return;
     last = performance.now();
     clearInterval(timer);
     if (document.hidden && options.renderHidden) {

@@ -144,3 +144,43 @@ test("switching lighting variant while following keeps the selection", async ({ 
   await expect(page.locator(".details")).toContainText("Following");
   await expect(page.locator(".world-status")).toHaveAttribute("data-state", "ready");
 });
+
+test("reduced motion also stills foliage sway", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await open(page);
+  await expect.poll(() => page.evaluate(() => window.__tafwidMotionScale)).toBe(0);
+});
+
+test("losing the graphics context falls back to dashboard mode", async ({ page }) => {
+  await open(page, "&forceWebGL");
+  await page.evaluate(() => {
+    const gl = (document.querySelector(".world-canvas") as HTMLCanvasElement).getContext("webgl2");
+    gl?.getExtension("WEBGL_lose_context")?.loseContext();
+  });
+  await expect(page.locator(".app")).toHaveAttribute("data-mode", "dashboard");
+  await expect(page.getByRole("button", { name: "Explore" })).toBeDisabled();
+  await expect(page.locator(".world-status")).toContainText("The 3D world is unavailable on this device");
+});
+
+test("keyboard selection keeps focus on the chosen roster row", async ({ page }) => {
+  await open(page);
+  await rosterRow(page, "ada").focus();
+  await page.keyboard.press("Enter");
+  await expect(rosterRow(page, "ada")).toHaveAttribute("aria-pressed", "true");
+  await expect.poll(() => page.evaluate(() => (document.activeElement as HTMLElement)?.dataset.agent)).toBe("ada");
+  await page.getByRole("button", { name: "Dashboard" }).focus();
+  await page.keyboard.press("Enter");
+  await expect.poll(() => page.evaluate(() => document.activeElement?.textContent)).toBe("Dashboard");
+});
+
+test("a fast double switch ends on the last chosen variant", async ({ page }) => {
+  // Software rendering keeps the main thread busy compiling shaders for minutes.
+  test.setTimeout(420_000);
+  await page.goto("/?env=cafe&variant=kit");
+  await worldReady(page, 120_000);
+  await page.getByRole("button", { name: "Scene · baked light" }).click();
+  await page.getByRole("button", { name: "Kit · real-time light" }).click();
+  await expect(page.getByRole("button", { name: "Kit · real-time light" })).toHaveAttribute("aria-pressed", "true");
+  await page.waitForTimeout(20_000);
+  await expect.poll(() => page.evaluate(() => window.__tafwidLoadedVariant), { timeout: 240_000 }).toBe("kit");
+});
