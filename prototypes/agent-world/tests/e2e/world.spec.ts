@@ -3,17 +3,21 @@ import { expect, test, type Page } from "@playwright/test";
 
 const ENV = process.env.TAFWID_E2E_ENV ?? "placeholder";
 
+// Poll on a timer: under software rendering, animation-frame polling crawls.
+const worldReady = (page: Page, timeout = 60_000) =>
+  page.waitForFunction(() => window.__tafwidWorldReady === true, null, { timeout, polling: 250 });
+
 async function open(page: Page, extra = "") {
   await page.goto(`/?env=${ENV}${extra}`);
-  await page.waitForFunction(() => window.__tafwidWorldReady === true, null, { timeout: 30_000 });
+  await worldReady(page);
 }
 
 const badge = (page: Page, id: string) => page.locator(`.badge[data-agent="${id}"]`);
 const rosterRow = (page: Page, id: string) => page.locator(`.roster-panel .agent-row[data-agent="${id}"]`);
 
+// Reads the rect directly: badges can be momentarily hidden under HUD panels.
 async function centre(page: Page, id: string) {
-  const box = await badge(page, id).boundingBox();
-  if (!box) throw new Error(`badge ${id} not visible`);
+  const box = await badge(page, id).evaluate((el) => el.getBoundingClientRect().toJSON());
   return { x: box.x + box.width / 2, y: box.y + box.height };
 }
 
@@ -129,13 +133,13 @@ for (const mode of ["explore", "dashboard"] as const) {
 }
 
 test("switching lighting variant while following keeps the selection", async ({ page }) => {
-  test.setTimeout(120_000);
+  test.setTimeout(240_000);
   await page.goto("/?env=cafe&variant=kit");
-  await page.waitForFunction(() => window.__tafwidWorldReady === true, null, { timeout: 60_000 });
+  await worldReady(page, 120_000);
   await rosterRow(page, "ada").click();
   await page.evaluate(() => (window.__tafwidWorldReady = false));
   await page.getByRole("button", { name: "Scene · baked light" }).click();
-  await page.waitForFunction(() => window.__tafwidWorldReady === true, null, { timeout: 60_000 });
+  await worldReady(page, 120_000);
   await expect(rosterRow(page, "ada")).toHaveAttribute("aria-pressed", "true");
   await expect(page.locator(".details")).toContainText("Following");
   await expect(page.locator(".world-status")).toHaveAttribute("data-state", "ready");

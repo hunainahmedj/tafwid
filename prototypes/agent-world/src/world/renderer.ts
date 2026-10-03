@@ -44,7 +44,7 @@ export async function createRenderer(
   const backend = (renderer.backend as { isWebGPUBackend?: boolean }).isWebGPUBackend ? "webgpu" : "webgl";
   renderer.toneMapping = THREE.AgXToneMapping;
   renderer.shadowMap.enabled = true;
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.shadowMap.type = THREE.PCFShadowMap;
 
   const hemi = new THREE.HemisphereLight("#ffffff", "#888888", 1);
   const sun = new THREE.DirectionalLight("#ffffff", 3);
