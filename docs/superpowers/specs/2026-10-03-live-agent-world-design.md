@@ -154,7 +154,7 @@ daemon; it is a possible later upgrade, not part of this work.
     | `waiting` hint | `attention` ("needs your approval") | Red beacon, stays |
     | Coordinator `idle` | `ready` ("waiting for your next message") | Relaxes at the team's table |
     | Sub-agent `done` | `done` | Walks to its coordinator, leaves after 20 s |
-    | Sub-agent `error` / `interrupted` | `attention` | Stays until the session's next event, at most 2 min |
+    | Sub-agent `error` / `interrupted` | `attention` | Stays for 2 min, then leaves (the parent's next event follows immediately, so it does not clear the warning) |
     | `working` with no events for 5 min | `uncertain` | Dimmed, "no recent activity" |
     | `SessionEnd` or 30 min silent | removed | The team walks out |
 
@@ -194,7 +194,8 @@ daemon; it is a possible later upgrade, not part of this work.
     - reviewers: `standing` near the review board.
   - An agent keeps its seat until it leaves.
 - **Roles** (classifier in `src/live/roles.ts`, over a lower-cased type plus
-  label):
+  label; a keyword must start at a word boundary and may be a prefix of the
+  word, checked in table order, top row first):
 
   | Role | Matches | Look | Idle personality |
   | --- | --- | --- | --- |
