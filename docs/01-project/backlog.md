@@ -1,6 +1,6 @@
 # Backlog (TAF)
 
-Next ID: TAF-9
+Next ID: TAF-10
 
 Position is status. This file is the tracker; other documents link here.
 
@@ -10,13 +10,14 @@ No active implementation items.
 
 ## Next
 
-- TAF-8 Choose the environment pipeline from the café bake-off, then build the office floor and street with it.
+- TAF-8 Improve the baked café from the critique list, then build the office floor and street as a baked scene.
 - TAF-3 Define a read-only live dashboard adapter and explicit freshness and acceptance semantics.
 
 ## Later
 
 - TAF-4 Develop persistent role-based agent identity, personality, and reusable office assets.
 - TAF-5 Design invitations, shared presence, and workspace visibility.
+- TAF-9 Explore an in-browser scene builder on the modular kit, lit in real time, so users can make scenes without Blender.
 
 ## Done
 

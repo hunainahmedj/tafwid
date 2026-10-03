@@ -23,8 +23,9 @@ npm run dev
 
 Open http://127.0.0.1:4174.
 
-- **Lighting variant:** switch the café between *Kit · real-time light*
-  and *Scene · baked light*.
+- **Lighting variant:** the café opens in *Scene · baked light*, the shipped
+  look. *Kit · real-time light* is the fast real-time preview of the same
+  layout.
 - **Camera:** drag to pan, scroll to zoom, press Q/E to rotate, or use the
   camera buttons. Click an agent or a roster row to follow it; Esc stops
   following.

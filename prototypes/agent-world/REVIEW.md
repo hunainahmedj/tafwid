@@ -118,6 +118,9 @@ allowed, so iteration stopped. The 0.1 gap between them is within the
 critics' variance. The practical trade-offs are in
 [ADR-0006](../../docs/05-decisions/0006-scripted-blender-environment-packages.md),
 and choosing between them is [TAF-8](../../docs/01-project/backlog.md).
+The user then chose to ship the baked scenes and keep the kit for authoring
+and a future scene builder
+([ADR-0007](../../docs/05-decisions/0007-ship-baked-scenes-keep-the-kit.md)).
 
 Final screenshots (our own renders, downscaled):
 

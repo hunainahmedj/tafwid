@@ -63,6 +63,7 @@ holds that evidence.
 - [ADR-0003 — Local procedural office](../05-decisions/0003-local-procedural-office.md) (superseded)
 - [ADR-0005 — Open agent world](../05-decisions/0005-open-agent-world.md)
 - [ADR-0006 — Scripted Blender environment packages](../05-decisions/0006-scripted-blender-environment-packages.md)
+- [ADR-0007 — Ship baked scenes, keep the kit](../05-decisions/0007-ship-baked-scenes-keep-the-kit.md)
 
 ## Tracker
 
@@ -75,8 +76,10 @@ See [ownership](../06-admin/ownership.md).
 
 ## Planned & open questions
 
-- Which pipeline the office environment uses: planned in
+- The baked office floor and street: planned in
   [TAF-8](../01-project/backlog.md).
+- A kit-based scene builder for users: planned in
+  [TAF-9](../01-project/backlog.md).
 - Persistent agent identity and per-agent desks ([TAF-4](../01-project/backlog.md)).
 - Live, read-only data ([TAF-3](../01-project/backlog.md)).
 - Shared presence ([TAF-5](../01-project/backlog.md)).

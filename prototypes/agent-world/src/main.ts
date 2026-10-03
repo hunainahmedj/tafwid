@@ -8,9 +8,10 @@ const ENVIRONMENTS: Record<string, EnvironmentChoice> = {
   cafe: {
     id: "cafe",
     name: "Café on the square",
+    // Baked is the shipped look (ADR-0007); the kit is the real-time preview.
     variants: [
-      { id: "kit", label: "Kit · real-time light" },
       { id: "baked", label: "Scene · baked light" },
+      { id: "kit", label: "Kit · real-time light" },
     ],
   },
   placeholder: { id: "placeholder", name: "Placeholder room", variants: [{ id: "kit", label: "Kit · real-time light" }] },

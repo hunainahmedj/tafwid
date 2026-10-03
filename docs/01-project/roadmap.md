@@ -18,7 +18,8 @@ New features should justify their runtime and context cost before entering the c
   integrating live data — [TAF-2](backlog.md).
 - Open the world: explore and dashboard modes, curated environments as
   validated packages, and a lighting bake-off on a café square — [TAF-7](backlog.md).
-- Choose the environment pipeline and add the office floor — [TAF-8](backlog.md).
+- Ship baked curated scenes: refine the café and add the office floor — [TAF-8](backlog.md).
+- Explore a kit-based scene builder for users — [TAF-9](backlog.md).
 - Define a task-scoped read-only live view, including freshness and the
   difference between worker completion and accepted results — [TAF-3](backlog.md).
 - Develop persistent role-based appearances and personality, reusable

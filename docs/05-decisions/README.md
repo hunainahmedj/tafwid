@@ -10,3 +10,4 @@ Accepted decisions are append-only; supersede them with a new numbered ADR.
 | [0004](0004-host-adapter-and-neutral-state.md) | Host adapter and host-neutral state | Accepted |
 | [0005](0005-open-agent-world.md) | An open agent world with explore and dashboard modes | Accepted |
 | [0006](0006-scripted-blender-environment-packages.md) | Scripted Blender environment packages and a lighting bake-off | Accepted |
+| [0007](0007-ship-baked-scenes-keep-the-kit.md) | Ship baked curated scenes; keep the kit for authoring and a future builder | Accepted |
