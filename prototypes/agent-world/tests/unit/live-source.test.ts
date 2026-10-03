@@ -77,6 +77,11 @@ describe("toSnapshot", () => {
     expect(byId.d.elapsedMinutes).toBe(10);
   });
 
+  it("copies startedAt, converted from seconds to milliseconds", () => {
+    const s = state([team("t1", "alpha")], [agent("w", "t1", "alpha", { startedAt: NOW - 125 })]);
+    expect(toSnapshot(s, NOW).agents[0].startedAt).toBe((NOW - 125) * 1000);
+  });
+
   it("applies the cap with priority attention, working, then newest, and counts overflow per project", () => {
     const agents = [
       agent("old-ready", "t1", "alpha", { status: "ready", startedAt: 1 }),

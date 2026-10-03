@@ -3,7 +3,7 @@ import fixture from "./fixtures/manifest.valid.json";
 import type { EnvironmentManifest, SeatGroup } from "../../src/contract/manifest";
 import { parseWalkable, worldToCell } from "../../src/contract/grid";
 import type { LiveAgent, Role } from "../../src/live/types";
-import { allocate, type SeatAssignment } from "../../src/live/seating";
+import { allocate, type SeatableAgent, type SeatAssignment } from "../../src/live/seating";
 
 // Fixture groups (12 seats): desk-1 (3), bar (4), bench-1 (2), table-1 (3).
 const STANDING: SeatGroup = {
@@ -39,7 +39,7 @@ const coord = (id: string, team: string, t?: number) => agent(id, team, "coordin
 const sub = (id: string, team: string, role: Role, t?: number) => agent(id, team, "subagent", role, t);
 
 function run(
-  agents: LiveAgent[],
+  agents: SeatableAgent[],
   m = manifest(),
   previous = new Map<string, SeatAssignment>(),
 ) {
@@ -85,6 +85,15 @@ describe("allocate: coordinators", () => {
     const list = [sub("s1", "t1", "implementer", 1), coord("c1", "t1", 5)];
     const out = run(list);
     expect(groupOf(out, "s1")).toBe(groupOf(out, "c1"));
+  });
+});
+
+describe("allocate: sample agents", () => {
+  it("sorts the sample kind like a sub-agent, after the coordinator", () => {
+    const sample: SeatableAgent = { id: "s1", teamId: "t1", kind: "sample", role: "implementer", startedAt: 1 };
+    const out = run([sample, coord("c1", "t1", 5)]);
+    expect(groupOf(out, "c1")).toBe("bar");
+    expect(groupOf(out, "s1")).toBe("bar");
   });
 });
 

@@ -153,3 +153,30 @@ Final screenshots (our own renders, downscaled):
    darken their contact shadows.
 6. **Measurement.** Measure frame time with vsync off, so tier headroom is
    real data rather than 16.7 ms everywhere.
+
+## Live agent world: frame time at 32 characters (TAF-3)
+
+Measured on 2026-10-04 with the generated crowd sample
+(`?scenario=crowd&count=32`: 32 characters in the room, every role and
+action), at the High tier in headless Chromium on the user's Apple M5 Max
+(WebGPU backend on the Metal adapter), 1600×1000 at device pixel ratio 2.
+Each figure is `window.__tafwidPerf()` over its rolling 120-frame window,
+read three times 3 s apart after a 6 s warm-up; the table gives the worst
+of the three. Frame times are vsync-bound, so 16.7 ms means 60 fps.
+
+| Variant | Characters | p50 (ms) | p95 (ms) | Draw calls |
+| --- | --- | --- | --- | --- |
+| Baked (shipped) | 32 | 16.7 | 17.4 | 730 |
+| Kit | 32 | 16.7 | 17.1 | 2,790 |
+
+Both meet the 18 ms p95 budget. Before the cheap wins below, the kit
+measured p95 18.7 to 20.9 ms (4,030 draw calls) and the baked scene
+17.3 to 17.5 ms (1,170 draw calls):
+
+- Each character's static parts are merged per limb into one
+  vertex-coloured mesh, with merged geometry cached and shared between
+  identical parts (props, outfits).
+- Only the torso and head cast shadows.
+- The beacon material, the blob shadow, and the ring's texture and geometry
+  are shared (each ring keeps its own material for its colour and pulse).
+- The Low and Medium tiers use a calmer idle animation.

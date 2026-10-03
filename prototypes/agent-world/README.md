@@ -30,7 +30,12 @@ Open http://127.0.0.1:4174.
   camera buttons. Click an agent or a roster row to follow it; Esc stops
   following.
 - **Sample day:** *Step the sample day* changes one agent's status, and that
-  agent walks to its new zone.
+  agent walks to its new place. The last step finishes Ada: she walks to
+  her coordinator, Milo, then out through the nearest entrance.
+- **Characters:** each role has its own look and idle habit, and working
+  agents act out their current action with a procedural prop (laptop, pen
+  and paper, page, book, tablet or clipboard). New agents walk in from an
+  entrance; quiet agents are dimmed.
 
 URL options:
 
@@ -40,6 +45,8 @@ URL options:
 | `variant=kit` or `variant=baked` | Which café variant loads |
 | `mode=dashboard` | Start in dashboard mode |
 | `scenario=quiet-morning` | Load the quiet sample scenario |
+| `scenario=crowd` | Load a generated crowd of four fictional teams (40 agents in the room, plus 4 who have finished) |
+| `count=N` | With `scenario=crowd`: N agents in the room (finished ones come on top); `count=32` is the frame-time check |
 | `forceWebGL` | Use the WebGL2 backend instead of WebGPU |
 | `forceNoWebGL` | Simulate a device without 3D |
 | `renderHidden` | Debug: keep rendering in a hidden tab (for evidence capture) |
@@ -77,7 +84,7 @@ critique screenshots and per-tier frame times, with the dev server running.
 
 | Path | Responsibility |
 | --- | --- |
-| `src/app/` | Store, sample fixtures, and status-to-seat behaviour |
+| `src/app/` | Store, sample fixtures, and placement (seats from the allocator, status to activity) |
 | `src/contract/` | Environment package types, grid helpers, validator |
 | `src/world/` | Renderer and post stack, quality tiers, package loader, camera rig, characters, agents, ambient life, badges |
 | `src/ui/` | Shell (both modes), roster, details, camera controls |

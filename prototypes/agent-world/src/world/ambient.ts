@@ -119,7 +119,7 @@ export class AmbientLayer {
       if (w.rig) {
         w.rig.group.position.set(p[0], 0, p[1]);
         w.rig.group.rotation.y = yaw;
-        w.rig.setPose("walk", time + w.progress);
+        w.rig.setWalk(time + w.progress);
       } else if (w.bird && w.wings) {
         w.bird.position.set(p[0], 5 + Math.sin(time * 0.8 + w.progress) * 0.8, p[1]);
         w.bird.rotation.y = yaw;

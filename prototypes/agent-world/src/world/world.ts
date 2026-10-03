@@ -1,7 +1,8 @@
 import * as THREE from "three/webgpu";
 import type { Store } from "../app/store";
 import type { AppState, Variant } from "../app/types";
-import { assignZones } from "../app/behaviour";
+import { placeAgents } from "../app/behaviour";
+import type { SeatAssignment } from "../live/seating";
 import { AgentLayer } from "./agents";
 import { AmbientLayer } from "./ambient";
 import { cameraPose, createRig, follow, FOV_DEGREES, goHome, pan, rotate, step, zoom, type RigState } from "./camera-rig";
@@ -32,7 +33,7 @@ declare global {
     __tafwidPerf?: () => { p50: number; p95: number; count: number; tier: string; backend: string };
     __tafwidAmbientEnabled?: boolean;
     __tafwidWorldReady?: boolean;
-    __tafwidStats?: () => { calls: number; triangles: number; meshes: number; instanced: number };
+    __tafwidStats?: () => { calls: number; triangles: number; meshes: number; instanced: number; characters: number };
     __tafwidMotionScale?: number;
     __tafwidLoadedVariant?: string;
   }
@@ -59,12 +60,15 @@ export async function createWorld(host: HTMLElement, store: Store, options: Worl
     store.dispatch({ type: "worldUnavailable", reason });
   });
   const agents = new AgentLayer(scene);
+  agents.calm = store.get().quality !== "high";
   const ambient = new AmbientLayer(scene);
   const overlay = new Overlay(host, (id) => store.dispatch({ type: "select", id }));
   const sampler = createFrameSampler(120);
   const raycaster = new THREE.Raycaster();
 
   let env: LoadedEnvironment | null = null;
+  /** The last seat allocation, passed back so seats stay sticky. */
+  let seats = new Map<string, SeatAssignment>();
   let rig: RigState | null = null;
   let loading: Promise<void> | null = null;
   let disposed = false;
@@ -101,6 +105,7 @@ export async function createWorld(host: HTMLElement, store: Store, options: Worl
       view.setEnvironment(next.manifest);
       env?.dispose();
       env = next;
+      seats = new Map();
       scene.add(next.root);
       agents.setEnvironment(next);
       ambient.setEnvironment(next);
@@ -124,7 +129,10 @@ export async function createWorld(host: HTMLElement, store: Store, options: Worl
     overlay.sync(s.snapshot.agents, s.selectedId);
     if (!env) return;
     try {
-      agents.sync(s.snapshot.agents, assignZones(s.snapshot.agents, env.manifest));
+      // Every team is shown, whatever the roster's project filter.
+      const placed = placeAgents(seats, s.snapshot.agents, env.manifest, env.walk);
+      seats = placed.seats;
+      agents.sync(s.snapshot.agents, placed.placements, s.snapshot.teams);
     } catch (e) {
       store.dispatch({ type: "worldError", message: (e as Error).message });
     }
@@ -145,6 +153,7 @@ export async function createWorld(host: HTMLElement, store: Store, options: Worl
     }
     if (s.quality !== prev.quality) {
       view.setTier(s.quality);
+      agents.calm = s.quality !== "high";
       sampler.reset();
     }
     if (s.variant !== prev.variant || s.environmentId !== prev.environmentId)
@@ -252,7 +261,7 @@ export async function createWorld(host: HTMLElement, store: Store, options: Worl
       else if ((o as THREE.Mesh).isMesh) meshes++;
     });
     const r = view.renderer.info.render;
-    return { calls: r.drawCalls ?? (r as { calls?: number }).calls ?? 0, triangles: r.triangles, meshes, instanced };
+    return { calls: r.drawCalls ?? (r as { calls?: number }).calls ?? 0, triangles: r.triangles, meshes, instanced, characters: agents.count };
   };
 
   const api: World = {

@@ -80,6 +80,7 @@ function toAgent(a: LiveAgent, accent: string, now: number): Agent {
     action: a.action,
     host: a.host,
     kind: a.kind,
+    startedAt: a.startedAt * 1000,
   };
 }
 

@@ -5,9 +5,13 @@
 import { worldToCell } from "../contract/grid";
 import type { EnvironmentManifest, Seat, SeatGroup, SeatGroupKind, Vec2 } from "../contract/manifest";
 import { findPath, type Cell, type WalkGrid } from "../world/pathfinding";
+import type { Agent } from "../app/types";
 import type { LiveAgent, Role } from "./types";
 
 export type SeatAssignment = { seat: Seat; group: SeatGroup } | { standAt: Vec2 };
+
+/** The agent fields the allocator reads; the `sample` kind sorts like a sub-agent. */
+export type SeatableAgent = Pick<LiveAgent, "id" | "role" | "teamId" | "startedAt"> & { kind: Agent["kind"] };
 
 /** Group kinds that suit a role, best first. */
 const KIND_PREFERENCE: Record<Role, readonly SeatGroupKind[]> = {
@@ -20,16 +24,16 @@ const KIND_PREFERENCE: Record<Role, readonly SeatGroupKind[]> = {
 };
 
 /** Spacing of the rings that overflow agents stand on, in metres. */
-const RING_SPACING = 0.8;
+const RING_SPACING = 1.0;
 /** Standing points closer than this count as the same spot. */
-const MIN_SEPARATION = 0.6;
+const MIN_SEPARATION = 0.85; // a character's head is 0.76 m wide
 /** Rings beyond this radius index may land on blocked cells. */
 const MAX_WALKABLE_RING = 40;
 
 const seatKey = (group: SeatGroup, seat: Seat) => `${group.id}\u0000${seat.id}`;
 
 /** Coordinators first, then by start time, then by id. */
-function stableOrder(a: LiveAgent, b: LiveAgent): number {
+function stableOrder(a: SeatableAgent, b: SeatableAgent): number {
   const ca = a.kind === "coordinator" ? 0 : 1;
   const cb = b.kind === "coordinator" ? 0 : 1;
   if (ca !== cb) return ca - cb;
@@ -51,9 +55,9 @@ function pathCost(path: Cell[]): number {
  * are asked for (so a longer list always extends a shorter one): first the
  * lounge (loop points, then lounge positions, every ring), then the
  * entrances, so standing agents fill the lounge before they crowd a doorway.
- * Ring 0 is the anchor itself; ring r adds 6r points at r * 0.8 m, which keeps
- * spacing near 0.8 m. Rings interleave across the anchors of one phase. A point
- * is skipped when it is within 0.6 m of a seat or an earlier point, or (rings
+ * Ring 0 is the anchor itself; ring r adds 6r points at r * 1.0 m, which keeps
+ * spacing near 1.0 m. Rings interleave across the anchors of one phase. A point
+ * is skipped when it is within 0.85 m of a seat or an earlier point, or (rings
  * 1 to 40) on a blocked cell.
  */
 function standSlots(manifest: EnvironmentManifest, walk: WalkGrid, count: number): Vec2[] {
@@ -100,7 +104,7 @@ const MAX_KEPT_SLOTS = 2048;
 
 export function allocate(
   previous: Map<string, SeatAssignment>,
-  agents: LiveAgent[],
+  agents: SeatableAgent[],
   manifest: EnvironmentManifest,
   walk: WalkGrid,
 ): Map<string, SeatAssignment> {
@@ -119,7 +123,7 @@ export function allocate(
   const freeSeats = (g: SeatGroup) => g.seats.filter((s) => !taken.has(seatKey(g, s)));
   const firstFree = (g: SeatGroup) => g.seats.find((s) => !taken.has(seatKey(g, s)));
 
-  const claim = (agent: LiveAgent, group: SeatGroup, seat: Seat) => {
+  const claim = (agent: SeatableAgent, group: SeatGroup, seat: Seat) => {
     taken.add(seatKey(group, seat));
     result.set(agent.id, { seat, group });
     if (agent.kind === "coordinator" && !homes.has(agent.teamId)) {
@@ -156,7 +160,7 @@ export function allocate(
     if (group && seat && !taken.has(seatKey(group, seat))) claim(a, group, seat);
   }
 
-  const pickCoordinator = (a: LiveAgent): SeatGroup | undefined => {
+  const pickCoordinator = (a: SeatableAgent): SeatGroup | undefined => {
     const open = groups.filter((g) => freeSeats(g).length > 0);
     const unheld = open.filter((g) => !heldBy.has(g.id) || heldBy.get(g.id) === a.teamId);
     const pool = unheld.length > 0 ? unheld : open;
@@ -165,7 +169,7 @@ export function allocate(
     return best;
   };
 
-  const rank = (a: LiveAgent, candidates: SeatGroup[], origin: Cell | null): SeatGroup | undefined => {
+  const rank = (a: SeatableAgent, candidates: SeatGroup[], origin: Cell | null): SeatGroup | undefined => {
     const prefs = KIND_PREFERENCE[a.role];
     const scored = candidates.map((g) => {
       const d = distanceFrom(origin, g);
@@ -184,7 +188,7 @@ export function allocate(
     return scored[0]?.g;
   };
 
-  const pickMember = (a: LiveAgent): SeatGroup | undefined => {
+  const pickMember = (a: SeatableAgent): SeatGroup | undefined => {
     const home = homes.get(a.teamId);
     let anchor = home;
     if (!anchor) {
@@ -212,7 +216,7 @@ export function allocate(
   };
 
   // Pass 2: everyone else, coordinators first.
-  const standing: LiveAgent[] = [];
+  const standing: SeatableAgent[] = [];
   for (const a of ordered) {
     if (result.has(a.id)) continue;
     const group = a.kind === "coordinator" ? pickCoordinator(a) : pickMember(a);

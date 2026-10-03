@@ -1,5 +1,5 @@
 import "./styles.css";
-import { createFixtureSource, type SnapshotSource } from "./app/fixtures";
+import { createFixtureSource, type ScenarioId, type SnapshotSource } from "./app/fixtures";
 import { createStore, initialState } from "./app/store";
 import type { SourceId, Variant } from "./app/types";
 import { createLiveSource, parseLiveMessage, type LiveMessage, type LiveSource } from "./live/live-source";
@@ -35,7 +35,11 @@ async function fetchLive(): Promise<LiveMessage | null> {
   }
 }
 
-const sample = createFixtureSource(params.get("scenario") === "quiet-morning" ? "quiet-morning" : "productive-day");
+const SCENARIO_IDS: ScenarioId[] = ["productive-day", "quiet-morning", "crowd"];
+const scenario = SCENARIO_IDS.find((id) => id === params.get("scenario")) ?? "productive-day";
+// ?scenario=crowd&count=N: N agents in the room (finished ones come on top), for overflow and frame-time checks.
+const crowdCount = Number(params.get("count"));
+const sample = createFixtureSource(scenario, Number.isFinite(crowdCount) && crowdCount > 0 ? { count: Math.min(crowdCount, 200) } : {});
 
 let live: LiveSource | null = null;
 let unsubscribe = () => {};

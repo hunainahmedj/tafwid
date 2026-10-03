@@ -20,6 +20,8 @@ export interface Agent {
   action: LiveAction;
   host: AgentHost;
   kind: "coordinator" | "subagent" | "delegated" | "sample";
+  /** When the agent started, in milliseconds since the epoch; orders seating. */
+  startedAt: number;
   status: AgentStatus;
   task: string;
   elapsedMinutes: number | null;
