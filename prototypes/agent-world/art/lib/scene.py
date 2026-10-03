@@ -23,7 +23,7 @@ def clear_scene():
     bpy.ops.wm.read_factory_settings(use_empty=True)
 
 
-def export_glb(path, gpu_instances=True, draco=False):
+def export_glb(path, gpu_instances=True, draco=False, image_format="AUTO", image_quality=90):
     bpy.ops.export_scene.gltf(
         filepath=path,
         export_format="GLB",
@@ -37,7 +37,8 @@ def export_glb(path, gpu_instances=True, draco=False):
         export_lights=False,
         export_animations=False,
         export_materials="EXPORT",
-        export_image_format="AUTO",
+        export_image_format=image_format,
+        export_image_quality=image_quality,
     )
 
 

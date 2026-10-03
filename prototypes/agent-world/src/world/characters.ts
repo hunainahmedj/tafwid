@@ -112,7 +112,7 @@ export function createCharacter(look: Agent["look"], kind: "agent" | "extra" = "
           break;
         }
         case "seated-typing":
-          body.position.y = 0.3;
+          body.position.y = 0.07;
           legL.rotation.x = legR.rotation.x = -1.45;
           armL.rotation.x = -1.15 + Math.sin(t * 14) * 0.08;
           armR.rotation.x = -1.15 + Math.cos(t * 13) * 0.08;
