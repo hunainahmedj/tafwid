@@ -1,0 +1,210 @@
+{
+  "ambience": {
+    "bloom": {
+      "radius": 0.4,
+      "strength": 0.5,
+      "threshold": 0.9
+    },
+    "dof": {
+      "focusOffset": 0,
+      "range": 14,
+      "strength": 0.6
+    },
+    "exposure": 1.0,
+    "fog": {
+      "color": "#e9e2d8",
+      "far": 110,
+      "near": 45
+    },
+    "hemisphere": {
+      "ground": "#8c7b6b",
+      "intensity": 1.1,
+      "sky": "#d6e6ff"
+    },
+    "sky": {
+      "bottom": "#f3e3cf",
+      "top": "#9cc2ec"
+    },
+    "sun": {
+      "color": "#ffe2bd",
+      "direction": [
+        -0.5,
+        0.75,
+        0.45
+      ],
+      "intensity": 3.0
+    }
+  },
+  "ambientPaths": [
+    {
+      "id": "walk-1",
+      "kind": "pedestrian",
+      "loop": true,
+      "points": [
+        [
+          -6.5,
+          5.5
+        ],
+        [
+          7.5,
+          5.5
+        ]
+      ]
+    }
+  ],
+  "camera": {
+    "bounds": {
+      "maxX": 8,
+      "maxZ": 6,
+      "minX": -8,
+      "minZ": -6
+    },
+    "home": {
+      "distance": 32,
+      "target": [
+        0,
+        0
+      ],
+      "yaw": 0.65
+    },
+    "zoom": [
+      14,
+      44
+    ]
+  },
+  "grid": {
+    "cellSize": 1.0,
+    "depth": 12,
+    "origin": [
+      -8,
+      -6
+    ],
+    "walkable": [
+      "################",
+      "#...............",
+      "#...............",
+      "#..#..#..#......",
+      "#...............",
+      "#...............",
+      "#...............",
+      "#...............",
+      "#...............",
+      "#...............",
+      "#...............",
+      "#..............."
+    ],
+    "width": 16
+  },
+  "id": "placeholder",
+  "lighting": "realtime",
+  "name": "Placeholder room",
+  "scene": "scene.glb",
+  "schema": "tafwid.environment/1",
+  "variant": "kit",
+  "zones": {
+    "lounge": [
+      {
+        "facing": 0,
+        "id": "lounge-1",
+        "loop": [
+          [
+            2.5,
+            2.5
+          ],
+          [
+            6.5,
+            2.5
+          ],
+          [
+            6.5,
+            4.5
+          ],
+          [
+            2.5,
+            4.5
+          ]
+        ],
+        "pose": "standing",
+        "position": [
+          2.5,
+          0,
+          2.5
+        ]
+      }
+    ],
+    "review": [
+      {
+        "facing": 3.141592653589793,
+        "id": "review-1",
+        "pose": "standing",
+        "position": [
+          4.5,
+          0,
+          -3.5
+        ]
+      }
+    ],
+    "workstation": [
+      {
+        "facing": 3.141592653589793,
+        "id": "ws-1",
+        "pose": "seated",
+        "position": [
+          -4.5,
+          0,
+          -1.5
+        ]
+      },
+      {
+        "facing": 3.141592653589793,
+        "id": "ws-2",
+        "pose": "seated",
+        "position": [
+          -1.5,
+          0,
+          -1.5
+        ]
+      },
+      {
+        "facing": 3.141592653589793,
+        "id": "ws-3",
+        "pose": "seated",
+        "position": [
+          1.5,
+          0,
+          -1.5
+        ]
+      },
+      {
+        "facing": 3.141592653589793,
+        "id": "ws-4",
+        "pose": "seated",
+        "position": [
+          -4.5,
+          0,
+          2.0
+        ]
+      },
+      {
+        "facing": 3.141592653589793,
+        "id": "ws-5",
+        "pose": "seated",
+        "position": [
+          -1.5,
+          0,
+          2.0
+        ]
+      },
+      {
+        "facing": 3.141592653589793,
+        "id": "ws-6",
+        "pose": "seated",
+        "position": [
+          1.5,
+          0,
+          2.0
+        ]
+      }
+    ]
+  }
+}

@@ -1,7 +1,7 @@
 # ADR-0003: Local procedural office with independent rendering
 
 - Date: 2026-09-30
-- Status: Accepted
+- Status: Superseded by [ADR-0006](0006-scripted-blender-environment-packages.md)
 
 ## Context
 
