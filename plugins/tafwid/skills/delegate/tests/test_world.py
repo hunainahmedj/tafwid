@@ -4,6 +4,7 @@ from pathlib import Path
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 import unittest
 from unittest.mock import patch
@@ -99,6 +100,63 @@ class WorldTests(unittest.TestCase):
         self.assertEqual(len(lines), 100)
         self.assertTrue(lines[-1].endswith("failure 129"))
         self.assertTrue(lines[0].endswith("failure 30"))
+
+    def test_short_or_empty_salt_is_never_used(self):
+        world.enable()
+        salt = world.world_dir() / "salt"
+        for bad in (b"", b"short"):
+            salt.write_bytes(bad)
+            value = world.hash_id("x")
+            self.assertRegex(value, r"^[0-9a-f]{16}$")
+            self.assertEqual(len(salt.read_bytes()), 32)
+            self.assertEqual(salt.stat().st_mode & 0o777, 0o600)
+            self.assertEqual(world.hash_id("x"), value)
+
+    def test_concurrent_first_use_hash_agrees(self):
+        code = ("import sys; sys.path.insert(0, %r); import world; print(world.hash_id('same'))"
+                % str(SCRIPTS))
+        procs = [subprocess.Popen([sys.executable, "-c", code], stdout=subprocess.PIPE, text=True)
+                 for _ in range(8)]
+        outputs = [proc.communicate()[0].strip() for proc in procs]
+        self.assertTrue(all(proc.returncode == 0 for proc in procs))
+        self.assertEqual(len(set(outputs)), 1, outputs)
+        self.assertRegex(outputs[0], r"^[0-9a-f]{16}$")
+        salt = world.world_dir() / "salt"
+        self.assertEqual(len(salt.read_bytes()), 32)
+        self.assertEqual(salt.stat().st_mode & 0o777, 0o600)
+        self.assertEqual(world.hash_id("same"), outputs[0])
+        self.assertEqual([p.name for p in world.world_dir().iterdir() if p.name.startswith(".salt-")], [])
+
+    def test_concurrent_log_error_never_raises_and_stays_capped(self):
+        failures = []
+
+        def work(worker):
+            try:
+                for index in range(30):
+                    world.log_error("worker %d failure %d" % (worker, index))
+            except BaseException as error:
+                failures.append(error)
+
+        threads = [threading.Thread(target=work, args=(n,)) for n in range(8)]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join()
+        self.assertEqual(failures, [])
+        lines = (world.world_dir() / "hook-errors.log").read_text().splitlines()
+        self.assertLessEqual(len(lines), 100)
+        self.assertGreater(len(lines), 0)
+        self.assertEqual([p.name for p in world.world_dir().iterdir() if p.name.startswith(".errors-")], [])
+
+    def test_log_error_survives_damaged_log_and_caps_message(self):
+        world.enable()
+        log = world.world_dir() / "hook-errors.log"
+        log.write_bytes(b"ok line\n\xff\xfe broken\n")
+        world.log_error("x" * 5000)
+        lines = log.read_text(errors="replace").splitlines()
+        self.assertLessEqual(len(lines[-1]), 20 + 1 + 500)
+        with patch.object(world.tempfile, "mkstemp", side_effect=OSError("disk full")):
+            world.log_error("never raises")
 
     def test_cli_status_json(self):
         script = str(SCRIPTS / "world.py")

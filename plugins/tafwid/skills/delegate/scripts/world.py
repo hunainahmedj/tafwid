@@ -16,11 +16,14 @@ import json
 import os
 from pathlib import Path
 import sys
+import tempfile
 import time
 
 RETENTION_SECONDS = 7 * 86400
 ERROR_LOG_LINES = 100
 EVENT_VERSION = 1
+SALT_BYTES = 32
+ERROR_MESSAGE_CHARS = 500
 
 
 def world_dir():
@@ -78,17 +81,37 @@ def status():
 
 
 def _salt():
-    path = _ensure_dir() / "salt"
+    """Return the 32-byte salt, creating it atomically on first use.
+
+    The salt is written to a private temp file and linked into place, so a
+    concurrent reader never sees a partial file; the link winner's bytes are
+    read back by everyone. A short file (damaged or foreign) is waited on
+    briefly and then replaced; a key shorter than 32 bytes is never used.
+    """
+    directory = _ensure_dir()
+    path = directory / "salt"
+    descriptor, temp = tempfile.mkstemp(prefix=".salt-", dir=directory)
     try:
-        descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
-    except FileExistsError:
+        try:
+            os.write(descriptor, os.urandom(SALT_BYTES))
+        finally:
+            os.close(descriptor)
+        try:
+            os.link(temp, path)
+        except FileExistsError:
+            pass
+        for attempt in range(20):
+            salt = path.read_bytes()
+            if len(salt) == SALT_BYTES:
+                return salt
+            time.sleep(0.01)
+        os.replace(temp, path)
         return path.read_bytes()
-    salt = os.urandom(32)
-    try:
-        os.write(descriptor, salt)
     finally:
-        os.close(descriptor)
-    return salt
+        try:
+            os.unlink(temp)
+        except FileNotFoundError:
+            pass
 
 
 def hash_id(raw):
@@ -119,19 +142,33 @@ def prune(now):
 
 
 def log_error(msg):
-    """Append a timestamped line to hook-errors.log, keeping the newest 100."""
-    path = _ensure_dir() / "hook-errors.log"
-    entry = "%s %s" % (time.strftime("%Y-%m-%dT%H:%M:%S"), " ".join(str(msg).split()))
+    """Append a timestamped line to hook-errors.log, keeping the newest 100.
+
+    This is the last-resort handler for hook failures, so it never raises.
+    Messages are capped at 500 characters. Each writer uses its own temp file.
+    """
     try:
-        lines = path.read_text().splitlines()
-    except OSError:
-        lines = []
-    lines = (lines + [entry])[-ERROR_LOG_LINES:]
-    temp = path.with_suffix(".tmp")
-    descriptor = os.open(temp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-    with os.fdopen(descriptor, "w") as handle:
-        handle.write("\n".join(lines) + "\n")
-    os.replace(temp, path)
+        path = _ensure_dir() / "hook-errors.log"
+        entry = "%s %s" % (time.strftime("%Y-%m-%dT%H:%M:%S"),
+                           " ".join(str(msg).split())[:ERROR_MESSAGE_CHARS])
+        try:
+            lines = path.read_bytes().decode("utf-8", "replace").splitlines()
+        except OSError:
+            lines = []
+        lines = (lines + [entry])[-ERROR_LOG_LINES:]
+        descriptor, temp = tempfile.mkstemp(prefix=".errors-", dir=path.parent)
+        try:
+            with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
+                handle.write("\n".join(lines) + "\n")
+            os.replace(temp, path)
+        except BaseException:
+            try:
+                os.unlink(temp)
+            except OSError:
+                pass
+            raise
+    except Exception:
+        pass
 
 
 def main():
