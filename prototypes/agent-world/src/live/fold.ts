@@ -53,7 +53,7 @@ export function accentFor(teamId: string): string {
 }
 
 export function emptyLiveState(): LiveState {
-  return { teams: {}, agents: {}, pendingSpawns: [] };
+  return { teams: {}, agents: {}, pendingSpawns: [], ended: {} };
 }
 
 function hostOf(host: HookEvent["host"]): AgentHost {
@@ -65,6 +65,7 @@ function copy(state: LiveState): LiveState {
     teams: { ...state.teams },
     agents: { ...state.agents },
     pendingSpawns: [...state.pendingSpawns],
+    ended: { ...state.ended },
   };
 }
 
@@ -134,7 +135,14 @@ function newCoordinator(event: HookEvent, project: string): LiveAgent {
 }
 
 /** Oldest unmatched spawn in the session: exact type first, then untyped. */
-function takeSpawn(state: LiveState, session: string, agentType: string | null): PendingSpawn | null {
+function takeSpawn(
+  state: LiveState,
+  session: string,
+  agentType: string | null,
+  now: number,
+): PendingSpawn | null {
+  // Expiry follows event time, so a replayed backlog cannot match a stale spawn.
+  state.pendingSpawns = state.pendingSpawns.filter((s) => now - s.t < SPAWN_EXPIRES_AFTER);
   const inSession = (spawn: PendingSpawn) => spawn.session === session;
   let index = -1;
   if (agentType !== null) {
@@ -150,13 +158,14 @@ function takeSpawn(state: LiveState, session: string, agentType: string | null):
 
 function foldRun(state: LiveState, event: RunEvent): LiveState {
   const existing = state.agents[event.run];
-  if (existing && existing.finishedAt !== undefined) return state;
+  // A done run is final. A run that ended in attention may be revived by a
+  // later "working" event.
+  if (existing && existing.finishedAt !== undefined && existing.status === "done") return state;
   const next = copy(state);
   const team = ensureTeam(next, event);
-  const status: LiveStatus = event.status === "working" ? "working" : event.status;
   let agent: LiveAgent;
   if (existing) {
-    agent = update(existing, event.t, { status });
+    agent = update(existing, event.t, { status: event.status });
   } else {
     agent = {
       id: event.run,
@@ -166,7 +175,7 @@ function foldRun(state: LiveState, event: RunEvent): LiveState {
       name: nameFor(event.run),
       label: event.label ?? "delegated run",
       action: "thinking",
-      status,
+      status: event.status,
       host: hostOf(event.host),
       project: team.project,
       startedAt: event.t,
@@ -174,19 +183,33 @@ function foldRun(state: LiveState, event: RunEvent): LiveState {
       statusSince: event.t,
     };
   }
-  if (event.status === "done") agent = { ...agent, finishedAt: event.t };
+  // "done" and "attention" are terminal: the run leaves after a short linger.
+  if (event.status === "working") {
+    delete agent.finishedAt;
+  } else if (event.status === "done" || agent.finishedAt === undefined) {
+    agent.finishedAt = event.t;
+  }
   next.agents[event.run] = agent;
   return next;
 }
 
 export function fold(state: LiveState, event: WorldEvent): LiveState {
+  const session = event.session;
+  const endedAt = state.ended[session];
+  // Async hooks can deliver trailing events after session-end. Only a new
+  // "session" event (a resume or restart) brings the session back.
+  if (endedAt !== undefined && event.event !== "session") return state;
+  if (endedAt !== undefined) {
+    const { [session]: _cleared, ...ended } = state.ended;
+    state = { ...state, ended };
+  }
+
   if (event.event === "run") return foldRun(state, event);
 
-  const session = event.session;
   if (event.event === "session-end") {
-    if (!state.teams[session]) return state;
     const next = copy(state);
     removeSession(next, session);
+    next.ended[session] = event.t;
     return next;
   }
 
@@ -274,7 +297,7 @@ function foldSubagentStart(state: LiveState, event: HookEvent, team: LiveTeam): 
     }
     return;
   }
-  const spawn = takeSpawn(state, event.session, event.agentType);
+  const spawn = takeSpawn(state, event.session, event.agentType, event.t);
   const label = spawn?.label ?? event.agentType ?? "sub-agent";
   state.agents[event.agent] = {
     id: event.agent,
@@ -327,6 +350,12 @@ export function tick(state: LiveState, now: number): LiveState {
     agents[agent.id] = current;
   }
 
+  const ended: Record<string, number> = {};
+  for (const [session, endedAt] of Object.entries(state.ended)) {
+    if (now - endedAt < TEAM_SILENT_AFTER) ended[session] = endedAt;
+    else changed = true;
+  }
+
   const pendingSpawns = state.pendingSpawns.filter(
     (spawn) => !silent.has(spawn.session) && now - spawn.t < SPAWN_EXPIRES_AFTER,
   );
@@ -337,5 +366,5 @@ export function tick(state: LiveState, now: number): LiveState {
   for (const team of Object.values(state.teams)) {
     if (!silent.has(team.id)) teams[team.id] = team;
   }
-  return { teams, agents, pendingSpawns };
+  return { teams, agents, pendingSpawns, ended };
 }

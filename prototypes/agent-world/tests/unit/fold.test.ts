@@ -428,8 +428,42 @@ describe("tick: spawns, uncertainty and session end", () => {
     expect(state.pendingSpawns.map((p) => p.label)).toEqual(["keep"]);
   });
 
-  it("ignores a session end for an unknown session", () => {
-    expect(fold(emptyLiveState(), hook({ event: "session-end" }))).toEqual(emptyLiveState());
+  it("records a tombstone for a session end even when the session is unknown", () => {
+    const state = fold(emptyLiveState(), hook({ event: "session-end", t: T0 + 7 }));
+    expect(state.teams).toEqual({});
+    expect(state.agents).toEqual({});
+    expect(state.ended).toEqual({ [S]: T0 + 7 });
+  });
+
+  it("ignores trailing events after session end and revives on a session event", () => {
+    const ended = foldAll([
+      hook({ event: "prompt" }),
+      hook({ event: "session-end", t: T0 + 5 }),
+    ]);
+    expect(ended.ended).toEqual({ [S]: T0 + 5 });
+    for (const trailing of [
+      hook({ event: "stop", t: T0 + 6, status: "idle" }),
+      hook({ event: "tool", phase: "post", t: T0 + 6, action: "read" }),
+      hook({ event: "subagent-start", t: T0 + 6, agent: SUB1, agentType: "general-purpose" }),
+      run({ t: T0 + 6 }),
+    ]) {
+      const after = fold(ended, trailing);
+      expect(after.teams).toEqual({});
+      expect(after.agents).toEqual({});
+      expect(after).toBe(ended);
+    }
+    const revived = fold(ended, hook({ event: "session", t: T0 + 100 }));
+    expect(revived.teams[S]).toBeDefined();
+    expect(revived.agents[S].status).toBe("ready");
+    expect(revived.ended).toEqual({});
+    const working = fold(revived, hook({ event: "prompt", t: T0 + 101 }));
+    expect(working.agents[S].status).toBe("working");
+  });
+
+  it("prunes ended-session tombstones after 30 min", () => {
+    const state = fold(emptyLiveState(), hook({ event: "session-end", t: T0 }));
+    expect(tick(state, T0 + 1799).ended).toEqual({ [S]: T0 });
+    expect(tick(state, T0 + 1800).ended).toEqual({});
   });
 
   it("removes a team after 30 min of silence", () => {
@@ -491,11 +525,71 @@ describe("fold: delegated runs", () => {
     const attention = fold(working, run({ t: T0 + 5, status: "attention" }));
     expect(attention.agents[RUN].status).toBe("attention");
     expect(attention.agents[RUN].startedAt).toBe(T0);
-    expect(tick(attention, T0 + 1000).agents[RUN]).toBeDefined();
+    expect(attention.agents[RUN].finishedAt).toBe(T0 + 5);
     const done = fold(attention, run({ t: T0 + 10, status: "done" }));
     expect(done.agents[RUN].status).toBe("done");
     expect(tick(done, T0 + 29).agents[RUN]).toBeDefined();
     expect(tick(done, T0 + 30).agents[RUN]).toBeUndefined();
+  });
+});
+
+describe("fold: delegated run attention", () => {
+  it("is terminal and removed 2 min later, like a sub-agent error", () => {
+    const state = fold(fold(emptyLiveState(), run({ t: T0 })), run({ t: T0 + 10, status: "attention" }));
+    expect(state.agents[RUN].status).toBe("attention");
+    expect(tick(state, T0 + 10 + 119).agents[RUN].status).toBe("attention");
+    expect(tick(state, T0 + 10 + 120).agents[RUN]).toBeUndefined();
+  });
+
+  it("does not extend the window on repeated attention events", () => {
+    const first = fold(emptyLiveState(), run({ t: T0, status: "attention" }));
+    const again = fold(first, run({ t: T0 + 60, status: "attention" }));
+    expect(tick(again, T0 + 120).agents[RUN]).toBeUndefined();
+  });
+
+  it("is cleared by a later working event", () => {
+    const attention = fold(emptyLiveState(), run({ t: T0, status: "attention" }));
+    const revived = fold(attention, run({ t: T0 + 30, status: "working" }));
+    expect(revived.agents[RUN].status).toBe("working");
+    expect(revived.agents[RUN].finishedAt).toBeUndefined();
+    expect(revived.agents[RUN].startedAt).toBe(T0);
+    expect(tick(revived, T0 + 30 + 200).agents[RUN]).toBeDefined();
+  });
+
+  it("still lets a done run leave after 20 s and ignores later events", () => {
+    const done = fold(emptyLiveState(), run({ t: T0, status: "done" }));
+    expect(fold(done, run({ t: T0 + 5, status: "working" }))).toBe(done);
+    expect(tick(done, T0 + 19).agents[RUN]).toBeDefined();
+    expect(tick(done, T0 + 20).agents[RUN]).toBeUndefined();
+  });
+});
+
+describe("fold: spawn expiry follows event time", () => {
+  it("does not attach a stale spawn label when no tick ran in between", () => {
+    const state = foldAll([
+      hook({ event: "prompt" }),
+      spawnPre({ t: T0 + 1, label: "stale job", agentType: "general-purpose" }),
+      hook({ event: "subagent-start", t: T0 + 91, agent: SUB1, agentType: "general-purpose" }),
+    ]);
+    expect(state.agents[SUB1].label).toBe("general-purpose");
+    expect(state.pendingSpawns).toEqual([]);
+  });
+
+  it("still matches a spawn just inside the window and prunes expired ones", () => {
+    const state = foldAll([
+      hook({ event: "prompt" }),
+      spawnPre({ t: T0 + 1, label: "old", agentType: "Explore" }),
+      spawnPre({ t: T0 + 50, label: "fresh", agentType: "general-purpose" }),
+      hook({ event: "subagent-start", t: T0 + 60, agent: SUB1, agentType: "general-purpose" }),
+    ]);
+    expect(state.agents[SUB1].label).toBe("fresh");
+    expect(state.pendingSpawns.map((p) => p.label)).toEqual(["old"]);
+    const later = fold(
+      state,
+      hook({ event: "subagent-start", t: T0 + 61, agent: SUB2, agentType: "Explore" }),
+    );
+    expect(later.agents[SUB2].label).toBe("Explore");
+    expect(later.pendingSpawns).toEqual([]);
   });
 });
 

@@ -111,4 +111,6 @@ export interface LiveState {
   teams: Record<string, LiveTeam>;
   agents: Record<string, LiveAgent>;
   pendingSpawns: PendingSpawn[];
+  /** Session id to end time, so trailing hook events cannot resurrect it. */
+  ended: Record<string, number>;
 }
