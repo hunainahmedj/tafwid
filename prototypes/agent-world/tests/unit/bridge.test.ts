@@ -132,6 +132,18 @@ describe("createTailer", () => {
     expect(tailer.poll().map((e) => e.t)).toEqual([3]);
   });
 
+  it("forgets its offsets when the directory disappears, so a recreated log is read from the start", () => {
+    const tailer = createTailer(dir, at("2026-10-03T12:00:00"));
+    writeFileSync(day("2026-10-03"), line(hook({ t: 1 })));
+    expect(tailer.poll().map((e) => e.t)).toEqual([1]);
+    rmSync(dir, { recursive: true });
+    expect(tailer.poll()).toEqual([]);
+    mkdirSync(dir, { recursive: true });
+    // Longer than the old file, so only a forgotten offset reads it whole.
+    writeFileSync(day("2026-10-03"), line(hook({ t: 2 })) + line(hook({ t: 3 })));
+    expect(tailer.poll().map((e) => e.t)).toEqual([2, 3]);
+  });
+
   it("returns nothing when the directory does not exist", () => {
     const tailer = createTailer(join(home, "missing"), at("2026-10-03T12:00:00"));
     expect(tailer.poll()).toEqual([]);

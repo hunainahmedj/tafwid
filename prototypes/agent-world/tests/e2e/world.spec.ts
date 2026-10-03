@@ -1,19 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
-
-const ENV = process.env.TAFWID_E2E_ENV ?? "placeholder";
-
-// Poll on a timer: under software rendering, animation-frame polling crawls.
-const worldReady = (page: Page, timeout = 60_000) =>
-  page.waitForFunction(() => window.__tafwidWorldReady === true, null, { timeout, polling: 250 });
-
-async function open(page: Page, extra = "") {
-  await page.goto(`/?env=${ENV}${extra}`);
-  await worldReady(page);
-}
-
-const badge = (page: Page, id: string) => page.locator(`.badge[data-agent="${id}"]`);
-const rosterRow = (page: Page, id: string) => page.locator(`.roster-panel .agent-row[data-agent="${id}"]`);
+import { ENV, badge, open, rosterRow, worldReady } from "./helpers";
 
 // Reads the rect directly: badges can be momentarily hidden under HUD panels.
 async function centre(page: Page, id: string) {

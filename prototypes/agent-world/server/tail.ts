@@ -103,6 +103,7 @@ export function createTailer(dir: string, clock: () => Date = () => new Date()):
       try {
         present = readdirSync(dir);
       } catch {
+        offsets.clear(); // the folder is gone: a log made later starts from the top
         return [];
       }
       const names = present

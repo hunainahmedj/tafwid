@@ -11,5 +11,5 @@
     "resolveJsonModule": true,
     "types": ["vite/client", "node"]
   },
-  "include": ["src", "server", "tests/unit", "vite.config.ts"]
+  "include": ["src", "server", "tests/unit", "tests/e2e", "scripts/replay-events.ts", "vite.config.ts", "playwright.config.ts"]
 }
