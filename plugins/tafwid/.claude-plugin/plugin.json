@@ -1,6 +1,6 @@
 {
   "name": "tafwid",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "Delegate bounded work to coding agents while your coordinator orchestrates and reviews.",
   "author": {
     "name": "hunainahmedj",

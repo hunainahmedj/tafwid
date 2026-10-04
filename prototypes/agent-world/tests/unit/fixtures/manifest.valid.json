@@ -1,0 +1,90 @@
+{
+  "schema": "tafwid.environment/2",
+  "id": "fixture",
+  "variant": "kit",
+  "name": "Fixture room",
+  "scene": "scene.glb",
+  "lighting": "realtime",
+  "grid": {
+    "cellSize": 1,
+    "origin": [-6, -4],
+    "width": 12,
+    "depth": 8,
+    "walkable": [
+      "............",
+      "............",
+      "..##....##..",
+      "............",
+      "............",
+      "............",
+      "............",
+      "............"
+    ]
+  },
+  "seating": [
+    {
+      "id": "desk-1",
+      "kind": "desk",
+      "seats": [
+        { "id": "desk-1-a", "position": [-4.5, 0, -0.5], "facing": 3.14159, "pose": "seated" },
+        { "id": "desk-1-b", "position": [-3.5, 0, -0.5], "facing": 3.14159, "pose": "seated" },
+        { "id": "desk-1-c", "position": [-2.5, 0, -0.5], "facing": 3.14159, "pose": "seated" }
+      ]
+    },
+    {
+      "id": "bar",
+      "kind": "bar",
+      "seats": [
+        { "id": "bar-1", "position": [-1.5, 0, -0.5], "facing": 3.14159, "pose": "seated" },
+        { "id": "bar-2", "position": [-0.5, 0, -0.5], "facing": 3.14159, "pose": "seated" },
+        { "id": "bar-3", "position": [0.5, 0, -0.5], "facing": 3.14159, "pose": "seated" },
+        { "id": "bar-4", "position": [1.5, 0, -0.5], "facing": 3.14159, "pose": "seated" }
+      ]
+    },
+    {
+      "id": "bench-1",
+      "kind": "bench",
+      "seats": [
+        { "id": "bench-1-a", "position": [3.5, 0, -0.5], "facing": 0, "pose": "seated" },
+        { "id": "bench-1-b", "position": [4.5, 0, -0.5], "facing": 0, "pose": "seated" }
+      ]
+    },
+    {
+      "id": "table-1",
+      "kind": "table",
+      "seats": [
+        { "id": "table-1-a", "position": [-4.5, 0, 0.5], "facing": 0, "pose": "seated" },
+        { "id": "table-1-b", "position": [-3.5, 0, 0.5], "facing": 0, "pose": "seated" },
+        { "id": "table-1-c", "position": [-2.5, 0, 0.5], "facing": 0, "pose": "seated" }
+      ]
+    }
+  ],
+  "entrances": [[0.5, 3.5]],
+  "zones": {
+    "review": [{ "id": "review-1", "position": [4.5, 0, -3.5], "facing": 3.14159, "pose": "standing" }],
+    "lounge": [
+      {
+        "id": "lounge-1",
+        "position": [0.5, 0, 2.5],
+        "facing": 0,
+        "pose": "standing",
+        "loop": [[0.5, 2.5], [4.5, 2.5], [4.5, 3.5], [0.5, 3.5]]
+      }
+    ]
+  },
+  "ambientPaths": [{ "id": "walk-1", "kind": "pedestrian", "points": [[-5.5, 3.5], [5.5, 3.5]], "loop": true }],
+  "camera": {
+    "home": { "target": [0, 0], "yaw": 0.65, "distance": 30 },
+    "bounds": { "minX": -6, "maxX": 6, "minZ": -4, "maxZ": 4 },
+    "zoom": [14, 44]
+  },
+  "ambience": {
+    "sun": { "direction": [-0.5, 0.6, 0.4], "color": "#ffd9a8", "intensity": 3 },
+    "hemisphere": { "sky": "#cfe3ff", "ground": "#8a7a6a", "intensity": 1.2 },
+    "fog": { "color": "#f2d9c0", "near": 40, "far": 90 },
+    "exposure": 1,
+    "bloom": { "strength": 0.6, "radius": 0.4, "threshold": 0.85 },
+    "dof": { "focusOffset": 0, "range": 12, "strength": 1 },
+    "sky": { "top": "#8fb8e8", "bottom": "#ffd9b0" }
+  }
+}

@@ -20,6 +20,7 @@ with `TAFWID_HOST`.
 | `routing.py` | Resolve task types, tiers and explicit selections. |
 | `paths.py` | Resolve private state paths and write JSON atomically. |
 | `migration.py` | Move a legacy state directory to the host-neutral home on request. |
+| `world.py` and `world_hook.py` | Switch the opt-in activity log and turn one hook payload into one sanitised event line. |
 
 The launcher sends the task brief and a reporting contract to the selected worker.
 Workers return a status (`completed` or `blocked`) and a report. The launcher also
@@ -36,9 +37,10 @@ when a worker finishes, including one that completed before the wait started.
 It does not launch, cancel or extend workers. A stale heartbeat means the launcher
 stopped reporting, not proof that the worker stopped.
 
-The packaged Stop, Interrupt and UserPromptSubmit hooks are declared in
-`plugins/tafwid/hooks/hooks.json`, which both hosts load. Each command runs through
-`bash -c` and accepts either host's plugin-root variable. `completion_hook.py arm`
+The packaged hooks are declared in `plugins/tafwid/hooks/hooks.json`, which both
+hosts load. Each command runs through `bash -c` and accepts either host's
+plugin-root variable. The completion hooks are on Stop, Interrupt and
+UserPromptSubmit. `completion_hook.py arm`
 records selected run IDs for this task's next Stop event, once hooks are usable:
 on Codex after the user trusts them, and on Claude Code once the prompt hook has
 recorded a hooks-seen marker for the session. The coordinator may continue useful
@@ -54,6 +56,16 @@ which is how the `inherit` permission policy learns that the coordinator has ful
 access. Codex reports that through its permission profile. A marker older than
 24 hours proves neither. Hook actions always exit successfully, so a state or
 input error can never reject a prompt or keep the coordinator from stopping.
+
+The same file registers ten asynchronous observer hooks (SessionStart,
+UserPromptSubmit, PreToolUse, PostToolUse, PermissionRequest, SubagentStart,
+SubagentStop, Stop, SessionEnd and Notification) for the
+[activity log](../04-modules/activity-log.md). Each is gated by the marker file
+`${TAFWID_HOME:-$HOME/.tafwid}/state/world/enabled` and exits at once without
+it. They print nothing, never block, and do not interact with the completion
+hooks. The boundary is one-way: the plugin only writes the log under
+`state/world/`, a local reader such as the dashboard prototype only reads it,
+and the plugin sends nothing off the machine.
 
 Task switches, settings and run records live in a host-neutral state directory,
 `~/.tafwid/state` (`TAFWID_HOME` overrides `~/.tafwid`), shared by both
@@ -72,9 +84,14 @@ Tests use temporary state directories and fake Claude and Codex processes. No re
 or installed-plugin changes are required for ordinary verification.
 
 
-## Proposed dashboard boundary
+## Dashboard prototype boundary
 
-The [dashboard module](../04-modules/dashboard.md) describes the prototype
-boundary. Its first iteration uses synthetic fixtures; it does not connect
-to the runtime or create workers. Future integration is tracked separately
-in [TAF-3](../01-project/backlog.md).
+The [dashboard module](../04-modules/dashboard.md) describes the prototype,
+which lives outside the plugin under `prototypes/`. Its local bridge reads
+the activity log and the run records under `state/workers/` without writing
+anything, and serves a folded view on `127.0.0.1`
+([TAF-3](../01-project/backlog.md)); the
+[prototype README](../../prototypes/agent-world/README.md#live-activity)
+explains optional sharing on the user's own tailnet and what that exposes.
+Nothing is served publicly. The prototypes never call the runtime, launch
+workers or make model requests.

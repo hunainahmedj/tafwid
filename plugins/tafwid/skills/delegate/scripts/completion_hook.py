@@ -65,7 +65,7 @@ def hook_status():
 
 
 def _codex_hook_status():
-    """Return whether this installed plugin's Stop hook is enabled and trusted in Codex."""
+    """Return whether this installed plugin's completion hooks are enabled and trusted in Codex."""
     process = subprocess.Popen(["codex", "app-server", "--stdio"],
                                stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                                stderr=subprocess.DEVNULL, text=True, bufsize=1)
@@ -88,7 +88,10 @@ def _codex_hook_status():
                 if (hook.get("enabled") is True and hook.get("trustStatus") == "trusted"
                         and hook.get("source") == "plugin"
                         and hook.get("pluginId", "").split("@", 1)[0] == "tafwid"
-                        and Path(hook.get("sourcePath", "")).resolve() == HOOK_FILE):
+                        and Path(hook.get("sourcePath", "")).resolve() == HOOK_FILE
+                        # Stop and UserPromptSubmit also carry the activity-log observer,
+                        # which must not stand in for the completion handler.
+                        and "completion_hook.py" in (hook.get("command") or "")):
                     trusted.add(hook.get("eventName"))
         if {"stop", "interrupt", "userPromptSubmit"} <= trusted:
             return {"active": True}

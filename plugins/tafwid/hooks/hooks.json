@@ -1,13 +1,24 @@
 {
+  "description": "Tafwid hooks: the completion wait for delegated workers, and the opt-in local activity log (off until you run world.py on).",
   "hooks": {
     "Stop": [
       {
         "hooks": [
           {
             "type": "command",
-            "command": "bash -c 'exec python3 \"${CLAUDE_PLUGIN_ROOT:-${PLUGIN_ROOT}}/skills/delegate/scripts/completion_hook.py\" hook'",
+            "command": "bash -c ': \"Tafwid: before ending the turn, wait for a delegated worker to finish.\"; exec python3 \"${CLAUDE_PLUGIN_ROOT:-${PLUGIN_ROOT}}/skills/delegate/scripts/completion_hook.py\" hook'",
             "timeout": 1800,
             "statusMessage": "Waiting for a Tafwid worker"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash -c ': \"Tafwid activity log: notes which agents are working and on what, in a private log on this machine. Does nothing unless you switch it on.\"; [ -f \"${TAFWID_HOME:-$HOME/.tafwid}/state/world/enabled\" ] || exit 0; exec python3 -S \"${CLAUDE_PLUGIN_ROOT:-${PLUGIN_ROOT}}/skills/delegate/scripts/world_hook.py\"'",
+            "timeout": 5,
+            "async": true
           }
         ]
       }
@@ -17,7 +28,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash -c 'exec python3 \"${CLAUDE_PLUGIN_ROOT:-${PLUGIN_ROOT}}/skills/delegate/scripts/completion_hook.py\" disarm'",
+            "command": "bash -c ': \"Tafwid: stop waiting for delegated workers when you interrupt or send a new message.\"; exec python3 \"${CLAUDE_PLUGIN_ROOT:-${PLUGIN_ROOT}}/skills/delegate/scripts/completion_hook.py\" disarm'",
             "timeout": 2
           }
         ]
@@ -28,8 +39,117 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash -c 'exec python3 \"${CLAUDE_PLUGIN_ROOT:-${PLUGIN_ROOT}}/skills/delegate/scripts/completion_hook.py\" disarm'",
+            "command": "bash -c ': \"Tafwid: stop waiting for delegated workers when you interrupt or send a new message.\"; exec python3 \"${CLAUDE_PLUGIN_ROOT:-${PLUGIN_ROOT}}/skills/delegate/scripts/completion_hook.py\" disarm'",
             "timeout": 5
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash -c ': \"Tafwid activity log: notes which agents are working and on what, in a private log on this machine. Does nothing unless you switch it on.\"; [ -f \"${TAFWID_HOME:-$HOME/.tafwid}/state/world/enabled\" ] || exit 0; exec python3 -S \"${CLAUDE_PLUGIN_ROOT:-${PLUGIN_ROOT}}/skills/delegate/scripts/world_hook.py\"'",
+            "timeout": 5,
+            "async": true
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash -c ': \"Tafwid activity log: notes which agents are working and on what, in a private log on this machine. Does nothing unless you switch it on.\"; [ -f \"${TAFWID_HOME:-$HOME/.tafwid}/state/world/enabled\" ] || exit 0; exec python3 -S \"${CLAUDE_PLUGIN_ROOT:-${PLUGIN_ROOT}}/skills/delegate/scripts/world_hook.py\"'",
+            "timeout": 5,
+            "async": true
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash -c ': \"Tafwid activity log: notes which agents are working and on what, in a private log on this machine. Does nothing unless you switch it on.\"; [ -f \"${TAFWID_HOME:-$HOME/.tafwid}/state/world/enabled\" ] || exit 0; exec python3 -S \"${CLAUDE_PLUGIN_ROOT:-${PLUGIN_ROOT}}/skills/delegate/scripts/world_hook.py\"'",
+            "timeout": 5,
+            "async": true
+          }
+        ]
+      }
+    ],
+    "PermissionRequest": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash -c ': \"Tafwid activity log: notes which agents are working and on what, in a private log on this machine. Does nothing unless you switch it on.\"; [ -f \"${TAFWID_HOME:-$HOME/.tafwid}/state/world/enabled\" ] || exit 0; exec python3 -S \"${CLAUDE_PLUGIN_ROOT:-${PLUGIN_ROOT}}/skills/delegate/scripts/world_hook.py\"'",
+            "timeout": 5,
+            "async": true
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash -c ': \"Tafwid activity log: notes which agents are working and on what, in a private log on this machine. Does nothing unless you switch it on.\"; [ -f \"${TAFWID_HOME:-$HOME/.tafwid}/state/world/enabled\" ] || exit 0; exec python3 -S \"${CLAUDE_PLUGIN_ROOT:-${PLUGIN_ROOT}}/skills/delegate/scripts/world_hook.py\"'",
+            "timeout": 5,
+            "async": true
+          }
+        ]
+      }
+    ],
+    "SubagentStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash -c ': \"Tafwid activity log: notes which agents are working and on what, in a private log on this machine. Does nothing unless you switch it on.\"; [ -f \"${TAFWID_HOME:-$HOME/.tafwid}/state/world/enabled\" ] || exit 0; exec python3 -S \"${CLAUDE_PLUGIN_ROOT:-${PLUGIN_ROOT}}/skills/delegate/scripts/world_hook.py\"'",
+            "timeout": 5,
+            "async": true
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash -c ': \"Tafwid activity log: notes which agents are working and on what, in a private log on this machine. Does nothing unless you switch it on.\"; [ -f \"${TAFWID_HOME:-$HOME/.tafwid}/state/world/enabled\" ] || exit 0; exec python3 -S \"${CLAUDE_PLUGIN_ROOT:-${PLUGIN_ROOT}}/skills/delegate/scripts/world_hook.py\"'",
+            "timeout": 5,
+            "async": true
+          }
+        ]
+      }
+    ],
+    "Notification": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash -c ': \"Tafwid activity log: notes which agents are working and on what, in a private log on this machine. Does nothing unless you switch it on.\"; [ -f \"${TAFWID_HOME:-$HOME/.tafwid}/state/world/enabled\" ] || exit 0; exec python3 -S \"${CLAUDE_PLUGIN_ROOT:-${PLUGIN_ROOT}}/skills/delegate/scripts/world_hook.py\"'",
+            "timeout": 5,
+            "async": true
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash -c ': \"Tafwid activity log: notes which agents are working and on what, in a private log on this machine. Does nothing unless you switch it on.\"; [ -f \"${TAFWID_HOME:-$HOME/.tafwid}/state/world/enabled\" ] || exit 0; exec python3 -S \"${CLAUDE_PLUGIN_ROOT:-${PLUGIN_ROOT}}/skills/delegate/scripts/world_hook.py\"'",
+            "timeout": 5,
+            "async": true
           }
         ]
       }

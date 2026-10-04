@@ -7,9 +7,6 @@ tests and recovery; with it set, only that host's signal is read.
 import json
 import os
 import time
-import uuid
-
-import paths
 
 HOSTS = ("codex", "claude")
 NAMES = {"codex": "Codex", "claude": "Claude Code"}
@@ -53,6 +50,7 @@ def task_id(env=None):
     value = _signal(name, env) if name else None
     if not value:
         return None
+    import uuid  # lazy: the hook path never validates task ids
     try:
         return str(uuid.UUID(value))
     except ValueError:
@@ -84,11 +82,13 @@ def worker_env(base=None):
 
 def seen_path(task_id):
     """Choose the private marker recording that this task's hooks ran."""
+    import paths  # lazy: paths pulls in tempfile and shutil, which hot hook paths never need
     return paths.state_root() / "hook-seen" / (task_id + ".json")
 
 
 def record_seen(task_id, permission_mode):
     """Record that Claude Code ran Tafwid's prompt hook, with its permission mode."""
+    import paths
     paths.atomic_json(seen_path(task_id), {
         "version": 1, "thread_id": task_id, "seen_at": time.time(),
         "permission_mode": permission_mode if isinstance(permission_mode, str) else None})

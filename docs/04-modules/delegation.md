@@ -23,6 +23,10 @@ provides operational instructions; [benchmarks](../benchmarks.md) record
 measured costs and limitations. No model requests are needed for ordinary
 [offline verification](../../CONTRIBUTING.md).
 
+The scripts folder and hooks file below also hold the opt-in
+[activity log](activity-log.md) (`world.py`, `world_hook.py` and its observer
+hooks), a separate module that works whether delegation is on or off.
+
 ## Code location
 
 | Repo / package | Paths |

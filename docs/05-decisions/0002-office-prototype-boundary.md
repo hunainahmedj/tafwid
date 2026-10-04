@@ -1,7 +1,7 @@
 # ADR-0002: Compact office and roster before live integration
 
 - Date: 2026-09-30
-- Status: Accepted
+- Status: Superseded by [ADR-0005](0005-open-agent-world.md)
 
 ## Context
 

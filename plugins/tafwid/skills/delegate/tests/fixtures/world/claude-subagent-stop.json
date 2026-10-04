@@ -1,0 +1,11 @@
+{
+  "session_id": "claude-session-0001",
+  "transcript_path": "/srv/dev/.claude/projects/p/claude-session-0001.jsonl",
+  "cwd": "/srv/dev/work/tafwid",
+  "permission_mode": "default",
+  "hook_event_name": "SubagentStop",
+  "stop_reason": "completed",
+  "last_assistant_message": "All done, here is the summary.",
+  "agent_id": "claude-agent-0001",
+  "agent_type": "general-purpose"
+}

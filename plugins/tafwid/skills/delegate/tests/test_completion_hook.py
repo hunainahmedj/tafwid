@@ -209,5 +209,64 @@ class ClaudeHookTests(unittest.TestCase):
                 self.assertEqual(marker and marker["permission_mode"], expected)
 
 
+FAKE_CODEX = """#!/usr/bin/env python3
+import json, os, sys
+for line in sys.stdin:
+    message = json.loads(line)
+    if message.get("method") == "initialize":
+        print(json.dumps({"id": message["id"], "result": {}}), flush=True)
+    elif message.get("method") == "hooks/list":
+        with open(os.environ["FAKE_CODEX_HOOKS"]) as handle:
+            hooks = json.load(handle)
+        print(json.dumps({"id": message["id"], "result": {"data": [{"hooks": hooks}]}}), flush=True)
+"""
+
+COMPLETION = 'bash -c \': "Tafwid: wait."; exec python3 "$PLUGIN_ROOT/skills/delegate/scripts/completion_hook.py" hook\''
+OBSERVER = 'bash -c \': "Tafwid activity log."; exec python3 -S "$PLUGIN_ROOT/skills/delegate/scripts/world_hook.py"\''
+
+
+class CodexTrustCheckTests(unittest.TestCase):
+    def setUp(self):
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        self.root = Path(temporary.name)
+        binary = self.root / "bin"
+        binary.mkdir()
+        fake = binary / "codex"
+        fake.write_text(FAKE_CODEX)
+        fake.chmod(0o755)
+        self.listing = self.root / "hooks.json"
+        environment = patch.dict(os.environ, {
+            "PATH": str(binary) + os.pathsep + os.environ["PATH"],
+            "FAKE_CODEX_HOOKS": str(self.listing)})
+        environment.start()
+        self.addCleanup(environment.stop)
+
+    def hook(self, event, command, trust="trusted"):
+        return {"eventName": event, "enabled": True, "trustStatus": trust, "source": "plugin",
+                "pluginId": "tafwid@tafwid", "sourcePath": str(completion_hook.HOOK_FILE),
+                "handlerType": "command", "command": command}
+
+    def status(self, hooks):
+        self.listing.write_text(json.dumps(hooks))
+        return completion_hook._codex_hook_status()
+
+    def test_all_three_completion_hooks_trusted_is_active(self):
+        hooks = [self.hook(event, COMPLETION) for event in ("stop", "interrupt", "userPromptSubmit")]
+        self.assertEqual(self.status(hooks), {"active": True})
+
+    def test_trusted_observers_alone_do_not_count_as_the_completion_wait(self):
+        hooks = [self.hook("stop", COMPLETION, trust="untrusted"), self.hook("stop", OBSERVER),
+                 self.hook("interrupt", COMPLETION),
+                 self.hook("userPromptSubmit", COMPLETION, trust="untrusted"),
+                 self.hook("userPromptSubmit", OBSERVER)]
+        self.assertFalse(self.status(hooks)["active"])
+
+    def test_observers_do_not_hide_a_missing_completion_handler(self):
+        hooks = [self.hook("stop", OBSERVER), self.hook("interrupt", COMPLETION),
+                 self.hook("userPromptSubmit", OBSERVER)]
+        self.assertFalse(self.status(hooks)["active"])
+
+
 if __name__ == "__main__":
     unittest.main()

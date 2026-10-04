@@ -37,7 +37,11 @@ role. The environment should be colorful, vibrant, and playful while
 remaining professional, trustworthy, and calm enough for everyday work.
 
 Low-poly assets support both lightweight rendering and a manageable
-modeling workflow. The experience can expand from a compact office overview
+modeling workflow. Users and companies will choose between curated
+environments, such as an office building, a café or a rooftop terrace,
+seen through a high, Minecraft Dungeons-style camera. A player character
+with a third-person view, and coworkers sharing a space, are later
+ambitions. The experience can expand from a compact office overview
 to richer spaces, then invitations for friends or colleagues to join.
 Roles, persistent identity, personality, and backend provider are distinct
 concepts that will need deliberate product models.

@@ -17,8 +17,30 @@ specific to Tafwid and are not a complete security review.
 import json
 from pathlib import Path
 import re
+import subprocess
 
 ROOT = Path(__file__).resolve().parents[1]
+
+def source_files(excluded):
+    """Files Git would commit (tracked plus untracked, honouring .gitignore).
+
+    Falls back to walking the tree when Git is unavailable, so local build
+    output and scratch folders do not fail the check inside a checkout.
+    """
+    try:
+        listed = subprocess.run(
+            ["git", "ls-files", "--cached", "--others", "--exclude-standard", "-z"],
+            cwd=ROOT, check=True, capture_output=True,
+        ).stdout.decode().split("\0")
+        paths = [ROOT / name for name in listed if name]
+    except (OSError, subprocess.CalledProcessError):
+        paths = list(ROOT.rglob("*"))
+    return [
+        p for p in paths
+        if (p.exists() or p.is_symlink())
+        and not any(part in excluded for part in p.relative_to(ROOT).parts)
+    ]
+
 
 
 def check():
@@ -128,22 +150,39 @@ def check():
         assert (skill / name).is_file(), f"Missing {name}"
     hooks = json.loads((plugin / "hooks/hooks.json").read_text())["hooks"]
     assert hooks["Stop"] and hooks["UserPromptSubmit"], "Missing completion hooks"
-    prefix = ("bash -c 'exec python3 \"${CLAUDE_PLUGIN_ROOT:-${PLUGIN_ROOT}}"
-              "/skills/delegate/scripts/completion_hook.py\" ")
+    # Codex titles every hook "Hook N" and shows its command, so each command opens with a
+    # plain-language label: a no-op `:` with quoted text that cannot expand or break quoting.
+    label = re.compile(r"""bash -c ': "(Tafwid[^"'$`\\]{1,154})"; """)
+    prefix = "exec python3 \"${CLAUDE_PLUGIN_ROOT:-${PLUGIN_ROOT}}/skills/delegate/scripts/completion_hook.py\" "
+    # The opt-in activity observer is the only other accepted command; it must be async.
+    observer = ("[ -f \"${TAFWID_HOME:-$HOME/.tafwid}/state/world/enabled\" ] || exit 0; "
+                "exec python3 -S \"${CLAUDE_PLUGIN_ROOT:-${PLUGIN_ROOT}}"
+                "/skills/delegate/scripts/world_hook.py\"'")
     for event, groups in hooks.items():
         for group in groups:
             for hook in group["hooks"]:
-                assert hook["command"].startswith(prefix), f"Hook is not host-neutral: {event}"
+                labelled = label.match(hook["command"])
+                assert labelled, f"Hook has no plain-language label: {event}"
+                body = hook["command"][labelled.end():]
+                if body == observer:
+                    assert hook.get("async") is True, f"Observer hook must be async: {event}"
+                    continue
+                assert body.startswith(prefix), f"Hook is not host-neutral: {event}"
 
     # Scan source files for invalid assets and recognizable private data.
     excluded = {".git", ".remember", "__pycache__", "dist", ".venv", "node_modules"}
     private_path = re.compile(r"/(?:Users|home)/[a-zA-Z0-9_.-]+/")
     secret = re.compile(r"(?:gh[pousr]_[A-Za-z0-9]{30,}|sk-ant-[A-Za-z0-9_-]{30,})")
+    # Binary assets are checked by signature instead of being read as text.
+    binary_magic = {
+        ".png": b"\x89PNG\r\n\x1a\n",
+        ".jpg": b"\xff\xd8\xff",
+        ".glb": b"glTF",
+        ".wasm": b"\x00asm",
+    }
     count = 0
-    for path in ROOT.rglob("*"):
+    for path in source_files(excluded):
         relative = path.relative_to(ROOT)
-        if any(part in excluded for part in relative.parts):
-            continue
         assert not path.is_symlink(), f"Unexpected symlink: {relative}"
         if not path.is_file():
             continue
@@ -151,9 +190,9 @@ def check():
             f"Runtime data: {relative}"
         )
         assert path.name != ".env", f"Environment secrets: {relative}"
-        if path.suffix == ".png":
-            assert path.read_bytes().startswith(b"\x89PNG\r\n\x1a\n"), (
-                f"Invalid PNG: {relative}"
+        if path.suffix in binary_magic:
+            assert path.read_bytes().startswith(binary_magic[path.suffix]), (
+                f"Invalid {path.suffix} file: {relative}"
             )
             count += 1
             continue

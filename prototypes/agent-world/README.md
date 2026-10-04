@@ -1,0 +1,149 @@
+# Tafwid agent world
+
+A local prototype of an open, low-poly 3D world where your agents work. It
+is not part of the released Tafwid plugin. It has two modes:
+
+- **Explore:** a full-screen world with a light overlay.
+- **Dashboard:** an information-first page with the same world in a panel.
+
+It shows either live activity from Tafwid's opt-in
+[activity log](../../docs/04-modules/activity-log.md) or fictional sample
+data. In live mode its dev server reads the log and Tafwid's run records
+without writing to them; it never launches workers or makes model
+requests. The designs are in the
+[agent world spec](../../docs/superpowers/specs/2026-10-03-agent-world-design.md)
+and the [live agent world spec](../../docs/superpowers/specs/2026-10-03-live-agent-world-design.md),
+and the [dashboard module](../../docs/04-modules/dashboard.md) is the
+documentation entry point.
+
+## Run
+
+Requires Node 20.19+ or 22.12+. From this directory:
+
+```sh
+npm ci
+npm run dev
+```
+
+Open http://127.0.0.1:4174.
+
+### Live activity
+
+1. Turn the activity log on from the repository root (the
+   [root README](../../README.md#local-activity-log) has the installed-plugin
+   path and the Codex hook approval step):
+
+   ```sh
+   python3 plugins/tafwid/skills/delegate/scripts/world.py on
+   ```
+
+2. Run `npm run dev` here and open the page. It opens on sample data and
+   switches to live as soon as the dev server reports the log is on.
+3. Work in Claude Code or Codex as usual. Each session becomes a team: its
+   coordinator, a character per sub-agent, and one per delegated Tafwid run.
+
+The **Live / Sample** switch in the top bar changes the source at any time.
+Add `?source=sample` to stay on sample data even when the log is on, or
+`?scenario=crowd` to load a large fictional crowd (see the URL options
+below).
+If the log is off, the HUD says so and shows the command; if the dev
+server's bridge is not reachable (for example in a static `dist/` build),
+it says that instead. `npm run preview` serves the bridge too. The bridge
+reads `$TAFWID_HOME/state/world` and `$TAFWID_HOME/state/workers` (default
+`~/.tafwid`); set `TAFWID_HOME` before `npm run dev` to watch another home.
+
+The dev server listens on 127.0.0.1. `vite.config.ts` also allows
+`*.ts.net` hosts, so it can be shared on your own tailnet with Tailscale
+Serve; agent labels and project names then reach your other devices.
+
+### Using the world
+
+- **Lighting variant:** the café opens in *Scene · baked light*, the shipped
+  look. *Kit · real-time light* is the fast real-time preview of the same
+  layout.
+- **Camera:** drag to pan, scroll to zoom, press Q/E to rotate, or use the
+  camera buttons. Click an agent or a roster row to follow it; Esc stops
+  following.
+- **Sample day:** in Sample mode, *Step the sample day* changes one agent's
+  status, and that agent walks to its new place. The last step finishes
+  Ada: she walks to her coordinator, Milo, then out through the nearest
+  entrance.
+- **Characters:** each role has its own look and idle habit, and working
+  agents act out their current action with a procedural prop (laptop, pen
+  and paper, page, book, tablet or clipboard). New agents walk in from an
+  entrance; quiet agents are dimmed.
+
+URL options:
+
+| Option | Effect |
+| --- | --- |
+| `env=cafe` (default) or `env=placeholder` | Which environment package loads |
+| `variant=kit` or `variant=baked` | Which café variant loads |
+| `mode=dashboard` | Start in dashboard mode |
+| `source=sample` | Stay on sample data even when live activity is on |
+| `scenario=quiet-morning` | Load the quiet sample scenario |
+| `scenario=crowd` | Load a generated crowd of four fictional teams (40 agents in the room, plus 4 who have finished), to check standing overflow; the 32-character cap applies to live data only |
+| `count=N` | With `scenario=crowd`: N agents in the room (finished ones come on top); `count=32` is the frame-time check |
+| `forceWebGL` | Use the WebGL2 backend instead of WebGPU |
+| `forceNoWebGL` | Simulate a device without 3D |
+| `renderHidden` | Debug: keep rendering in a hidden tab (for evidence capture) |
+
+## Verify
+
+```sh
+npm test                 # unit tests (store, behaviour, rig, pathfinding, contract, fold, roles, seating, bridge)
+npx playwright install chromium
+npm run e2e              # browser tests, including the no-WebGL fallback and axe checks
+npm run validate         # every built package against the contract and size budgets
+npm run build
+```
+
+`npm run e2e` starts its own dev server on port 4175 with `TAFWID_HOME` set to
+a scratch folder under the system temp directory, and never reuses a running
+server, so it never reads or writes your real `~/.tafwid`. The live tests
+replay `tests/e2e/fixtures/events-sample.replay` (times as offsets from now)
+into that folder with `scripts/replay-events.ts`; the same script can fill any
+home you name: `npx tsx scripts/replay-events.ts --home <dir> --enable`.
+
+## Build environment packages
+
+Packages are generated by Blender scripts in `art/` and run headless on
+`work-station` over SSH (see
+[environments](../../docs/02-workspace/environments.md)):
+
+```sh
+art/build.sh cafe-kit                                  # pipeline A, about 6 s
+art/build.sh cafe-baked --samples 768 --texels 20      # pipeline B, about 3 min
+```
+
+Each build writes `public/environments/<env>/<variant>/` plus previews in
+the gitignored `art/previews/`. The committed café packages let the
+prototype run without Blender. Set `TAFWID_BLENDER_HOST` to use another
+host.
+
+`npx tsx scripts/capture-evidence.ts <kit|baked> <dir>` captures the
+critique screenshots and per-tier frame times, with the dev server running.
+
+## Structure
+
+| Path | Responsibility |
+| --- | --- |
+| `src/app/` | Store, sample fixtures, and placement (seats from the allocator, status to activity) |
+| `src/live/` | Live data: event fold, role classifier, seat allocator, and the stream source with the 32-character cap |
+| `server/` | The read-only Vite bridge (`bridge.ts`) and the event-log tailer (`tail.ts`) |
+| `src/contract/` | Environment package types, grid helpers, validator |
+| `src/world/` | Renderer and post stack, quality tiers, package loader, camera rig, characters, agents, ambient life, badges |
+| `src/ui/` | Shell (both modes, source switch and notices), team chips, roster, details, camera controls |
+| `scripts/` | Package validation, evidence capture, and event-log replay |
+| `tests/unit/`, `tests/e2e/` | Unit tests and browser tests (the live tests replay a fixture log) |
+| `art/lib/` | Shared Blender helpers: bevelled blocks, palette, materials, grid, export |
+| `art/kit/pieces.py` | The style C kit, one builder per prop kind |
+| `art/cafe/layout.py` | The café square: placements, seat groups, entrances, zones, walk grid, camera, ambience |
+| `art/cafe-kit/`, `art/cafe-baked/` | Pipeline A and pipeline B build scripts |
+
+## Limits
+
+[REVIEW.md](REVIEW.md) records the three critique rounds and the remaining
+gaps: neither pipeline reached the 8.0 target. Frame times come from one
+machine (an M5 Max) and are capped at vsync, so they show 60 fps but not
+how much headroom is left.

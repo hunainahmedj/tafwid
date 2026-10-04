@@ -1,0 +1,15 @@
+{
+  "session_id": "codex-session-0001",
+  "turn_id": "turn-0001",
+  "transcript_path": "/srv/dev/.codex/sessions/rollout-0001.jsonl",
+  "cwd": "/srv/dev/work/tafwid",
+  "model": "gpt-5",
+  "permission_mode": "default",
+  "hook_event_name": "PreToolUse",
+  "tool_name": "spawn_agent",
+  "tool_use_id": "call_04",
+  "tool_input": {
+    "agent_type": "worker",
+    "message": "Review the manifest validator [role: reviewer]\nCheck the edge cases carefully."
+  }
+}

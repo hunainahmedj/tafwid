@@ -1,0 +1,9 @@
+node_modules/
+dist/
+test-results/
+playwright-report/
+art/previews/
+art/**/__pycache__/
+.critique/
+# Built packages stay out of Git while iterating; the accepted café and
+# placeholder packages are committed so the prototype runs without Blender.

@@ -1,0 +1,9 @@
+{
+  "session_id": "claude-session-0001",
+  "transcript_path": "/srv/dev/.claude/projects/p/claude-session-0001.jsonl",
+  "cwd": "/srv/dev/work/tafwid",
+  "permission_mode": "default",
+  "hook_event_name": "Notification",
+  "notification_type": "permission_prompt",
+  "message": "Claude needs your permission to use Bash"
+}

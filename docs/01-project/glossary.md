@@ -1,12 +1,23 @@
 # Glossary
 
 - **Acceptance** — the coordinator's assessment that a worker's result meets the task requirements.
-- **Agent** — in the proposed dashboard, a role-bearing character representing work; persistent identity is a future design concern.
+- **Action** — in the activity log and the dashboard, the coarse kind of thing an agent is doing now, such as `edit-code`, `read` or `run-tests`, taken from the tool it uses; it chooses the character's animation.
+- **Activity log** — the opt-in, sanitised local event log the plugin's hooks write; see the [activity log module](../04-modules/activity-log.md).
+- **Agent** — in the dashboard, one character standing for a coordinator, a sub-agent or a delegated run; persistent identity across sessions is a future design concern.
 - **Backend** — the worker program used to run a task: Claude Code or Codex CLI.
+- **Baked lighting** — light precomputed in Blender and stored in textures, so the browser does not calculate it while rendering.
 - **Connection** — an exact destination, such as the Claude connection or one named GPT account.
-- **Coordinator** — the Codex or Claude Code session that assigns work and evaluates results.
+- **Coordinator** — the Codex or Claude Code session that assigns work and evaluates results; in the dashboard, the main agent of a session, which leads its team.
+- **Environment package** — one dashboard scene as a validated `manifest.json` plus a `scene.glb` model.
 - **Heartbeat** — a periodic launcher update used to detect missing status reports; it does not prove the worker is alive or stopped.
+- **Kit** — the set of reusable, grid-aligned 3D pieces that dashboard scenes are assembled from.
 - **Low-poly** — 3D art built from relatively few geometric faces.
+- **Role** — in the dashboard, an agent's job (coordinator, implementer, reviewer, documenter, researcher or tester), which sets its look, idle habit and preferred seats; distinct from a worker's backend.
 - **Run** — one recorded worker launch or resume, distinct from a persistent character.
+- **Seat** — one place in a dashboard scene where an agent sits or stands, with a position, a facing and a pose.
+- **Seat group** — a piece of furniture holding seats, such as a desk, café table, bar, bench, standing spot or lounge; a team holds one group and fills it first.
+- **Sub-agent** — an agent a coordinator starts inside its own session, through the host's native sub-agents rather than Tafwid delegation.
 - **Task-local** — scoped to the current coordinator chat rather than every chat or account.
+- **Team** — in the dashboard, one session's coordinator with its sub-agents and delegated runs.
 - **Worker** — a Claude Code or Codex CLI process assigned a bounded task.
+- **Zone** — a labelled place in a dashboard scene other than a seat: a review spot or a lounge. Entrances, where agents walk in and out, are listed separately.

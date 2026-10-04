@@ -22,6 +22,7 @@ You have a few scripts available. The paths below are relative to the directory 
 | `scripts/settings.py` | Read or change this chat’s worker settings, or global defaults. |
 | `scripts/delegate.py` | Launch a worker or resume an existing worker with a new assignment. |
 | `scripts/wait.py` | Wait for workers to finish and report completion or problems without making model requests. |
+| `scripts/world.py` | Turn the local activity log `on` or `off`, or read its `status`, when the user asks. It is off by default and independent of delegation. |
 
 Each script supports `--help` for its arguments and usage.
 
