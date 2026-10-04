@@ -6,6 +6,7 @@ import { cellToWorld, worldToCell } from "../contract/grid";
 import { findPath, simplifyPath } from "./pathfinding";
 import { createCharacter, phaseOf, type CharacterRig, type Gesture } from "./characters";
 import type { LoadedEnvironment } from "./environment";
+import { finite, warnOnce } from "./loop";
 
 const WALK_SPEED = 1.7; // metres per second
 /** How long a finished agent lingers by its coordinator before heading out. */
@@ -106,6 +107,7 @@ export class AgentLayer {
   private env: LoadedEnvironment | null = null;
   private blobs = false;
   private warned = new Set<string>();
+  private warnBadPosition = warnOnce();
   /** True until the first sync after an environment loads: agents then start in place. */
   private fresh = true;
   selectedId: string | null = null;
@@ -316,6 +318,7 @@ export class AgentLayer {
           time,
         );
       }
+      if (!finite([t.pos.x, t.pos.z, t.yaw])) this.recover(t);
       const lift = t.phase === "present" && !t.route.length && t.placement?.seated ? t.placement.lift : 0;
       t.rig.group.position.set(t.pos.x, lift, t.pos.z);
       const current = t.rig.group.rotation.y;
@@ -343,6 +346,13 @@ export class AgentLayer {
         this.remove(t);
         break;
     }
+  }
+
+  /** Guard: a non-finite position or heading is reported once and the character is put back in place. */
+  private recover(t: Tracked) {
+    this.warnBadPosition(t.agent.id, `${t.agent.name} reached a non-finite position; putting them back in place.`);
+    const at: Vec2 = t.placement && finite(t.placement.at) ? t.placement.at : this.env ? nearestEntrance(this.env.manifest, [0, 0]) : [0, 0];
+    this.teleport(t, at, t.placement && Number.isFinite(t.placement.facing) ? t.placement.facing : 0);
   }
 
   /** Yaw from the agent's facing to the nearest entrance, in -PI..PI. */

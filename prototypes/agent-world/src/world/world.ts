@@ -9,6 +9,7 @@ import { cameraPose, createRig, follow, FOV_DEGREES, goHome, pan, rotate, step, 
 import { EnvironmentLoadError, loadEnvironment, motionScale, type LoadedEnvironment } from "./environment";
 import { createFrameSampler } from "./frame-sampler";
 import { createLatestOnly } from "./latest";
+import { finite, loopDriver, warnOnce } from "./loop";
 import { Overlay } from "./overlay";
 import { createRenderer } from "./renderer";
 import { LOWER_TIER, TIERS } from "./tiers";
@@ -73,6 +74,7 @@ export async function createWorld(host: HTMLElement, store: Store, options: Worl
   let loading: Promise<void> | null = null;
   let disposed = false;
   let lastHeading = NaN;
+  const warn = warnOnce();
 
   /** Frames all agents (dashboard mode): centre on their bounding box, distance from its size. */
   function fitAgents() {
@@ -220,9 +222,15 @@ export async function createWorld(host: HTMLElement, store: Store, options: Worl
     window.__tafwidMotionScale = motionScale.value;
     agents.update(dt, time);
     ambient.update(dt, time);
-    if (rig) {
+    if (rig && env) {
       rig = step(rig, dt, rig.followId ? agents.groundOf(rig.followId) : null, reduced);
-      const pose = cameraPose(rig);
+      let pose = cameraPose(rig);
+      if (!finite([...pose.position, ...pose.lookAt, rig.distance])) {
+        // Guard: the rig eases from its own state, so a NaN never clears. Say so once, and go home.
+        warn("camera", `Camera reached a non-finite pose (${JSON.stringify(rig)}); returning home.`);
+        rig = createRig(env.manifest.camera.home);
+        pose = cameraPose(rig);
+      }
       camera.position.set(...pose.position);
       camera.lookAt(...pose.lookAt);
       view.setFocus(rig.distance);
@@ -242,14 +250,15 @@ export async function createWorld(host: HTMLElement, store: Store, options: Worl
     }
   }
 
+  // Never gated on document.hidden alone: see loopDriver.
   const setLoop = () => {
     if (lost) return;
     last = performance.now();
     clearInterval(timer);
-    if (document.hidden && options.renderHidden) {
+    if (loopDriver(document.hidden, !!options.renderHidden) === "timer") {
       view.renderer.setAnimationLoop(null);
       timer = window.setInterval(frame, 16);
-    } else view.renderer.setAnimationLoop(document.hidden ? null : frame);
+    } else view.renderer.setAnimationLoop(frame);
   };
   document.addEventListener("visibilitychange", setLoop);
 

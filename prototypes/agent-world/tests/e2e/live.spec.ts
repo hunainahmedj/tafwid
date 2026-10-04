@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { expect, test, type Page } from "@playwright/test";
 import { appendEvents, parseFixture, replay, setEnabled, type ReplayLine } from "../../scripts/replay-events";
-import { badge, characters, open, resetWorld, rosterRow } from "./helpers";
+import { badge, characters, ENV, open, resetWorld, rosterRow, worldReady } from "./helpers";
 import { E2E_HOME } from "./home";
 
 // Replays a fixture log through the real bridge (the web server's TAFWID_HOME
@@ -190,5 +190,39 @@ test.describe("live activity", () => {
     await expect(live(page)).toHaveAttribute("aria-pressed", "true", { timeout: 10_000 });
     await expect(page.locator(".live-notice")).toBeHidden();
     await expect(rosterRows(page)).toHaveCount(FIXTURE_AGENTS);
+  });
+
+  test("a page that opens straight into live activity draws the world while the host reports it hidden", async ({ page }) => {
+    // Some hosts (the Claude desktop browser pane) report document.hidden while
+    // they keep painting the page and running animation frames. The world must
+    // still render there: the browser pauses animation frames for a truly hidden tab.
+    await page.addInitScript(() => {
+      Object.defineProperty(Document.prototype, "hidden", { configurable: true, get: () => true });
+      Object.defineProperty(Document.prototype, "visibilityState", { configurable: true, get: () => "hidden" });
+    });
+    const CODEX = "c0de0000c0de0000";
+    setEnabled(E2E_HOME, true);
+    replay(E2E_HOME, [
+      { session: CODEX, host: "codex", project: "lantern", event: "session", dt: -30 },
+      { session: CODEX, host: "codex", project: "lantern", event: "prompt", dt: -20 },
+    ]);
+    await page.goto(`/?env=${ENV}`);
+    await worldReady(page);
+    await expect(live(page)).toHaveAttribute("aria-pressed", "true", { timeout: 15_000 });
+    await expect(rosterRow(page, CODEX)).toContainText("Coordinator");
+
+    await expect.poll(() => page.evaluate(() => window.__tafwidStats?.().calls ?? 0), { timeout: 15_000 }).toBeGreaterThan(0);
+    // The badge is projected above the character: a finite position, off the top-left corner.
+    const badgeAt = () =>
+      badge(page, CODEX).evaluate((el) => {
+        const m = /translate\(([^,]+)px, ([^)]+)px\)/.exec(el.style.transform);
+        return m ? [Number(m[1]), Number(m[2])] : null;
+      });
+    await expect.poll(badgeAt, { timeout: 15_000 }).not.toBeNull();
+    const [x, y] = (await badgeAt())!;
+    expect(Number.isFinite(x) && Number.isFinite(y)).toBe(true);
+    expect(x > 1 || y > 1).toBe(true);
+    const box = (await badge(page, CODEX).boundingBox())!;
+    expect(box.x > 1 || box.y > 1).toBe(true);
   });
 });
