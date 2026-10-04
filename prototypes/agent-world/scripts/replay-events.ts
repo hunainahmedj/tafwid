@@ -93,7 +93,7 @@ function cli(argv: string[]): void {
   };
   const home = flag("--home");
   if (!home) throw new Error("usage: replay-events.ts --home <dir> [--fixture <file>] [--enable]");
-  const fixture = flag("--fixture") ?? fileURLToPath(new URL("../tests/e2e/fixtures/events-sample.jsonl", import.meta.url));
+  const fixture = flag("--fixture") ?? fileURLToPath(new URL("../tests/e2e/fixtures/events-sample.replay", import.meta.url));
   const lines = parseFixture(readFileSync(resolve(fixture), "utf8"));
   const path = replay(resolve(home), lines);
   if (argv.includes("--enable")) setEnabled(resolve(home), true);

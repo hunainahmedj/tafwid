@@ -101,7 +101,7 @@ npm run build
 `npm run e2e` starts its own dev server on port 4175 with `TAFWID_HOME` set to
 a scratch folder under the system temp directory, and never reuses a running
 server, so it never reads or writes your real `~/.tafwid`. The live tests
-replay `tests/e2e/fixtures/events-sample.jsonl` (times as offsets from now)
+replay `tests/e2e/fixtures/events-sample.replay` (times as offsets from now)
 into that folder with `scripts/replay-events.ts`; the same script can fill any
 home you name: `npx tsx scripts/replay-events.ts --home <dir> --enable`.
 

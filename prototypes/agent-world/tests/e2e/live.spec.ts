@@ -8,7 +8,7 @@ import { E2E_HOME } from "./home";
 // Replays a fixture log through the real bridge (the web server's TAFWID_HOME
 // is E2E_HOME) and checks what the dashboard shows. Fixture times are offsets
 // from "now", so the replayed day is always recent.
-const FIXTURE = parseFixture(readFileSync(fileURLToPath(new URL("./fixtures/events-sample.jsonl", import.meta.url)), "utf8"));
+const FIXTURE = parseFixture(readFileSync(fileURLToPath(new URL("./fixtures/events-sample.replay", import.meta.url)), "utf8"));
 
 // The fixture's three teams: two on Claude Code, one on Codex.
 const QUARRY = "a1b2c3d4e5f60718"; // quarry-sync: a builder and a reviewer under a coordinator

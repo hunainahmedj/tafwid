@@ -281,7 +281,7 @@
 ### Task 10: End-to-end replay test
 
 **Files:**
-- Create: `prototypes/agent-world/tests/e2e/live.spec.ts`, `tests/e2e/fixtures/events-sample.jsonl`, `scripts/replay-events.ts`
+- Create: `prototypes/agent-world/tests/e2e/live.spec.ts`, `tests/e2e/fixtures/events-sample.replay`, `scripts/replay-events.ts`
 - Modify: `playwright.config.ts` (the web server gets `TAFWID_HOME` set to a temporary fixture home)
 
 - [ ] **Step 1: Write the tests:**
