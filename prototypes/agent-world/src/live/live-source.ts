@@ -165,7 +165,7 @@ export function createLiveSource(url = "/api/world/stream", options: LiveSourceO
   const now = options.now ?? (() => Date.now() / 1000);
   const listeners = new Set<(s: Snapshot) => void>();
   const doneSeen = new Set<string>();
-  let message: LiveMessage = options.initial ?? { enabled: false, state: { teams: {}, agents: {}, pendingSpawns: [], ended: {} } };
+  let message: LiveMessage = options.initial ?? { enabled: false, state: { teams: {}, agents: {}, pendingSpawns: [], ended: {}, finishedRuns: {} } };
   let stopped = false;
   let connected = true;
   let delay = RECONNECT_FIRST_MS;

@@ -303,7 +303,7 @@ describe("world bridge endpoints", () => {
     expect(res.headers.get("content-type")).toContain("application/json");
     const body = await res.json();
     expect(body.enabled).toBe(false);
-    expect(body.state).toEqual({ teams: {}, agents: {}, pendingSpawns: [], ended: {} });
+    expect(body.state).toEqual({ teams: {}, agents: {}, pendingSpawns: [], ended: {}, finishedRuns: {} });
   });
 
   it("reports enabled: true and folds events from today's log", async () => {

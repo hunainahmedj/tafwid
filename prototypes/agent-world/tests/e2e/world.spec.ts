@@ -43,6 +43,7 @@ const liveBody = (enabled: boolean) =>
       },
       pendingSpawns: [],
       ended: {},
+      finishedRuns: {},
     },
   });
 

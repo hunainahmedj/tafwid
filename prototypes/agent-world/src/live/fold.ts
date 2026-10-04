@@ -21,6 +21,9 @@ const ATTENTION_LINGER = 120;
 const UNCERTAIN_AFTER = 300;
 const TEAM_SILENT_AFTER = 1800;
 const SPAWN_EXPIRES_AFTER = 60;
+// The bridge re-sends a finished run for 120 s. The tombstone outlasts that,
+// so a removed run cannot blink back into the roster.
+const RUN_TOMBSTONE_AFTER = 180;
 
 const NAMES = [
   "Ada", "Bram", "Cleo", "Dara", "Eli", "Faye", "Gus", "Hana",
@@ -53,7 +56,7 @@ export function accentFor(teamId: string): string {
 }
 
 export function emptyLiveState(): LiveState {
-  return { teams: {}, agents: {}, pendingSpawns: [], ended: {} };
+  return { teams: {}, agents: {}, pendingSpawns: [], ended: {}, finishedRuns: {} };
 }
 
 function hostOf(host: HookEvent["host"]): AgentHost {
@@ -66,6 +69,7 @@ function copy(state: LiveState): LiveState {
     agents: { ...state.agents },
     pendingSpawns: [...state.pendingSpawns],
     ended: { ...state.ended },
+    finishedRuns: { ...state.finishedRuns },
   };
 }
 
@@ -157,6 +161,13 @@ function takeSpawn(
 }
 
 function foldRun(state: LiveState, event: RunEvent): LiveState {
+  // A run that already finished and left is only brought back by new work.
+  const tombstone = state.finishedRuns[event.run];
+  if (tombstone !== undefined) {
+    if (event.status !== "working") return state;
+    const { [event.run]: _cleared, ...finishedRuns } = state.finishedRuns;
+    state = { ...state, finishedRuns };
+  }
   const existing = state.agents[event.run];
   // A done run is final. A run that ended in attention may be revived by a
   // later "working" event.
@@ -323,6 +334,11 @@ export function tick(state: LiveState, now: number): LiveState {
   }
 
   let changed = silent.size > 0;
+  const finishedRuns: Record<string, number> = {};
+  for (const [run, finishedAt] of Object.entries(state.finishedRuns)) {
+    if (now - finishedAt < RUN_TOMBSTONE_AFTER) finishedRuns[run] = finishedAt;
+    else changed = true;
+  }
   const agents: Record<string, LiveAgent> = {};
   for (const agent of Object.values(state.agents)) {
     if (silent.has(agent.teamId)) continue;
@@ -330,6 +346,7 @@ export function tick(state: LiveState, now: number): LiveState {
     if (agent.finishedAt !== undefined) {
       const linger = agent.status === "attention" ? ATTENTION_LINGER : FINISHED_LINGER;
       if (now - agent.finishedAt >= linger) {
+        if (agent.kind === "delegated") finishedRuns[agent.id] = agent.finishedAt;
         changed = true;
         continue;
       }
@@ -366,5 +383,5 @@ export function tick(state: LiveState, now: number): LiveState {
   for (const team of Object.values(state.teams)) {
     if (!silent.has(team.id)) teams[team.id] = team;
   }
-  return { teams, agents, pendingSpawns, ended };
+  return { teams, agents, pendingSpawns, ended, finishedRuns };
 }

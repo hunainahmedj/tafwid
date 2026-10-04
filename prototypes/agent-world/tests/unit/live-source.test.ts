@@ -35,6 +35,7 @@ function state(teams: LiveTeam[], agents: LiveAgent[]): LiveState {
     agents: Object.fromEntries(agents.map((a) => [a.id, a])),
     pendingSpawns: [],
     ended: {},
+    finishedRuns: {},
   };
 }
 

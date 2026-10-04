@@ -113,4 +113,6 @@ export interface LiveState {
   pendingSpawns: PendingSpawn[];
   /** Session id to end time, so trailing hook events cannot resurrect it. */
   ended: Record<string, number>;
+  /** Run id to finish time, kept after a delegated run leaves the roster. */
+  finishedRuns: Record<string, number>;
 }

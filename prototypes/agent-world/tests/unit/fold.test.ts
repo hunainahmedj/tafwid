@@ -564,6 +564,46 @@ describe("fold: delegated run attention", () => {
   });
 });
 
+describe("fold: finished runs stay gone while the bridge re-sends them", () => {
+  it("ignores a done run heartbeat that arrives after the run was removed", () => {
+    let state = fold(emptyLiveState(), run({ t: T0, status: "done" }));
+    state = tick(state, T0 + 21);
+    expect(state.agents[RUN]).toBeUndefined();
+    state = fold(state, run({ t: T0 + 22, status: "done" }));
+    expect(state.agents[RUN]).toBeUndefined();
+    expect(tick(state, T0 + 23).agents[RUN]).toBeUndefined();
+  });
+
+  it("stays gone across the bridge's whole two-minute re-send window", () => {
+    let state = emptyLiveState();
+    const present: number[] = [];
+    for (let s = 0; s <= 125; s += 1) {
+      state = fold(state, run({ t: T0 + s, status: "done" }));
+      state = tick(state, T0 + s);
+      if (state.agents[RUN]) present.push(s);
+    }
+    expect(present).toEqual(Array.from({ length: 20 }, (_, i) => i));
+  });
+
+  it("keeps a removed attention run gone, but lets a working event revive it", () => {
+    let state = fold(emptyLiveState(), run({ t: T0, status: "attention" }));
+    state = tick(state, T0 + 121);
+    expect(state.agents[RUN]).toBeUndefined();
+    state = fold(state, run({ t: T0 + 122, status: "attention" }));
+    expect(state.agents[RUN]).toBeUndefined();
+    state = fold(state, run({ t: T0 + 130, status: "working" }));
+    expect(state.agents[RUN].status).toBe("working");
+  });
+
+  it("prunes run tombstones after three minutes", () => {
+    let state = fold(emptyLiveState(), run({ t: T0, status: "done" }));
+    state = tick(state, T0 + 21);
+    expect(Object.keys(state.finishedRuns)).toEqual([RUN]);
+    expect(Object.keys(tick(state, T0 + 179).finishedRuns)).toEqual([RUN]);
+    expect(tick(state, T0 + 180).finishedRuns).toEqual({});
+  });
+});
+
 describe("fold: spawn expiry follows event time", () => {
   it("does not attach a stale spawn label when no tick ran in between", () => {
     const state = foldAll([
