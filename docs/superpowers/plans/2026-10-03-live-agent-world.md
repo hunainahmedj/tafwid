@@ -313,4 +313,26 @@
   - confirm the characters appear and leave.
 
   Record the results in the plan and `REVIEW.md`.
+
+  **Results (2026-10-04), with the user's consent:**
+
+  - **Claude Code — passed (01:52–01:56).** `claude -p --plugin-dir plugins/tafwid`
+    loaded 0.5.0 for that session only, with `world.py on` in the real home.
+    The hooks logged session, prompt, tool, spawn, subagent-start,
+    subagent-stop, stop and session-end events, with labels and per-agent
+    actions, and wrote no hook errors. The dashboard on the real home showed
+    one team: a coordinator plus a researcher, a reviewer and a documenter,
+    each classified correctly from its agent type and description. The
+    reviewer stood at the review board. Finished sub-agents walked to the
+    coordinator and left (roster 4 → 2), and the team cleared at session end.
+  - **Codex — pending, user to run (01:58–02:03).** 0.5.0 is installed in
+    Codex; its new hooks are pending the user's trust approval. Codex trusts
+    hooks per handler, only the earlier completion handlers were trusted, and
+    `codex exec` silently skips untrusted handlers, so those runs logged
+    nothing. Replaying a Codex payload through the installed hook by hand
+    wrote a correct `host: codex` line. Codex also warned that it runs the
+    async `SessionEnd` hook synchronously with a 3 s timeout (harmless at
+    about 30 ms). The end-to-end Codex run is pending: the user approves the
+    hooks in an interactive `codex` session, then repeats the check.
+  - Screenshots stay in the gitignored SDD workspace.
 - [ ] **Step 3:** `make test`, `npm test`, `npm run e2e`, `npm run build`, `npm run validate`. Expected: all pass. Commit `docs: record the live agent world and activity log (TAF-3)`.

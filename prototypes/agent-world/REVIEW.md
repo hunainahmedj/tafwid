@@ -180,3 +180,27 @@ measured p95 18.7 to 20.9 ms (4,030 draw calls) and the baked scene
 - The beacon material, the blob shadow, and the ring's texture and geometry
   are shared (each ring keeps its own material for its colour and pulse).
 - The Low and Medium tiers use a calmer idle animation.
+
+## Live acceptance (TAF-3)
+
+Run on 2026-10-04 with the user's consent, against the user's real Tafwid
+home with the activity log switched on. Screenshots stay in the gitignored
+SDD workspace.
+
+**Claude Code: passed (01:52–01:56).** `claude -p --plugin-dir plugins/tafwid`
+loaded plugin 0.5.0 for that session only. The hooks logged session, prompt,
+tool, spawn, sub-agent start and stop, stop and session-end events, with
+labels and per-agent actions, and no hook errors. The dashboard showed one
+team: a coordinator plus a researcher, a reviewer and a documenter, each
+classified correctly from its agent type and description. The reviewer
+stood at the review board. Finished sub-agents walked to the coordinator
+and left, taking the roster from 4 to 2, and the team cleared when the
+session ended.
+
+**Codex: pending, user to run.** Plugin 0.5.0 is installed in Codex, and its
+new hooks are pending the user's trust approval. Codex trusts hooks per
+handler, and non-interactive `codex exec` skips untrusted ones without a
+message, so the trial runs logged nothing. Replaying a Codex payload through
+the installed hook by hand wrote a correct `host: codex` line. The
+end-to-end Codex check waits for the user to approve the hooks in an
+interactive `codex` session.

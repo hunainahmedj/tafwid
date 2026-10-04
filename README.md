@@ -43,6 +43,8 @@ codex plugin add tafwid@tafwid
 ```
 
 Start a new Codex task and select a skill from the `$` menu.
+After installing or upgrading, open an interactive `codex` session once and
+approve Tafwid's hooks (`/hooks`); see [local activity log](#local-activity-log).
 
 ### Claude Code
 
@@ -98,9 +100,47 @@ Run artifacts stay in the caller's private output directory. Tafwid does not
 fetch account allowances. Keep private evidence outside Git. Worker prompts are
 sent through the selected CLI; inference is not necessarily local.
 
+## Local activity log
+
+Tafwid can keep a private log of what your agents are doing, so a local
+viewer can show every session and sub-agent. It is off by default and
+nothing is written until you turn it on. It works whether delegation is on
+or off and adds no tokens: background hooks write it and the model never
+sees them. From a clone of this repository:
+
+```sh
+python3 plugins/tafwid/skills/delegate/scripts/world.py on      # start logging
+python3 plugins/tafwid/skills/delegate/scripts/world.py off     # stop logging
+python3 plugins/tafwid/skills/delegate/scripts/world.py status  # show whether it is on
+```
+
+In an installed plugin the same script is in the delegate skill's
+`scripts/` directory, for example
+`~/.codex/plugins/cache/tafwid/tafwid/<version>/skills/delegate/scripts/world.py`
+for Codex. You can also ask the coordinator to run it through the delegate skill.
+
+The log lives in `~/.tafwid/state/world` (`$TAFWID_HOME/state/world`) and
+keeps 7 days. It records the kind of each event, the project folder name and
+a short worker label. It never records prompts, file contents, commands or raw
+ids. See the [activity log module](docs/04-modules/activity-log.md) for the
+exact fields.
+
+**Codex: approve the new hooks after installing or upgrading.** Codex trusts
+hooks one handler at a time, not per file, and asks again whenever
+`hooks.json` changes. After installing or upgrading to 0.5.0, only the earlier
+completion handlers are trusted. Non-interactive `codex exec` silently skips untrusted
+handlers, so nothing is logged and no error is written. Open an interactive
+`codex` session once and approve Tafwid's new hooks (`/hooks`) before you
+expect Codex activity in the log. Claude Code needs no trust step.
+
+Codex runs the `SessionEnd` hook synchronously even though it is declared
+asynchronous, with its timeout cut to 3 seconds, and prints a warning saying
+so. This is harmless: the hook finishes in about 30 ms.
+
 ## Contribute
 
-The [project documentation](docs/README.md) covers the runtime and planned office dashboard.
+The [project documentation](docs/README.md) covers the runtime, the activity log and the
+local dashboard prototype, which is not part of the plugin.
 
 Run `make test` for package checks and offline Python tests. Tests use temporary
 homes and fake workers; they do not make model requests. See

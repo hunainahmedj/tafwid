@@ -52,7 +52,12 @@ docs and, for Codex, the 0.155.1 source and schemas):
 | Main versus sub-agent | `agent_id` absent on the main session | Same |
 | Overhead | `async: true`: no blocking; silent hooks add no context | Same; at most 8 async hooks run at once |
 
-Codex asks the user to re-trust hooks whenever `hooks.json` changes. Codex's
+Codex asks the user to re-trust hooks whenever `hooks.json` changes. Live
+acceptance on 2026-10-04 showed that Codex trusts each handler separately
+(a `trusted_hash` per `<event>:<group>:<handler>` in `config.toml`), that
+non-interactive `codex exec` silently skips untrusted handlers, and that
+Codex runs the async `SessionEnd` hook synchronously with a 3 s timeout.
+Codex's
 app-server event stream is richer but only reachable when Codex runs as a
 daemon; it is a possible later upgrade, not part of this work.
 
@@ -71,8 +76,9 @@ daemon; it is a possible later upgrade, not part of this work.
   even on an installation still using a legacy state home, so the bash test
   and the Python code can never disagree. In the rest of this spec, `<state>`
   means that neutral home.
-  `tafwid world on|off|status` (a new `world.py` command, exposed through
-  the delegate skill's CLI) creates or removes the marker.
+  `python3 plugins/tafwid/skills/delegate/scripts/world.py on|off|status`
+  (listed in the delegate skill's scripts table) creates or removes the
+  marker. There is no separate `tafwid` command.
 - **Event line,** appended to `<state>/world/events-YYYY-MM-DD.jsonl` (file
   mode `0600`, directory `0700`):
 
@@ -152,17 +158,28 @@ daemon; it is a possible later upgrade, not part of this work.
     | --- | --- | --- |
     | Tool or turn activity | `working` | At a seat, animated by action |
     | `waiting` hint | `attention` ("needs your approval") | Red beacon, stays |
-    | Coordinator `idle` | `ready` ("waiting for your next message") | Relaxes at the team's table |
+    | Coordinator `idle` | `ready` ("waiting for your next message") | Stays at its seat with its role's idle habit |
     | Sub-agent `done` | `done` | Walks to its coordinator, leaves after 20 s |
     | Sub-agent `error` / `interrupted` | `attention` | Stays for 2 min, then leaves (the parent's next event follows immediately, so it does not clear the warning) |
     | `working` with no events for 5 min | `uncertain` | Dimmed, "no recent activity" |
     | `SessionEnd` or 30 min silent | removed | The team walks out |
+    | Delegated run active, updated within 15 s | `working` | As above; re-emitted each poll as a heartbeat |
+    | Delegated run completed | `done` | Leaves after 20 s |
+    | Delegated run stale (over 15 s), blocked, needing review, failed, interrupted or timed out | `attention` | Terminal: removed after 120 s, unless a later `working` event revives it |
+
+    Finished run records are projected for 120 s after they end. Agents
+    already `done` when first seen are never rendered.
+  - **Ended sessions:** async hooks can append events after `SessionEnd`.
+    An ended session is kept as a tombstone for 30 min: later events for it
+    are ignored until a new `session` event (a resume or restart) arrives.
 
 - **Live source.** `LiveSource` implements `SnapshotSource` from the
   stream. A **Live / Sample** switch in the HUD (`?source=live|sample`)
-  chooses the source. The default is live when the bridge reports the switch
-  on, otherwise sample with the notice "Live activity is off. Run
-  `tafwid world on`."
+  chooses the source; as built, only `?source=sample` is read, and it keeps
+  the page on sample. The page opens on sample and switches to live when the
+  bridge reports the switch on; otherwise it stays on sample with the notice
+  "Live activity is off. Run
+  `python3 plugins/tafwid/skills/delegate/scripts/world.py on`."
 
 ## Section 3 — World behaviour
 
@@ -181,7 +198,7 @@ daemon; it is a possible later upgrade, not part of this work.
   - benches for two or three;
   - standing spots by the review board.
 
-  It totals about 40 seats. Both packages are rebuilt.
+  It totals about 40 seats (51 as built). Both packages are rebuilt.
 - **Allocation.** A deterministic, sticky allocator (`src/live/seating.ts`):
   - A coordinator takes the free group with the most free seats and holds it
     for its team.
@@ -193,6 +210,10 @@ daemon; it is a possible later upgrade, not part of this work.
     - researchers: `bench`, `lounge` or `bar`;
     - reviewers: `standing` near the review board.
   - An agent keeps its seat until it leaves.
+  - When seats run out, agents stand on rings (1.0 m apart) around the
+    lounge, then around the entrances. Standing points keep at least 0.85 m
+    from every seat and from each other, because a character's head is
+    0.76 m wide.
 - **Roles** (classifier in `src/live/roles.ts`, over a lower-cased type plus
   label; a keyword must start at a word boundary and may be a prefix of the
   word, checked in table order, top row first):
@@ -200,11 +221,14 @@ daemon; it is a possible later upgrade, not part of this work.
   | Role | Matches | Look | Idle personality |
   | --- | --- | --- | --- |
   | coordinator | session main agent; "orchestrat", "coordinat", "plan" | Waistcoat, clipboard | Looks around, points at the board |
-  | implementer | "implement", "build", "fix", "worker", "general-purpose" | Hoodie, laptop | Stretches |
   | reviewer | "review", "audit", "critique", "verify" | Glasses, cardigan | Crossed arms, slow nods |
-  | documenter | "doc", "readme", "write-up", "changelog", "spec" | Beret, notebook | Taps pen |
-  | researcher | "explore", "research", "investigate", "search", "explorer" | Scarf, book | Flips pages |
+  | documenter | "doc", "docs", "document…", "readme", "write-up", "changelog", "spec", "specs", "specification…" | Beret, notebook | Taps pen |
   | tester | "test", "qa", "e2e" | Cap, terminal tablet | Taps foot |
+  | researcher | "explore", "research", "investigate", "search", "explorer" | Scarf, book | Flips pages |
+  | implementer | "implement", "build", "fix", "worker", "general-purpose" | Hoodie, laptop | Stretches |
+
+  "doc" and "spec" match only the word forms shown, so "docker" and
+  "specific" are not documenters.
 
   Unmatched agents are `implementer`. Each agent also gets a deterministic
   name from its hash. Its team's accent colour shows on its status ring.
@@ -236,7 +260,9 @@ daemon; it is a possible later upgrade, not part of this work.
     elapsed time.
 - **Cap.** At most 32 characters are rendered, preferring `attention`, then
   `working`, then newest. The rest appear in the HUD as "+N more in
-  <project>".
+  <project>". The cap applies to the live source only; the generated
+  `?scenario=crowd` sample may render 40–60 characters to exercise standing
+  overflow.
 - **Sample mode** gains teams (two sessions with sub-agents) so the demo
   matches live behaviour.
 

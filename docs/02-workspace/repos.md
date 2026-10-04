@@ -13,7 +13,7 @@ Adjacent personal projects are outside this documentation scope.
 | `docs/` | Archivist documentation and existing user guides |
 | `docs/superpowers/` | Working specs and implementation plans, preserved in place |
 | `prototypes/agent-office/` ([TAF-2](../01-project/backlog.md)) | First sample-data dashboard; historical design reference, outside the distributable plugin |
-| `prototypes/agent-world/` ([TAF-7](../01-project/backlog.md)) | Open 3D agent world with explore and dashboard modes, its Blender build scripts and the café packages; outside the distributable plugin |
+| `prototypes/agent-world/` ([TAF-7](../01-project/backlog.md), [TAF-3](../01-project/backlog.md)) | Open 3D agent world with explore and dashboard modes, live and sample sources, its read-only local bridge, Blender build scripts and the café packages; outside the distributable plugin |
 
 ## Documentation migration
 

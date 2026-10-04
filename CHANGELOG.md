@@ -2,7 +2,8 @@
 
 ## 0.5.0
 
-- Add an opt-in local activity log. `python3 scripts/world.py on|off|status` switches it;
+- Add an opt-in local activity log.
+  `python3 plugins/tafwid/skills/delegate/scripts/world.py on|off|status` switches it;
   it is off by default and nothing is written until you turn it on. When on, hooks append
   one short event per session start, prompt, tool call, permission request, subagent
   start or stop, stop, session end and notification to `~/.tafwid/state/world`
@@ -13,9 +14,12 @@
 - Register async observer hooks for Claude Code and Codex. They exit at once when the log
   is off and never print or block, so they cannot disturb a session. Existing completion
   hooks are unchanged.
-- After updating, Codex asks to trust Tafwid's hooks once more, because Codex re-prompts
-  whenever `hooks.json` changes (`/hooks` in the CLI). Until you trust them, the
-  `wait.py` fallback applies. Claude Code needs no trust step.
+- After installing or updating, approve Tafwid's new hooks once in an interactive `codex`
+  session (`/hooks` in the CLI). Codex trusts hooks per handler, so the existing
+  completion hooks stay trusted, but non-interactive `codex exec` silently skips the new
+  observer hooks until you approve them, and nothing is logged. Codex runs the
+  `SessionEnd` observer synchronously with a 3 s timeout and warns about it; the hook
+  takes about 30 ms. Claude Code needs no trust step.
 - Measured on an M5 Max, 150 runs of the registered hook command with a Claude PreToolUse
   payload: median 4.7 ms with the log off and 29.8 ms with it on. The hooks run
   asynchronously, so neither adds wait time to a turn. They start Python with `-S`

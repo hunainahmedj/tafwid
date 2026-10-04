@@ -10,8 +10,9 @@ Ordinary tests use temporary homes and fake worker executables.
 
 The [agent world](../../prototypes/agent-world/README.md)
 ([TAF-7](../01-project/backlog.md)) is the current dashboard prototype. It
-is a browser application served on localhost with synthetic examples, and
-its README owns run commands. The dev server may also be exposed inside
+is a browser application served on localhost. It shows sample data or, when
+the [activity log](../04-modules/activity-log.md) is on, live activity
+([TAF-3](../01-project/backlog.md)); its README owns run commands. The dev server may also be exposed inside
 the user's tailnet with Tailscale Serve; nothing is deployed publicly, and
 there is no production or staging target. The first prototype,
 [agent office](../../prototypes/agent-office/README.md)
