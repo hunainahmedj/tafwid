@@ -491,11 +491,13 @@ class WorldHookTests(unittest.TestCase):
     def test_hooks_json_registers_async_guarded_observers(self):
         document = json.loads((SCRIPTS.parents[2] / "hooks" / "hooks.json").read_text())
         hooks = document["hooks"]
-        self.assertTrue(document["description"].startswith("Tafwid"))
+        self.assertEqual(document["description"],
+                         "Tafwid hooks: the completion wait for delegated workers, and the opt-in local "
+                         "activity log (off until you run world.py on).")
         # Codex titles every hook "Hook N" in its review, and its detail view shows the
         # command, so each command opens with a plain-language label.
         command = ("bash -c ': \"Tafwid activity log: notes which agents are working and on what, "
-                   "for the local Tafwid dashboard. Does nothing unless you switch it on.\"; "
+                   "in a private log on this machine. Does nothing unless you switch it on.\"; "
                    "[ -f \"${TAFWID_HOME:-$HOME/.tafwid}/state/world/enabled\" ] || exit 0; "
                    "exec python3 -S \"${CLAUDE_PLUGIN_ROOT:-${PLUGIN_ROOT}}/skills/delegate/scripts/world_hook.py\"'")
         events = ("SessionStart", "UserPromptSubmit", "PreToolUse", "PostToolUse", "PermissionRequest",

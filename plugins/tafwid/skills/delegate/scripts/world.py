@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Opt-in local activity log for the Tafwid dashboard.
+"""Opt-in local activity log for Tafwid.
 
 CLI: on | off | status. Output is JSON; argument errors exit 2.
 The log lives only in the host-neutral home, $TAFWID_HOME/state/world
