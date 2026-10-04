@@ -150,19 +150,24 @@ def check():
         assert (skill / name).is_file(), f"Missing {name}"
     hooks = json.loads((plugin / "hooks/hooks.json").read_text())["hooks"]
     assert hooks["Stop"] and hooks["UserPromptSubmit"], "Missing completion hooks"
-    prefix = ("bash -c 'exec python3 \"${CLAUDE_PLUGIN_ROOT:-${PLUGIN_ROOT}}"
-              "/skills/delegate/scripts/completion_hook.py\" ")
+    # Codex titles every hook "Hook N" and shows its command, so each command opens with a
+    # plain-language label: a no-op `:` with quoted text that cannot expand or break quoting.
+    label = re.compile(r"""bash -c ': "(Tafwid[^"'$`\\]{1,154})"; """)
+    prefix = "exec python3 \"${CLAUDE_PLUGIN_ROOT:-${PLUGIN_ROOT}}/skills/delegate/scripts/completion_hook.py\" "
     # The opt-in activity observer is the only other accepted command; it must be async.
-    observer = ("bash -c '[ -f \"${TAFWID_HOME:-$HOME/.tafwid}/state/world/enabled\" ] || exit 0; "
+    observer = ("[ -f \"${TAFWID_HOME:-$HOME/.tafwid}/state/world/enabled\" ] || exit 0; "
                 "exec python3 -S \"${CLAUDE_PLUGIN_ROOT:-${PLUGIN_ROOT}}"
                 "/skills/delegate/scripts/world_hook.py\"'")
     for event, groups in hooks.items():
         for group in groups:
             for hook in group["hooks"]:
-                if hook["command"] == observer:
+                labelled = label.match(hook["command"])
+                assert labelled, f"Hook has no plain-language label: {event}"
+                body = hook["command"][labelled.end():]
+                if body == observer:
                     assert hook.get("async") is True, f"Observer hook must be async: {event}"
                     continue
-                assert hook["command"].startswith(prefix), f"Hook is not host-neutral: {event}"
+                assert body.startswith(prefix), f"Hook is not host-neutral: {event}"
 
     # Scan source files for invalid assets and recognizable private data.
     excluded = {".git", ".remember", "__pycache__", "dist", ".venv", "node_modules"}

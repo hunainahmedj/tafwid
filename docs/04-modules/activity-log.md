@@ -59,13 +59,21 @@ form, next to the completion-hook commands.
 Claude Code runs plugin hooks without a trust step. Codex trusts hooks per
 handler: `config.toml` keeps a `trusted_hash` under
 `[hooks.state."tafwid@tafwid:hooks/hooks.json:<event>:<group>:<handler>"]`
-for each one, and changing `hooks.json` asks for trust again. After an
-install of, or upgrade to, 0.5.0, only the earlier completion handlers are
-trusted. Non-interactive `codex exec` silently skips untrusted handlers, so
-Codex sessions write no events and no error line. The user must approve the
-new handlers once in an interactive `codex` session; the
+for each one, and changing a handler asks for trust again. Every Tafwid
+handler changed in 0.5.0, so none is trusted after an install or upgrade.
+Non-interactive `codex exec` silently skips untrusted handlers, so Codex
+sessions write no events and no error line. The user must approve the
+handlers once in an interactive `codex` session; the
 [README](../../README.md#local-activity-log) states this as the required
 step. Tafwid never edits the trust settings itself.
+
+Codex's review titles every handler "Hook N" and has no name field
+(`hook_title` in `codex-rs/tui/src/bottom_pane/hooks_browser_view.rs`); its
+detail view shows the event, matcher and command. So each command in
+`plugins/tafwid/hooks/hooks.json` opens with a no-op `: "Tafwid …"` label
+that says what the hook does, and `scripts/check_package.py` rejects a hook
+without one. The file's top-level `description` says the same for any host
+that shows it.
 
 Codex runs the `SessionEnd` observer synchronously despite `async: true`,
 with its timeout clamped to 3 s, and prints a warning. The hook takes about

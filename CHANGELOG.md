@@ -12,12 +12,14 @@
   role) and hashed session and agent ids. Prompts, file paths, commands, tool input and
   output, and raw ids are never recorded.
 - Register async observer hooks for Claude Code and Codex. They exit at once when the log
-  is off and never print or block, so they cannot disturb a session. Existing completion
-  hooks are unchanged.
-- After installing or updating, approve Tafwid's new hooks once in an interactive `codex`
-  session (`/hooks` in the CLI). Codex trusts hooks per handler, so the existing
-  completion hooks stay trusted, but non-interactive `codex exec` silently skips the new
-  observer hooks until you approve them, and nothing is logged. Codex runs the
+  is off and never print or block, so they cannot disturb a session.
+- Every hook command now opens with a plain-language label (for example "Tafwid: before
+  ending the turn, wait for a delegated worker to finish."), because Codex titles hooks
+  "Hook 1", "Hook 2" and shows only the command. `hooks.json` also gains a description.
+- After installing or updating, approve Tafwid's hooks once in an interactive `codex`
+  session (the hook review in the Codex app, or `/hooks` in the CLI). Codex trusts hooks
+  per handler and every Tafwid handler changed, so non-interactive `codex exec` silently
+  skips them until you approve them, and nothing is logged. Codex runs the
   `SessionEnd` observer synchronously with a 3 s timeout and warns about it; the hook
   takes about 30 ms. Claude Code needs no trust step.
 - Measured on an M5 Max, 150 runs of the registered hook command with a Claude PreToolUse

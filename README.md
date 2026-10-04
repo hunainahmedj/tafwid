@@ -126,12 +126,16 @@ ids. See the [activity log module](docs/04-modules/activity-log.md) for the
 exact fields.
 
 **Codex: approve the new hooks after installing or upgrading.** Codex trusts
-hooks one handler at a time, not per file, and asks again whenever
-`hooks.json` changes. After installing or upgrading to 0.5.0, only the earlier
-completion handlers are trusted. Non-interactive `codex exec` silently skips untrusted
+hooks one handler at a time, not per file, and asks again whenever a hook
+changes. Every Tafwid hook changed in 0.5.0, so none of them is trusted after
+installing or upgrading. Non-interactive `codex exec` silently skips untrusted
 handlers, so nothing is logged and no error is written. Open an interactive
-`codex` session once and approve Tafwid's new hooks (`/hooks`) before you
-expect Codex activity in the log. Claude Code needs no trust step.
+`codex` session once and approve Tafwid's hooks: in the Codex app, open the
+hook review from the chat; in the CLI, use `/hooks`. Codex titles every hook
+"Hook 1", "Hook 2" and so on; expand one to see its command, which starts
+with a plain sentence such as "Tafwid activity log: notes which agents are
+working…" or "Tafwid: before ending the turn, wait for a delegated worker to
+finish." Claude Code needs no trust step.
 
 Codex runs the `SessionEnd` hook synchronously even though it is declared
 asynchronous, with its timeout cut to 3 seconds, and prints a warning saying
